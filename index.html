@@ -930,6 +930,29 @@
       100% { opacity: 1; transform: translateY(0) scale(1); }
     }
   </style>
+  <style>
+    /* Ô ATC Route cho phép bấm vào sửa tay trực tiếp */
+    .atc-edit-cell {
+      min-width: 90px;
+      min-height: 1.2em;
+      padding: 2px 4px;
+      border-radius: 4px;
+      cursor: text;
+      outline: none;
+    }
+    .atc-edit-cell:hover {
+      background: rgba(0,0,0,0.04);
+    }
+    .atc-edit-cell:focus {
+      background: #fff;
+      box-shadow: 0 0 0 2px var(--accent, #2563eb);
+    }
+    .atc-edit-cell:empty:before {
+      content: attr(data-placeholder);
+      color: var(--muted);
+      font-style: italic;
+    }
+  </style>
 </head>
 <body class="logged-out">
   <div id="loginScreen">
@@ -3937,18 +3960,13 @@ function exportExcel() {
           btn.disabled = false;
           return;
         }
-        // Chỉ lấy ATC cho chuyến: (1) chưa có ATC Route VÀ (2) ĐÃ có OFP Route.
-        // ATC dùng Selenium điều khiển UI AviWeb (~3-5s/chuyến, tuần tự,
-        // không song song được) nên đây là bước tốn thời gian nhất — bỏ qua
-        // chuyến chưa có OFP giúp giảm đáng kể số chuyến phải xử lý, vì so
-        // khớp Route chỉ có ý nghĩa khi đã có OFP Route để so sánh.
-        const need = crFlights.filter(f => !f.atcRoute && f.ofpRoute);
-        const skippedNoOfp = crFlights.filter(f => !f.atcRoute && !f.ofpRoute).length;
+        // Lấy ATC cho MỌI chuyến chưa có ATC Route — không còn bắt buộc phải
+        // có OFP Route trước, vì giờ nhiều chuyến ATC được nhập/khớp thủ công
+        // (paste hoặc gõ tay), không phụ thuộc vào việc đã lấy OFP hay chưa.
+        const need = crFlights.filter(f => !f.atcRoute);
         if (!need.length) {
-          info.textContent = skippedNoOfp
-            ? '○ ' + skippedNoOfp + ' chuyến chưa có OFP Route — bỏ qua lấy ATC. Hãy bấm "Lấy OFP" trước.'
-            : '✓ Tất cả chuyến đã có ATC Route';
-          showToast(skippedNoOfp ? 'Chưa có OFP — chưa lấy ATC' : 'Đã có đủ ATC Route', 'info');
+          info.textContent = '✓ Tất cả chuyến đã có ATC Route';
+          showToast('Đã có đủ ATC Route', 'info');
           btn.disabled = false;
           return;
         }
@@ -3993,8 +4011,7 @@ function exportExcel() {
             }
           }
         }
-        info.textContent = '✓ ATC tự động: +' + ok + ' route · ' + fail + ' lỗi/thiếu' +
-          (skippedNoOfp ? ' · ' + skippedNoOfp + ' bỏ qua (chưa có OFP)' : '');
+        info.textContent = '✓ ATC tự động: +' + ok + ' route · ' + fail + ' lỗi/thiếu';
         showToast(ok ? ('ATC: +' + ok + ' route') : 'Không lấy được ATC — xem bridge log', ok ? 'success' : 'info');
         renderCrTable();
       } catch (e) {
@@ -4608,7 +4625,7 @@ function exportExcel() {
           atcCell = ha;
           ofpCell = f.ofpRoute ? hb : null;
         } else {
-          atcCell = '<i style="color:var(--muted);">(chưa có ATC)</i>';
+          atcCell = '';
           ofpCell = null;
         }
         if (!f.ofpRoute) {
@@ -4631,7 +4648,7 @@ function exportExcel() {
         tr.innerHTML = `
           <td>${escapeHtml(f.flt)}</td>
           <td>${formatDate(f.date)}</td>
-          <td style="font-family:monospace; font-size:0.85rem;">${atcCell}</td>
+          <td style="font-family:monospace; font-size:0.85rem;"><div class="atc-edit-cell" contenteditable="true" spellcheck="false" data-key="${escapeHtml(f.key)}" data-placeholder="(chưa có ATC — bấm để nhập)" title="Bấm vào để sửa/nhập ATC Route thủ công">${atcCell}</div></td>
           <td style="font-family:monospace; font-size:0.85rem;">${ofpCell}</td>
           <td>${statusHtml}</td>
         `;
@@ -4640,6 +4657,29 @@ function exportExcel() {
     }
 
     document.getElementById('crSearchInput')?.addEventListener('input', () => renderCrTable());
+
+    // Cho phép sửa tay ô ATC Route trực tiếp trong bảng.
+    // 'focusout' (thay vì 'blur') vì blur không nổi bọt (bubble) nên
+    // không delegate được lên phần tử cha #crResultBody.
+    document.getElementById('crResultBody')?.addEventListener('focusout', (e) => {
+      const cell = e.target.closest('.atc-edit-cell');
+      if (!cell) return;
+      const key = cell.dataset.key;
+      const f = crFlights.find(x => x.key === key);
+      if (!f) return;
+      const text = (cell.textContent || '').replace(/\s+/g, ' ').trim().toUpperCase();
+      if (text !== (f.atcRoute || '')) {
+        f.atcRoute = text || null;
+        if (!f.atcRoute) f.atcRaw = null;
+        else f.atcRaw = f.atcRaw || ('(nhập tay) ' + text);
+        renderCrTable();
+      }
+    });
+    document.getElementById('crResultBody')?.addEventListener('keydown', (e) => {
+      const cell = e.target.closest('.atc-edit-cell');
+      if (!cell) return;
+      if (e.key === 'Enter') { e.preventDefault(); cell.blur(); }
+    });
 
     document.querySelectorAll('.nav-item').forEach(btn => {
       btn.addEventListener('click', () => {
