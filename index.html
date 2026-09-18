@@ -5196,6 +5196,176 @@ function exportExcel() {
     }
   }
 
+
+  // ===== Đẩy file lên GitHub (cần Personal Access Token) =====
+  const GH_OWNER = 'dispatchpqc';
+  const GH_REPO = 'crewlist-dsp-asst';
+  const GH_TOKEN_KEY = 'sunpq_gh_token';
+
+  function getGithubToken(){
+    try { return localStorage.getItem(GH_TOKEN_KEY) || ''; } catch(e){ return ''; }
+  }
+  function setGithubToken(tok){
+    try {
+      if(tok) localStorage.setItem(GH_TOKEN_KEY, tok);
+      else localStorage.removeItem(GH_TOKEN_KEY);
+    } catch(e){}
+  }
+  function askGithubToken(){
+    const cur = getGithubToken();
+    const msg = 'Dán GitHub Personal Access Token (quyền Contents: Read and write).\n\n'
+      + 'Tạo tại: GitHub → Settings → Developer settings → Personal access tokens\n'
+      + '(classic: scope "repo" | fine-grained: Contents Read/Write cho repo này)\n\n'
+      + 'Token chỉ lưu trên máy này (localStorage), không gửi đi đâu khác.';
+    const tok = window.prompt(msg, cur || '');
+    if(tok === null) return null;
+    const t = (tok || '').trim();
+    if(!t){ setGithubToken(''); return ''; }
+    setGithubToken(t);
+    return t;
+  }
+
+  async function githubApi(path, opts){
+    const token = getGithubToken();
+    if(!token) throw new Error('Chưa có GitHub token');
+    const res = await fetch('https://api.github.com' + path, {
+      ...opts,
+      headers: {
+        'Accept': 'application/vnd.github+json',
+        'Authorization': 'Bearer ' + token,
+        'X-GitHub-Api-Version': '2022-11-28',
+        ...(opts && opts.headers || {})
+      }
+    });
+    const text = await res.text();
+    let body = null;
+    try { body = text ? JSON.parse(text) : null; } catch(e){ body = { raw: text }; }
+    if(!res.ok){
+      const msg = (body && (body.message || body.error)) || ('HTTP ' + res.status);
+      throw new Error(msg);
+    }
+    return body;
+  }
+
+  function buildRosterPayloadFromEMP(){
+    return {
+      app: 'sunpq-roster',
+      version: 1,
+      year: currentYear,
+      month: currentMonth,
+      exportedAt: new Date().toISOString(),
+      employees: EMP.map(e=>({
+        id:e.id, name:e.name, dept:e.dept, shifts:e.shifts.slice(), key:e.key,
+        total:e.total, counts:e.counts
+      }))
+    };
+  }
+
+  async function pushRosterJsonToGithub(payload){
+    if(!payload || !Array.isArray(payload.employees)) throw new Error('Payload JSON không hợp lệ');
+    const y = payload.year || currentYear;
+    const m = payload.month || currentMonth;
+    const path = 'data/roster-' + y + '-' + String(m).padStart(2,'0') + '.json';
+    const apiPath = '/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + path;
+
+    let sha = null;
+    try {
+      const existing = await githubApi(apiPath);
+      if(existing && existing.sha) sha = existing.sha;
+    } catch(e){
+      // 404 = file chưa có → tạo mới
+      if(!/Not Found|404/i.test(String(e.message||e))) throw e;
+    }
+
+    const contentStr = JSON.stringify(payload, null, 2);
+    // base64 utf-8
+    const bytes = new TextEncoder().encode(contentStr);
+    let binary = '';
+    bytes.forEach(b => { binary += String.fromCharCode(b); });
+    const contentB64 = btoa(binary);
+
+    const body = {
+      message: 'Update roster ' + y + '-' + String(m).padStart(2,'0') + ' from web',
+      content: contentB64,
+      branch: 'main'
+    };
+    if(sha) body.sha = sha;
+
+    setSyncStatus('Đang đẩy lên GitHub…');
+    const result = await githubApi(apiPath, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    setSyncStatus('✓ Đã đẩy ' + path + ' · ' + new Date().toLocaleTimeString('vi-VN'), true);
+    return result;
+  }
+
+  async function pushCurrentToGithub(){
+    let token = getGithubToken();
+    if(!token){
+      token = askGithubToken();
+      if(!token) return;
+    }
+    try {
+      saveRoster();
+      const payload = buildRosterPayloadFromEMP();
+      await pushRosterJsonToGithub(payload);
+      if(typeof showToast==='function') showToast('Đã đẩy lịch lên GitHub (data/roster-…json)', 'success');
+    } catch(err){
+      console.warn(err);
+      // token hết hạn / sai
+      if(/Bad credentials|401|403|Resource not accessible/i.test(String(err.message||err))){
+        setGithubToken('');
+        setSyncStatus('Token lỗi — nhập lại', false);
+        if(typeof showToast==='function') showToast('Token GitHub không hợp lệ. Bấm lại và dán token mới.', 'info');
+      } else {
+        setSyncStatus('Lỗi đẩy: ' + (err.message||err), false);
+        if(typeof showToast==='function') showToast(String(err.message||err).slice(0,120), 'info');
+      }
+    }
+  }
+
+  async function pushPickedJsonFile(file){
+    let token = getGithubToken();
+    if(!token){
+      token = askGithubToken();
+      if(!token) return;
+    }
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      if(!payload.employees) throw new Error('File JSON thiếu employees');
+      await pushRosterJsonToGithub(payload);
+      // apply to UI too
+      if(payload.year) currentYear = +payload.year;
+      if(payload.month) currentMonth = +payload.month;
+      EMP = payload.employees.map((e,i)=>({
+        id:e.id||'', name:e.name||'', dept:e.dept||'DM',
+        shifts:(e.shifts||[]).slice(0,31).concat(Array(31).fill('')).slice(0,31),
+        key: typeof e.key==='number'?e.key:i,
+        counts:{HC:0,M:0,E:0,C9:0,NL:0,P:0}, total:0, note:''
+      }));
+      EMP.forEach(e=>{
+        e.counts = countShifts(e.shifts);
+        e.total = calcTotal(e.shifts);
+        e.note = (e.total < 208 && e.dept !== 'OBS') ? ('thiếu '+(208-e.total)+'h') : '';
+      });
+      const monthEl = document.getElementById('rMonth');
+      const yearEl = document.getElementById('rYear');
+      if(monthEl) monthEl.value = String(currentMonth);
+      if(yearEl) yearEl.value = String(currentYear);
+      saveRoster();
+      renderAll();
+      if(typeof showToast==='function') showToast('Đã upload JSON lên GitHub và cập nhật bảng', 'success');
+    } catch(err){
+      console.warn(err);
+      if(/Bad credentials|401|403/i.test(String(err.message||err))) setGithubToken('');
+      setSyncStatus('Lỗi: ' + (err.message||err), false);
+      alert('Lỗi đẩy JSON: ' + (err.message||err));
+    }
+  }
+
   // Inject full schedule UI HTML+CSS into #rosterRoot
   function mountUI(){
     const root = document.getElementById('rosterRoot');
@@ -5405,8 +5575,11 @@ function exportExcel() {
   <button type="button" class="btn-upload" id="rExportJson" style="border-color:#3E8E8A;background:#E7F3F2;color:#2A6B68;">⬇ Xuất JSON</button>
   <button type="button" class="btn-upload" id="rExportXlsx" style="border-color:#3E6FA8;background:#E8EFF7;color:#245A9C;">⬇ Xuất Excel</button>
   <button type="button" class="btn-upload" id="rImportJson" style="border-color:#9C5E86;background:#F5EAF1;color:#7A3D68;">⬆ Nhập JSON</button>
-  <button type="button" class="btn-upload" id="rSyncGithub" style="border-color:#24292F;background:#F6F8FA;color:#24292F;">⟳ Đồng bộ GitHub</button>
-  <span id="rSyncStatus" style="font-size:11px;font-weight:600;color:#6B5B4C;max-width:220px;"></span>
+  <button type="button" class="btn-upload" id="rSyncGithub" style="border-color:#24292F;background:#F6F8FA;color:#24292F;">⟳ Tải từ GitHub</button>
+  <button type="button" class="btn-upload" id="rPushGithub" style="border-color:#1F883D;background:#DAFBE1;color:#1A7F37;">⬆ Đẩy lên GitHub</button>
+  <button type="button" class="btn-upload" id="rPickJsonPush" style="border-color:#1F883D;background:#EFF6FF;color:#1D4ED8;">📁 Chọn JSON → GitHub</button>
+  <input type="file" id="rJsonPushInput" accept=".json,application/json" style="display:none">
+  <span id="rSyncStatus" style="font-size:11px;font-weight:600;color:#6B5B4C;max-width:280px;"></span>
   <input type="file" id="rExcelInput" accept=".xlsx,.xls" style="display:none">
   <input type="file" id="rJsonInput" accept=".json,application/json" style="display:none">
   <div class="viewtoggle">
@@ -5419,7 +5592,7 @@ function exportExcel() {
     <span>ℹ️</span>
     <div>
       <strong>Giờ công:</strong> HC = 9h (08:30–17:30) · M = 12h (07:30–19:30) · E = 12h (19:30–07:30) · C9 = 12h (09:00–21:00) · NL/P = 0h.
-      Cột tổng giờ đổi ngay khi sửa ca. Đồng bộ máy khác qua <b>GitHub</b>: sửa ca → <b>Xuất JSON</b> → commit file vào repo thư mục <code>data/roster-YYYY-MM.json</code> → máy kia bấm <b>⟳ Đồng bộ GitHub</b> (hoặc mở lại trang).
+      Cột tổng giờ đổi ngay khi sửa ca. Đồng bộ GitHub: sửa ca → <b>⬆ Đẩy lên GitHub</b> (cần token 1 lần) → máy khác bấm <b>⟳ Tải từ GitHub</b>. Hoặc <b>📁 Chọn JSON → GitHub</b> để upload file có sẵn.
       Ngày <b>18/09</b> (hôm nay) được đánh dấu ★ / viền vàng.
     </div>
   </div>
@@ -5518,6 +5691,14 @@ function exportExcel() {
       ev.target.value='';
     });
     document.getElementById('rSyncGithub')?.addEventListener('click', ()=> syncFromGithub({silent:false}));
+    document.getElementById('rPushGithub')?.addEventListener('click', ()=> pushCurrentToGithub());
+    document.getElementById('rPickJsonPush')?.addEventListener('click', ()=> document.getElementById('rJsonPushInput').click());
+    document.getElementById('rJsonPushInput')?.addEventListener('change', async (ev)=>{
+      const f = ev.target.files && ev.target.files[0];
+      if(!f) return;
+      await pushPickedJsonFile(f);
+      ev.target.value = '';
+    });
 
     // pop
     const pop = document.getElementById('rPop');
