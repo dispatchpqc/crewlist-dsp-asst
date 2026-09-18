@@ -929,6 +929,32 @@
       55%  { opacity: 0; transform: translateY(-6px) scale(0.985); }
       100% { opacity: 1; transform: translateY(0) scale(1); }
     }
+  
+    
+    .roster-banner { display:flex; gap:10px; align-items:flex-start; background:var(--gold-soft); border:1px solid rgba(245,166,35,0.4); border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:0.82rem; color:var(--text); line-height:1.45; }
+    .roster-shift-pop { position:absolute; z-index:20; background:var(--card); border:1px solid var(--border); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.18); padding:6px; min-width:140px; display:none; }
+    .roster-shift-pop.show { display:block; }
+    .roster-shift-pop button { display:block; width:100%; text-align:left; border:none; background:transparent; padding:8px 10px; border-radius:6px; cursor:pointer; font-size:0.82rem; font-weight:600; color:var(--text); }
+    .roster-shift-pop button:hover { background:var(--red-soft); color:var(--red); }
+    .roster-shift-info { font-size:0.78rem; color:var(--muted); margin-top:4px; line-height:1.4; }
+
+  
+    /* Roster full-bleed inside app shell */
+    .content:has(#page-roster.active) {
+      padding: 0 !important;
+    }
+    #page-roster {
+      padding: 0 !important;
+      margin: 0 !important;
+      width: 100%;
+      max-width: 100%;
+    }
+    #rosterRoot {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
   </style>
   <style>
     /* Ô ATC Route cho phép bấm vào sửa tay trực tiếp */
@@ -996,6 +1022,10 @@
       <button class="nav-item guest-hidden" data-page="pib">
         <span class="icon">🌤</span>
         <span>Check PIB &amp; MET</span>
+      </button>
+      <button class="nav-item guest-hidden" data-page="roster">
+        <span class="icon">📅</span>
+        <span>Lịch trực</span>
       </button>
     </nav>
 
@@ -1246,6 +1276,11 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
           </div>
         </div>
       </div>
+
+      <!-- PAGE: Lịch trực -->
+      <div class="page" id="page-roster">
+        <div id="rosterRoot"></div>
+      </div>
     </div>
   </div>
 
@@ -1262,7 +1297,7 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
         admin: {
           password: 'admin',
           role: 'admin',
-          permissions: ['filter', 'print', 'ofp', 'pib']
+          permissions: ['filter', 'print', 'ofp', 'pib', 'roster']
         },
         guest: {
           password: 'guest',
@@ -1450,7 +1485,8 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       filter: '<span>Lọc chuyến bay</span> · PQC Duty Sequences',
       print: '<span>Check Route</span>',
       ofp: '<span>In OFP &amp; GD</span>',
-      pib: '<span>Check PIB &amp; MET</span>'
+      pib: '<span>Check PIB &amp; MET</span>',
+      roster: '<span>Lịch trực</span>'
     };
     document.querySelectorAll('.nav-item').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1473,6 +1509,11 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
         const exportBar = document.getElementById('exportBar');
         if (exportBar) {
           exportBar.style.display = (page === 'filter' && lastResults.length) ? 'flex' : 'none';
+        }
+        // Roster: full-bleed content
+        const contentEl = document.querySelector('.content');
+        if (contentEl) {
+          contentEl.style.padding = (page === 'roster') ? '0' : '';
         }
       });
     });
@@ -4784,6 +4825,7 @@ function exportExcel() {
     });
     refreshCrUseLoadedBtn();
   </script>
+
   <div id="toastContainer"></div>
 
   <!-- Modal: xem trước + Tải / In / Hủy -->
@@ -4802,5 +4844,826 @@ function exportExcel() {
       </div>
     </div>
   </div>
+
+
+<script>
+/* ========== LỊCH TRỰC — UI giống schedule.html + data Excel ========== */
+(function(){
+  const SHIFT_HOURS = { HC:9, M:12, E:12, C9:12, NL:0, P:0, '':0 };
+  const DAYS = [
+    [26,'T4',8],[27,'T5',8],[28,'T6',8],[29,'T7',8],[30,'CN',8],[31,'T2',8],
+    [1,'T3',9],[2,'T4',9],[3,'T5',9],[4,'T6',9],[5,'T7',9],[6,'CN',9],[7,'T2',9],
+    [8,'T3',9],[9,'T4',9],[10,'T5',9],[11,'T6',9],[12,'T7',9],[13,'CN',9],[14,'T2',9],
+    [15,'T3',9],[16,'T4',9],[17,'T5',9],[18,'T6',9],[19,'T7',9],[20,'CN',9],[21,'T2',9],
+    [22,'T3',9],[23,'T4',9],[24,'T5',9],[25,'T6',9]
+  ];
+  const SUN_IDX = [4,11,18,25];
+  const HOL_IDX = [6,7]; // 1-2/9
+
+  function todayIdx(){
+    const now = new Date();
+    const y=now.getFullYear(), m=now.getMonth()+1, d=now.getDate();
+    // Only highlight today if viewing the same month/year as system date
+    if(y !== currentYear || m !== currentMonth) return -1;
+    for(let i=0;i<DAYS.length;i++) if(DAYS[i][0]===d && DAYS[i][2]===m) return i;
+    return -1;
+  }
+  function getTodayIdx(){ return todayIdx(); }
+
+  const DEPTS = {
+    DM:{name:'Duty Manager',color:'#6E8F5C',bg:'#EEF3E7'},
+    HDQ:{name:'DSP HDQ',color:'#3E8E8A',bg:'#E7F3F2'},
+    ASST:{name:'DSP ASST HDQ',color:'#9C5E86',bg:'#F5EAF1'},
+    SGN:{name:'DSP SGN',color:'#3E6FA8',bg:'#E8EFF7'},
+    OBS:{name:'OBS SGN',color:'#8B7355',bg:'#F5F0E8'},
+    PQC:{name:'DSP ASST PQC',color:'#C4548A',bg:'#FAECF2'},
+  };
+  const SHIFT_INFO = {
+    HC:{label:'HC · 9h (08:30–17:30)', cls:'s-HC'},
+    M:{label:'M · 12h (07:30–19:30)', cls:'s-M'},
+    E:{label:'E · 12h (19:30–07:30)', cls:'s-E'},
+    C9:{label:'C9 · 12h (09:00–21:00)', cls:'s-C9'},
+    NL:{label:'NL · Nghỉ lễ', cls:'s-NL'},
+    P:{label:'P · Phép', cls:'s-P'},
+    '':{label:'Nghỉ / trống', cls:'s-'},
+  };
+  const SHIFT_LIST = ['','HC','M','E','C9','NL','P'];
+
+  // Dữ liệu từng ngày từ file Excel LỊCH TRỰC SPA SGN (tháng 09/2026)
+  // Transcribed from OneDrive sheet — cột 26/08 → 25/09
+  const RAW_SHIFTS = [
+    // id, name, dept, shifts[31]
+    ['030346','Đàm Xuân Hiến','DM',['HC','M','E','E','','','NL','NL','HC','HC','M','','M','HC','HC','M','','M','HC','M','E','','E','M','M','HC','','','','','']],
+    ['030903','Đào Chí Dũng','DM',['','M','M','','E','E','NL','M','HC','HC','','','M','','HC','M','','M','E','','HC','M','E','E','','E','','M','','HC','']],
+    ['031930','Phạm Ninh Toàn','DM',['','','E','E','E','','M','M','E','','','M','','M','E','','','M','E','E','E','E','','M','E','','','E','E','','']],
+    ['030322','Nguyễn Thái Uy','DM',['E','','M','M','','','NL','NL','M','E','','','M','E','','M','E','','','M','E','','HC','M','','','M','M','E','E','']],
+    ['031845','Nguyễn Ngọc Long','DM',['','E','','M','M','','E','E','','M','E','','M','E','','M','E','E','','','M','E','','M','','M','M','','','M','']],
+    ['042014','Nguyễn Xuân Tuyên','DM',['M','E','','','','M','NL','NL','E','','','E','','M','E','','M','E','','','M','E','','E','','M','E','','M','HC','']],
+    ['030904','Trần Đình Đạt','HDQ',['M','M','','','','M','M','NL','M','E','E','','M','E','','','M','E','','','M','E','','M','E','','','M','E','','']],
+    ['030905','Nguyễn T.Hoàng Hưng','HDQ',['E','E','','','M','E','E','NL','','M','','','E','','','M','M','E','','','M','E','','M','M','','E','','M','E','']],
+    ['030841','Vũ Hoàng Long','HDQ',['','','M','M','P','P','NL','E','','','M','E','E','','M','E','','','M','E','E','','M','E','','M','','M','E','','M']],
+    ['—','Vũ Huy Hùng','HDQ',['HC','HC','HC','HC','','HC','M','NL','E','E','','','M','E','','','M','E','','','M','E','','E','','M','E','','M','','']],
+    ['039278','Nguyễn Kiều Huyền Chi','ASST',['E','','','M','E','','','M','M','E','','','M','M','E','','M','E','E','','','M','','','','E','','','M','E','']],
+    ['039280','Đặng Thảo Linh','ASST',['','','M','E','','E','NL','M','M','E','','M','E','','E','','','M','E','','','M','E','E','','','M','E','E','','']],
+    ['039276','Bùi Việt Anh','ASST',['M','E','','','M','E','E','NL','P','','M','','','E','','M','M','E','','M','M','E','','E','','','M','E','','M','']],
+    ['039274','Đỗ Nam Anh','ASST',['','M','E','','M','M','E','E','','M','E','','M','','','','E','','M','E','','M','E','','M','M','','M','E','','']],
+    ['031844','Nguyễn Hoàng Huy','SGN',['E','','M','','E','E','NL','M','M','','','','M','E','','M','E','E','','','M','','','E','','M','','M','E','','M']],
+    ['031843','Lương Trung Hiếu','SGN',['M','M','','E','','','NL','NL','','E','E','','','M','E','','M','E','','','M','','E','','M','','E','','M','E','']],
+    ['031846','Nguyễn Phúc Thịnh','SGN',['E','E','','M','E','','M','E','','','M','M','E','','M','','','E','','M','E','','E','E','','M','M','','E','','']],
+    ['031847','Hoàng Bảo Ngọc','SGN',['','','E','','M','M','NL','M','E','','','','E','','','M','M','E','','','M','E','','M','M','HC','E','','M','','']],
+    ['','Đinh Minh Trí','OBS',['','','','','','','','','','','','','','','','','E','E','','E','','','E','','','','','','','','']],
+    ['','Huỳnh Tấn Phước','OBS',['','','','','','','','','','','','','','','','','M','','','M','','','M','','M','E','E','','M','E','E']],
+    ['','Vũ Trọng Khánh','OBS',['','','','','','','','','','','','','','','','','','','','','','','E','','','','','','','','M']],
+    ['','Cù Trường Phú','OBS',['','','','','','','','','','','','','','','','','','','','','','','','','','','','M','','','']],
+    ['041863','Lê Ngọc Thành Tài','PQC',['','M','C9','E','','C9','C9','M','E','','C9','','M','C9','','C9','','','C9','','M','C9','E','','C9','','','E','','C9','']],
+    ['041865','Nguyễn Đức Lộc','PQC',['C9','E','','C9','','','M','C9','C9','','','C9','','M','C9','','C9','E','','C9','E','','C9','','C9','','C9','','M','C9','']],
+    ['041867','Phan Thành Nghĩa','PQC',['M','C9','','','C9','E','E','E','','C9','E','','C9','','','M','C9','','M','C9','','M','C9','E','','C9','','C9','E','','']],
+  ];
+
+  // pad/trim each to 31
+  RAW_SHIFTS.forEach(r=>{
+    while(r[3].length < 31) r[3].push('');
+    r[3] = r[3].slice(0,31).map(s => {
+      s = (s||'').trim().toUpperCase();
+      if(s==='E+' || s==='E') return 'E';
+      if(s==='SN' || s==='NC') return '';
+      if(['HC','M','E','C9','NL','P',''].includes(s)) return s;
+      return '';
+    });
+  });
+
+  function calcTotal(shifts){
+    let t=0;
+    shifts.forEach(s=>{ t += (SHIFT_HOURS[s]||0); });
+    return t;
+  }
+  function countShifts(shifts){
+    const c={HC:0,M:0,E:0,C9:0,NL:0,P:0};
+    shifts.forEach(s=>{ if(s && c[s]!==undefined) c[s]++; });
+    return c;
+  }
+
+  const STORAGE_PREFIX = 'sunpq_roster_v1_';
+  let currentMonth = 9;
+  let currentYear = 2026;
+
+  function storageKey(y, m){
+    return STORAGE_PREFIX + y + '-' + String(m).padStart(2,'0');
+  }
+
+  function buildDefaultEMP(){
+    const list = RAW_SHIFTS.map((r,i)=>({
+      id:r[0], name:r[1], dept:r[2], shifts:r[3].slice(), key:i,
+      counts: countShifts(r[3]), total: calcTotal(r[3]), note:''
+    }));
+    list.forEach(e=>{
+      if(e.total < 208 && e.dept !== 'OBS') e.note = 'thiếu '+(208-e.total)+'h';
+      else e.note = '';
+    });
+    return list;
+  }
+
+  function saveRoster(){
+    try {
+      const payload = {
+        year: currentYear,
+        month: currentMonth,
+        savedAt: new Date().toISOString(),
+        employees: EMP.map(e=>({
+          id:e.id, name:e.name, dept:e.dept, shifts:e.shifts.slice(), key:e.key
+        }))
+      };
+      localStorage.setItem(storageKey(currentYear, currentMonth), JSON.stringify(payload));
+      const hint = document.getElementById('rSaveHint');
+      if(hint){
+        hint.textContent = '💾 Đã lưu ' + new Date().toLocaleTimeString('vi-VN');
+        hint.style.borderColor = '#6E8F5C';
+        hint.style.background = '#EEF3E7';
+        hint.style.color = '#4C8C5A';
+      }
+    } catch(err){
+      console.warn('save roster failed', err);
+      const hint = document.getElementById('rSaveHint');
+      if(hint){ hint.textContent = '⚠ Không lưu được'; hint.style.color='#C0392B'; }
+    }
+  }
+
+  function loadRoster(y, m){
+    currentYear = y; currentMonth = m;
+    try {
+      const raw = localStorage.getItem(storageKey(y, m));
+      if(raw){
+        const data = JSON.parse(raw);
+        if(data && Array.isArray(data.employees) && data.employees.length){
+          EMP = data.employees.map((e,i)=>({
+            id:e.id||'', name:e.name||'', dept:e.dept||'DM',
+            shifts: (e.shifts||[]).slice(0,31).concat(Array(31).fill('')).slice(0,31),
+            key: typeof e.key==='number' ? e.key : i,
+            counts: {HC:0,M:0,E:0,C9:0,NL:0,P:0}, total:0, note:''
+          }));
+          EMP.forEach(e=>{
+            e.counts = countShifts(e.shifts);
+            e.total = calcTotal(e.shifts);
+            e.note = (e.total < 208 && e.dept !== 'OBS') ? ('thiếu '+(208-e.total)+'h') : '';
+          });
+          return true;
+        }
+      }
+    } catch(err){ console.warn('load roster failed', err); }
+    // fallback: default only for 2026-09
+    if(y===2026 && m===9){
+      EMP = buildDefaultEMP();
+    } else {
+      // empty template from names of default
+      EMP = buildDefaultEMP().map(e=>({
+        ...e,
+        shifts: Array(31).fill(''),
+        counts: {HC:0,M:0,E:0,C9:0,NL:0,P:0},
+        total: 0,
+        note: ''
+      }));
+    }
+    return false;
+  }
+
+  let EMP = [];
+  loadRoster(2026, 9);
+
+  function dayClass(i){
+    let c='';
+    if(SUN_IDX.includes(i)) c+=' wk-sun';
+    if(HOL_IDX.includes(i)) c+=' wk-hol';
+    if(i===getTodayIdx()) c+=' today-cell';
+    return c.trim();
+  }
+
+
+  function exportRosterJson(){
+    saveRoster();
+    const payload = {
+      app: 'sunpq-roster',
+      version: 1,
+      year: currentYear,
+      month: currentMonth,
+      exportedAt: new Date().toISOString(),
+      employees: EMP.map(e=>({
+        id:e.id, name:e.name, dept:e.dept, shifts:e.shifts.slice(), key:e.key,
+        total:e.total, counts:e.counts
+      }))
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'lich-truc-' + currentYear + '-' + String(currentMonth).padStart(2,'0') + '.json';
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+    if(typeof showToast==='function') showToast('Đã xuất JSON — copy file sang máy khác rồi Nhập JSON', 'success');
+  }
+
+  function importRosterJsonFile(file){
+    return new Promise((resolve, reject)=>{
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        try {
+          const data = JSON.parse(reader.result);
+          if(!data || !Array.isArray(data.employees) || !data.employees.length){
+            throw new Error('File JSON không hợp lệ (thiếu employees)');
+          }
+          if(data.year) currentYear = +data.year;
+          if(data.month) currentMonth = +data.month;
+          EMP = data.employees.map((e,i)=>({
+            id:e.id||'', name:e.name||'', dept:e.dept||'DM',
+            shifts:(e.shifts||[]).slice(0,31).concat(Array(31).fill('')).slice(0,31),
+            key: typeof e.key==='number'?e.key:i,
+            counts:{HC:0,M:0,E:0,C9:0,NL:0,P:0}, total:0, note:''
+          }));
+          EMP.forEach(e=>{
+            e.counts = countShifts(e.shifts);
+            e.total = calcTotal(e.shifts);
+            e.note = (e.total < 208 && e.dept !== 'OBS') ? ('thiếu '+(208-e.total)+'h') : '';
+          });
+          // sync selectors
+          const monthEl = document.getElementById('rMonth');
+          const yearEl = document.getElementById('rYear');
+          if(monthEl) monthEl.value = String(currentMonth);
+          if(yearEl) yearEl.value = String(currentYear);
+          const title = document.getElementById('rTitleMonth');
+          if(title) title.textContent = 'Tháng ' + String(currentMonth).padStart(2,'0') + '/' + currentYear;
+          saveRoster();
+          renderAll();
+          resolve(data);
+        } catch(err){ reject(err); }
+      };
+      reader.onerror = ()=>reject(new Error('Không đọc được file'));
+      reader.readAsText(file);
+    });
+  }
+
+  function exportRosterXlsx(){
+    if(typeof XLSX === 'undefined'){
+      alert('SheetJS chưa sẵn sàng');
+      return;
+    }
+    saveRoster();
+    // Build sheet: name, id, dept, day1..day31, HC,M,E,C9,total
+    const header = ['Mã NV','Họ tên','Bộ phận'];
+    DAYS.forEach((dd,i)=>{ header.push(dd[0]+'/'+dd[2]); });
+    header.push('HC','M','E','C9','NL','P','Tổng giờ');
+    const rows = [header];
+    EMP.forEach(e=>{
+      const row = [e.id, e.name, e.dept, ...e.shifts,
+        e.counts.HC, e.counts.M, e.counts.E, e.counts.C9||0, e.counts.NL||0, e.counts.P||0, e.total];
+      rows.push(row);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'LichTruc');
+    XLSX.writeFile(wb, 'lich-truc-' + currentYear + '-' + String(currentMonth).padStart(2,'0') + '.xlsx');
+    if(typeof showToast==='function') showToast('Đã xuất Excel — có thể upload lên OneDrive để máy khác tải về', 'success');
+  }
+
+  // Inject full schedule UI HTML+CSS into #rosterRoot
+  function mountUI(){
+    const root = document.getElementById('rosterRoot');
+    if(!root) return;
+    if(root.dataset.mounted) { renderAll(); return; }
+    root.dataset.mounted = '1';
+    // font + styles to <head> once
+    if(!document.getElementById('rosterFont')){
+      const lf=document.createElement('link');
+      lf.id='rosterFont';
+      lf.rel='stylesheet';
+      lf.href='https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap';
+      document.head.appendChild(lf);
+    }
+    if(!document.getElementById('rosterStyles')){
+      const st=document.createElement('style');
+      st.id='rosterStyles';
+      st.textContent = `
+#rosterRoot, #rosterRoot * { box-sizing:border-box; }
+#rosterRoot {
+  font-family:'Be Vietnam Pro',sans-serif;
+  background:#FFF9EF; color:#2A1D14;
+  --gold:#F5A300; --gold-deep:#D98600; --red:#D2202B; --red-deep:#A11822;
+  --cream:#FFF9EF; --paper:#fff; --ink:#2A1D14; --ink-soft:#6B5B4C;
+  --line:#EFE0C4; --line-soft:#F5EBD6; --sun:#F9F3E6; --ok:#4C8C5A; --danger:#C0392B;
+  min-height:calc(100vh - 56px);
+  width:100%;
+  margin:0;
+  padding:0;
+}
+#rosterRoot .sun-field{
+  position:relative; overflow:hidden;
+  background:radial-gradient(circle at 88% -10%,#FFF3D6 0%,rgba(255,243,214,0) 46%),#FFF9EF;
+  padding:22px 24px 12px;
+}
+#rosterRoot h1{ margin:6px 0 4px; font-size:clamp(20px,2.5vw,28px); font-weight:800; }
+#rosterRoot h1 .accent{ color:var(--red); }
+#rosterRoot .lede{ color:var(--ink-soft); font-size:14px; margin:0 0 14px; max-width:560px; }
+#rosterRoot .kpirow{ display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:10px; max-width:720px; }
+#rosterRoot .kpi{ background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+#rosterRoot .kpi .num{ font-size:22px; font-weight:800; color:var(--red); }
+#rosterRoot .kpi .lbl{ font-size:11px; color:var(--ink-soft); margin-top:2px; }
+#rosterRoot .controls{
+  position:sticky; top:0; z-index:20;
+  background:rgba(255,249,239,.94); backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);
+  padding:10px 24px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+}
+#rosterRoot .search{ position:relative; flex:1 1 180px; max-width:240px; }
+#rosterRoot .search input{
+  width:100%; border:1.5px solid var(--line); background:#fff; border-radius:10px;
+  padding:8px 10px 8px 32px; font-family:inherit; font-size:13px; color:var(--ink); outline:none;
+}
+#rosterRoot .search input:focus{ border-color:var(--gold); }
+#rosterRoot .search svg{ position:absolute; left:10px; top:50%; transform:translateY(-50%); width:14px; height:14px; color:var(--ink-soft); }
+#rosterRoot .chipset{ display:flex; flex-wrap:wrap; gap:6px; }
+#rosterRoot .chip{
+  border:1.5px solid var(--line); background:#fff; color:var(--ink-soft);
+  font-family:inherit; font-size:12px; font-weight:600; padding:6px 11px; border-radius:999px; cursor:pointer;
+}
+#rosterRoot .chip.active{ background:var(--ink); border-color:var(--ink); color:#fff; }
+#rosterRoot .chip .dot{ display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+#rosterRoot .viewtoggle{ display:flex; border:1.5px solid var(--line); border-radius:10px; overflow:hidden; margin-left:auto; }
+#rosterRoot .viewtoggle button{
+  border:none; background:#fff; font-family:inherit; font-size:12px; font-weight:700;
+  padding:7px 12px; cursor:pointer; color:var(--ink-soft);
+}
+#rosterRoot .viewtoggle button.active{ background:var(--gold); color:#3a2400; }
+#rosterRoot .btn-upload{
+  border:1.5px solid var(--gold); background:#FFF6E4; color:#6B5100;
+  font-family:inherit; font-size:12px; font-weight:700; padding:7px 12px; border-radius:10px; cursor:pointer;
+}
+#rosterRoot main{ padding:16px 24px 40px; }
+#rosterRoot .banner{
+  display:flex; gap:10px; align-items:flex-start;
+  background:#FFF6E4; border:1px solid #F3D48A; border-radius:12px;
+  padding:10px 14px; margin-bottom:14px; font-size:12.5px; color:#6B5100; line-height:1.45;
+}
+#rosterRoot .legend{
+  display:flex; flex-wrap:wrap; gap:8px 14px; margin-bottom:14px; padding:10px 14px;
+  background:#fff; border:1px solid var(--line); border-radius:12px; font-size:12px; color:var(--ink-soft);
+}
+#rosterRoot .legend .item{ display:flex; align-items:center; gap:6px; }
+#rosterRoot .legend .swatch{ width:22px; height:20px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; }
+#rosterRoot .deptgroup{ margin-bottom:22px; }
+#rosterRoot .dhead{ display:flex; align-items:baseline; gap:8px; margin:0 0 8px 2px; }
+#rosterRoot .dhead .swatch{ width:10px; height:10px; border-radius:3px; }
+#rosterRoot .dhead h2{ font-size:15px; font-weight:800; margin:0; }
+#rosterRoot .dhead .count{ font-size:12px; color:var(--ink-soft); }
+#rosterRoot .tablewrap{
+  background:#fff; border:1px solid var(--line); border-radius:14px; overflow:auto;
+  box-shadow:0 1px 2px rgba(42,29,20,.04); max-height:65vh;
+}
+#rosterRoot table{ border-collapse:collapse; width:100%; min-width:1180px; }
+#rosterRoot thead th{
+  position:sticky; top:0; background:#fff; z-index:3;
+  font-size:11px; font-weight:700; color:var(--ink-soft);
+  padding:6px 4px; text-align:center; border-bottom:1.5px solid var(--line); white-space:nowrap;
+}
+#rosterRoot thead th.wk-sun{ background:#FFF1D6; color:var(--gold-deep); }
+#rosterRoot thead th.wk-hol{ background:#E9F3E6; color:#6E8F5C; }
+#rosterRoot thead th.today-col{ box-shadow:inset 0 -3px 0 var(--gold); color:var(--gold-deep); font-weight:900; }
+#rosterRoot th.sticky1, #rosterRoot td.sticky1{
+  position:sticky; left:0; background:#fff; z-index:4; text-align:left; min-width:150px;
+  box-shadow:1px 0 0 var(--line);
+}
+#rosterRoot td{ padding:0; text-align:center; border-bottom:1px solid var(--line-soft); }
+#rosterRoot td.namecell{ padding:8px 10px; cursor:pointer; }
+#rosterRoot td.namecell:hover{ background:var(--sun); }
+#rosterRoot .empname{ font-weight:700; font-size:13px; }
+#rosterRoot .empid{ font-size:11px; color:var(--ink-soft); }
+#rosterRoot .cell{
+  width:32px; height:36px; display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:800; cursor:pointer; user-select:none;
+  border-right:1px solid var(--line-soft); position:relative;
+}
+#rosterRoot .cell:hover{ transform:scale(1.1); box-shadow:0 0 0 1.5px var(--ink) inset; z-index:2; }
+#rosterRoot .cell.wk-sun{ background:#FFF7E8; }
+#rosterRoot .cell.wk-hol{ background:#F2F8EF; }
+#rosterRoot .cell.today-cell{ outline:2px solid var(--gold); outline-offset:-2px; z-index:1; }
+#rosterRoot .s-M{ background:#EAF3FF; color:#245A9C; }
+#rosterRoot .s-E{ background:#FFEFE0; color:#B25B12; }
+#rosterRoot .s-HC{ background:#FDE7EA; color:var(--red-deep); }
+#rosterRoot .s-C9{ background:#F1E7FA; color:#6A3D96; }
+#rosterRoot .s-NL{ background:#E7F5E9; color:var(--ok); }
+#rosterRoot .s-P{ background:#FFF6D6; color:#8A6D00; }
+#rosterRoot .s-{ background:transparent; color:var(--line); }
+#rosterRoot td.tot{ font-size:12px; font-weight:800; padding:0 6px; white-space:nowrap; }
+#rosterRoot td.tot .sub{ font-weight:500; color:var(--ink-soft); font-size:10px; }
+#rosterRoot td.hours{ font-size:13px; font-weight:800; color:var(--red); white-space:nowrap; padding:0 8px; }
+#rosterRoot td.note{ font-size:11px; padding:0 8px; white-space:nowrap; }
+#rosterRoot .warn{ color:var(--danger); font-weight:700; }
+#rosterRoot .okmark{ color:var(--ok); }
+#rosterRoot .peoplegrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
+#rosterRoot .personcard{
+  background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px; cursor:pointer;
+}
+#rosterRoot .personcard:hover{ border-color:var(--gold); box-shadow:0 6px 18px rgba(42,29,20,.08); }
+#rosterRoot .shift-pop{
+  position:fixed; z-index:99999; background:#fff; border:1px solid var(--line);
+  border-radius:12px; box-shadow:0 12px 32px rgba(42,29,20,.18); padding:6px; min-width:200px; display:none;
+}
+#rosterRoot .shift-pop.show{ display:block; }
+#rosterRoot .shift-pop button{
+  display:block; width:100%; text-align:left; border:none; background:transparent;
+  padding:9px 12px; border-radius:8px; cursor:pointer; font-family:inherit; font-size:13px; font-weight:600; color:var(--ink);
+}
+#rosterRoot .shift-pop button:hover{ background:#FFF6E4; }
+#rosterRoot .overlay{
+  position:fixed; inset:0; background:rgba(42,29,20,.42); backdrop-filter:blur(2px);
+  display:flex; align-items:center; justify-content:center; padding:16px; z-index:99990;
+  opacity:0; pointer-events:none; transition:opacity .18s;
+}
+#rosterRoot .overlay.show{ opacity:1; pointer-events:all; }
+#rosterRoot .modal{
+  background:#fff; border-radius:18px; width:100%; max-width:700px; max-height:88vh; overflow:auto;
+  padding:22px; box-shadow:0 20px 60px rgba(42,29,20,.25);
+}
+#rosterRoot .cal{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-top:12px; }
+#rosterRoot .calcell{
+  aspect-ratio:1/0.88; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  cursor:pointer; border:1.5px solid transparent; font-size:12px;
+}
+#rosterRoot .calcell:hover{ border-color:var(--ink); }
+#rosterRoot .calcell.today-cell{ box-shadow:0 0 0 2px var(--gold); }
+#rosterRoot .calcell .d{ font-size:10px; font-weight:600; opacity:.65; }
+#rosterRoot .calcell .s{ font-size:12px; font-weight:800; margin-top:1px; }
+`;
+      document.head.appendChild(st);
+    }
+    root.innerHTML = `
+<div class="sun-field">
+  <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:8px;">
+    <h1 style="margin:0;">Lịch trực <span class="accent" id="rTitleMonth">Tháng 09/2026</span></h1>
+    <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
+      <label style="font-size:12px;font-weight:600;color:#6B5B4C;">Tháng</label>
+      <select id="rMonth" style="border:1.5px solid #EFE0C4;border-radius:8px;padding:6px 10px;font-family:inherit;font-size:13px;font-weight:700;background:#fff;">
+        <option value="1">01</option><option value="2">02</option><option value="3">03</option><option value="4">04</option>
+        <option value="5">05</option><option value="6">06</option><option value="7">07</option><option value="8">08</option>
+        <option value="9" selected>09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option>
+      </select>
+      <label style="font-size:12px;font-weight:600;color:#6B5B4C;">Năm</label>
+      <select id="rYear" style="border:1.5px solid #EFE0C4;border-radius:8px;padding:6px 10px;font-family:inherit;font-size:13px;font-weight:700;background:#fff;">
+        <option value="2025">2025</option>
+        <option value="2026" selected>2026</option>
+        <option value="2027">2027</option>
+      </select>
+      <button type="button" id="rSaveHint" style="border:1.5px solid #6E8F5C;background:#EEF3E7;color:#4C8C5A;font-family:inherit;font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px;cursor:default;" title="Tự lưu vào trình duyệt">💾 Đã lưu local</button>
+    </div>
+  </div>
+  <p class="lede">HC 9h · M/E/C9 12h · Bấm ô ngày để chọn ca · ★ = hôm nay · Chỉnh sửa được <b>lưu tự động</b> trên máy này (localStorage)</p>
+  <div class="kpirow">
+    <div class="kpi"><div class="num" id="rKpiEmp">–</div><div class="lbl">Nhân viên</div></div>
+    <div class="kpi"><div class="num">27</div><div class="lbl">Công kế hoạch</div></div>
+    <div class="kpi"><div class="num">31</div><div class="lbl">Ngày trong kỳ</div></div>
+    <div class="kpi"><div class="num" id="rKpiAvg">–</div><div class="lbl">Giờ công TB</div></div>
+    <div class="kpi"><div class="num" id="rKpiShort">–</div><div class="lbl">Người thiếu giờ</div></div>
+  </div>
+</div>
+<div class="controls">
+  <div class="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    <input id="rSearch" placeholder="Tìm tên hoặc mã NV...">
+  </div>
+  <div class="chipset" id="rChips"></div>
+  <button type="button" class="btn-upload" id="rLoadExcel">📂 Nạp Excel lịch</button>
+  <button type="button" class="btn-upload" id="rExportJson" style="border-color:#3E8E8A;background:#E7F3F2;color:#2A6B68;">⬇ Xuất JSON</button>
+  <button type="button" class="btn-upload" id="rExportXlsx" style="border-color:#3E6FA8;background:#E8EFF7;color:#245A9C;">⬇ Xuất Excel</button>
+  <button type="button" class="btn-upload" id="rImportJson" style="border-color:#9C5E86;background:#F5EAF1;color:#7A3D68;">⬆ Nhập JSON</button>
+  <input type="file" id="rExcelInput" accept=".xlsx,.xls" style="display:none">
+  <input type="file" id="rJsonInput" accept=".json,application/json" style="display:none">
+  <div class="viewtoggle">
+    <button type="button" id="rBtnGrid" class="active">Bảng đầy đủ</button>
+    <button type="button" id="rBtnCards">Lịch cá nhân</button>
+  </div>
+</div>
+<main>
+  <div class="banner">
+    <span>ℹ️</span>
+    <div>
+      <strong>Giờ công:</strong> HC = 9h (08:30–17:30) · M = 12h (07:30–19:30) · E = 12h (19:30–07:30) · C9 = 12h (09:00–21:00) · NL/P = 0h.
+      Cột tổng giờ đổi ngay khi sửa ca. Muốn dùng <b>máy khác</b>: bấm <b>Xuất JSON</b> (hoặc Xuất Excel) → copy file (USB/OneDrive/Zalo) → máy kia bấm <b>Nhập JSON</b> (hoặc Nạp Excel).
+      Ngày <b>18/09</b> (hôm nay) được đánh dấu ★ / viền vàng.
+    </div>
+  </div>
+  <div class="legend" id="rLegend"></div>
+  <div id="rGrid"></div>
+  <div id="rCards" style="display:none"></div>
+</main>
+<div class="shift-pop" id="rPop"></div>
+<div class="overlay" id="rOverlay"><div class="modal" id="rModal"></div></div>
+`;
+    wireEvents();
+    renderAll();
+  }
+
+  let activeDept='ALL', query='', popKey=null, popDay=null, selDay=null;
+
+  function wireEvents(){
+    const monthEl = document.getElementById('rMonth');
+    const yearEl = document.getElementById('rYear');
+    if(monthEl) monthEl.value = String(currentMonth);
+    if(yearEl) yearEl.value = String(currentYear);
+    function onPeriodChange(){
+      const m = parseInt(monthEl.value, 10);
+      const y = parseInt(yearEl.value, 10);
+      // save current before switch
+      saveRoster();
+      const had = loadRoster(y, m);
+      const title = document.getElementById('rTitleMonth');
+      if(title) title.textContent = 'Tháng ' + String(m).padStart(2,'0') + '/' + y;
+      renderAll();
+      if(typeof showToast==='function'){
+        showToast(had ? ('Đã tải lịch ' + m + '/' + y + ' (đã lưu trước)') : ('Lịch ' + m + '/' + y + ' (mới / mặc định)'), 'info');
+      }
+    }
+    if(monthEl) monthEl.onchange = onPeriodChange;
+    if(yearEl) yearEl.onchange = onPeriodChange;
+
+    document.getElementById('rSearch').oninput = e=>{ query=e.target.value; renderAll(); };
+    const chips = document.getElementById('rChips');
+    chips.innerHTML = `<button type="button" class="chip active" data-dept="ALL">Tất cả</button>` +
+      Object.entries(DEPTS).map(([k,d])=>`<button type="button" class="chip" data-dept="${k}"><span class="dot" style="background:${d.color}"></span>${d.name}</button>`).join('');
+    chips.onclick = e=>{
+      const b=e.target.closest('.chip'); if(!b) return;
+      activeDept=b.dataset.dept;
+      [...chips.children].forEach(c=>c.classList.toggle('active',c===b));
+      renderAll();
+    };
+    document.getElementById('rLegend').innerHTML = Object.entries(SHIFT_INFO).map(([code,info])=>
+      `<div class="item"><div class="swatch ${info.cls}">${code||'—'}</div>${info.label}</div>`
+    ).join('') + `<div class="item"><div class="swatch" style="background:#FFF1D6;color:#B58900">CN</div>Chủ nhật</div>
+      <div class="item"><div class="swatch" style="background:#E9F3E6;color:#4C8C5A">QK</div>Quốc khánh</div>
+      <div class="item"><div class="swatch" style="background:var(--gold);color:#3a2400">★</div>Hôm nay</div>`;
+
+    document.getElementById('rBtnGrid').onclick=()=>{
+      document.getElementById('rBtnGrid').classList.add('active');
+      document.getElementById('rBtnCards').classList.remove('active');
+      document.getElementById('rGrid').style.display='block';
+      document.getElementById('rCards').style.display='none';
+    };
+    document.getElementById('rBtnCards').onclick=()=>{
+      document.getElementById('rBtnCards').classList.add('active');
+      document.getElementById('rBtnGrid').classList.remove('active');
+      document.getElementById('rGrid').style.display='none';
+      document.getElementById('rCards').style.display='block';
+    };
+    document.getElementById('rLoadExcel').onclick=()=>document.getElementById('rExcelInput').click();
+    document.getElementById('rExcelInput').onchange = async (ev)=>{
+      const f = ev.target.files && ev.target.files[0];
+      if(!f) return;
+      try {
+        await loadExcelFile(f);
+        if(typeof showToast==='function') showToast('Đã nạp lịch từ Excel: '+f.name, 'success');
+      } catch(err){
+        alert('Lỗi đọc Excel: '+(err.message||err));
+      }
+      ev.target.value='';
+    };
+    document.getElementById('rExportJson')?.addEventListener('click', exportRosterJson);
+    document.getElementById('rExportXlsx')?.addEventListener('click', exportRosterXlsx);
+    document.getElementById('rImportJson')?.addEventListener('click', ()=>document.getElementById('rJsonInput').click());
+    document.getElementById('rJsonInput')?.addEventListener('change', async (ev)=>{
+      const f = ev.target.files && ev.target.files[0];
+      if(!f) return;
+      try {
+        await importRosterJsonFile(f);
+        if(typeof showToast==='function') showToast('Đã nhập JSON: '+f.name+' — đã lưu local', 'success');
+      } catch(err){
+        alert('Lỗi nhập JSON: '+(err.message||err));
+      }
+      ev.target.value='';
+    });
+
+    // pop
+    const pop = document.getElementById('rPop');
+    pop.innerHTML = SHIFT_LIST.map(c=>{
+      const info=SHIFT_INFO[c];
+      return `<button type="button" data-code="${c}">${c||'—'} · ${info.label}</button>`;
+    }).join('');
+    pop.onclick = e=>{
+      const b=e.target.closest('button[data-code]'); if(!b) return;
+      const code=b.getAttribute('data-code');
+      const emp=EMP.find(x=>x.key===popKey); if(!emp) return;
+      emp.shifts[popDay]=code;
+      emp.counts=countShifts(emp.shifts);
+      emp.total=calcTotal(emp.shifts);
+      emp.note = (emp.total<208 && emp.dept!=='OBS') ? ('thiếu '+(208-emp.total)+'h') : '';
+      saveRoster();
+      hidePop();
+      renderAll();
+      if(document.getElementById('rOverlay').classList.contains('show')) openPerson(popKey);
+    };
+    document.addEventListener('click', e=>{
+      if(pop.classList.contains('show') && !pop.contains(e.target) && !e.target.closest('.cell')) hidePop();
+    });
+  }
+
+  function showPop(anchor, key, day){
+    const pop=document.getElementById('rPop');
+    popKey=key; popDay=day;
+    const r=anchor.getBoundingClientRect();
+    pop.classList.add('show');
+    pop.style.left = Math.min(r.left, window.innerWidth-220)+'px';
+    pop.style.top = Math.min(r.bottom+4, window.innerHeight-320)+'px';
+  }
+  function hidePop(){ document.getElementById('rPop')?.classList.remove('show'); popKey=null; popDay=null; }
+
+  function filterEmp(){
+    return EMP.filter(e=>{
+      if(activeDept!=='ALL' && e.dept!==activeDept) return false;
+      if(query){
+        const q=query.toLowerCase();
+        if(!e.name.toLowerCase().includes(q) && !String(e.id).toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+  }
+
+  function renderAll(){
+    const list=filterEmp();
+    document.getElementById('rKpiEmp').textContent=EMP.length;
+    document.getElementById('rKpiAvg').textContent=Math.round(EMP.reduce((a,e)=>a+e.total,0)/Math.max(1,EMP.length))+'h';
+    document.getElementById('rKpiShort').textContent=EMP.filter(e=>e.note).length;
+
+    // grid
+    const byDept={};
+    list.forEach(e=>{(byDept[e.dept]||=[]).push(e);});
+    let html='';
+    Object.entries(DEPTS).forEach(([k,d])=>{
+      const rows=byDept[k]; if(!rows||!rows.length) return;
+      html += `<div class="deptgroup">
+        <div class="dhead"><span class="swatch" style="background:${d.color}"></span><h2>${d.name}</h2><span class="count">${rows.length} người</span></div>
+        <div class="tablewrap"><table>
+          <thead><tr>
+            <th class="sticky1" style="min-width:160px;text-align:left;padding-left:10px;">Họ tên</th>
+            ${DAYS.map((dd,i)=>`<th class="${dayClass(i)}${i===getTodayIdx()?' today-col':''}">${dd[0]}${i===getTodayIdx()?' ★':''}</th>`).join('')}
+            <th style="min-width:60px">HC/M/E</th>
+            <th style="min-width:52px">Tổng giờ</th>
+            <th style="min-width:72px">Ghi chú</th>
+          </tr></thead>
+          <tbody>
+            ${rows.map(e=>`<tr>
+              <td class="namecell sticky1" data-key="${e.key}"><div class="empname">${e.name}</div><div class="empid">${e.id||'—'}</div></td>
+              ${e.shifts.map((s,i)=>`<td><div class="cell s-${s||''} ${dayClass(i)}" data-key="${e.key}" data-day="${i}">${s||''}</div></td>`).join('')}
+              <td class="tot">${e.counts.HC}·${e.counts.M}·${e.counts.E}${e.counts.C9?('·'+e.counts.C9):''}<div class="sub">HC·M·E${e.counts.C9?'·C9':''}</div></td>
+              <td class="hours">${e.total}h</td>
+              <td class="note">${e.note?`<span class="warn">${e.note}</span>`:`<span class="okmark">Đủ giờ</span>`}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table></div>
+      </div>`;
+    });
+    const grid=document.getElementById('rGrid');
+    grid.innerHTML=html||'<p style="color:#6B5B4C">Không tìm thấy.</p>';
+    grid.onclick=e=>{
+      const cell=e.target.closest('.cell');
+      if(cell){ e.stopPropagation(); showPop(cell,+cell.dataset.key,+cell.dataset.day); return; }
+      const name=e.target.closest('.namecell');
+      if(name) openPerson(+name.dataset.key);
+    };
+
+    // cards
+    const cards=document.getElementById('rCards');
+    cards.innerHTML=`<div class="peoplegrid">`+list.map(e=>{
+      const d=DEPTS[e.dept]||{bg:'#eee',color:'#333',name:e.dept};
+      return `<div class="personcard" data-key="${e.key}">
+        <div style="display:flex;justify-content:space-between;gap:8px">
+          <div><div style="font-weight:800;font-size:14px">${e.name}</div><div style="font-size:11px;color:#6B5B4C">${e.id||'—'}</div></div>
+          <div style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;background:${d.bg};color:${d.color}">${d.name.replace('DSP ','')}</div>
+        </div>
+        <div style="margin-top:12px"><b style="font-size:20px;color:#D2202B">${e.total}</b> <span style="font-size:11px;color:#6B5B4C">giờ công</span></div>
+        <div style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;font-size:11px;font-weight:700">
+          <span class="s-M" style="padding:2px 6px;border-radius:6px">M ${e.counts.M}</span>
+          <span class="s-E" style="padding:2px 6px;border-radius:6px">E ${e.counts.E}</span>
+          ${e.counts.HC?`<span class="s-HC" style="padding:2px 6px;border-radius:6px">HC ${e.counts.HC}</span>`:''}
+          ${e.counts.C9?`<span class="s-C9" style="padding:2px 6px;border-radius:6px">C9 ${e.counts.C9}</span>`:''}
+          ${e.note?`<span style="padding:2px 6px;border-radius:6px;background:#FFF1D6;color:#A85E00">${e.note}</span>`:''}
+        </div>
+      </div>`;
+    }).join('')+`</div>`;
+    cards.onclick=e=>{ const c=e.target.closest('.personcard'); if(c) openPerson(+c.dataset.key); };
+  }
+
+  function openPerson(key){
+    const e=EMP.find(x=>x.key===key); if(!e) return;
+    const d=DEPTS[e.dept]||{color:'#333',name:e.dept};
+    const modal=document.getElementById('rModal');
+    const overlay=document.getElementById('rOverlay');
+    modal.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div><h3 style="margin:0 0 4px;font-size:18px;font-weight:800">${e.name}</h3>
+        <div style="font-size:12.5px;color:#6B5B4C">${e.id||'—'} · <span style="color:${d.color}">${d.name}</span></div></div>
+        <button type="button" id="rClose" style="border:none;background:#F9F3E6;width:32px;height:32px;border-radius:50%;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;gap:8px;margin:14px 0;flex-wrap:wrap">
+        <div style="background:#F9F3E6;border-radius:10px;padding:8px 12px"><b style="display:block;font-size:16px" id="rModalTotal">${e.total}h</b><span style="font-size:10px;color:#6B5B4C">Tổng giờ</span></div>
+        <div style="background:#F9F3E6;border-radius:10px;padding:8px 12px"><b style="display:block;font-size:16px">${e.counts.M}</b><span style="font-size:10px;color:#6B5B4C">Ca M</span></div>
+        <div style="background:#F9F3E6;border-radius:10px;padding:8px 12px"><b style="display:block;font-size:16px">${e.counts.E}</b><span style="font-size:10px;color:#6B5B4C">Ca E</span></div>
+        ${e.counts.HC?`<div style="background:#F9F3E6;border-radius:10px;padding:8px 12px"><b style="display:block;font-size:16px">${e.counts.HC}</b><span style="font-size:10px;color:#6B5B4C">Ca HC</span></div>`:''}
+        ${e.counts.C9?`<div style="background:#F9F3E6;border-radius:10px;padding:8px 12px"><b style="display:block;font-size:16px">${e.counts.C9}</b><span style="font-size:10px;color:#6B5B4C">Ca C9</span></div>`:''}
+      </div>
+      <div class="cal" id="rCal"></div>
+      <p style="font-size:11px;color:#6B5B4C;margin-top:10px">Bấm ngày để mở danh sách ca · HC 9h · M/E/C9 12h · NL/P 0h</p>
+    `;
+    const cal=document.getElementById('rCal');
+    cal.innerHTML=DAYS.map((dd,i)=>{
+      const s=e.shifts[i];
+      const info=SHIFT_INFO[s]||SHIFT_INFO[''];
+      return `<div class="calcell ${info.cls} ${dayClass(i)}" data-i="${i}"><div class="d">${dd[1]} ${dd[0]}</div><div class="s">${s||'–'}</div></div>`;
+    }).join('');
+    cal.onclick=ev=>{
+      const cell=ev.target.closest('.calcell'); if(!cell) return;
+      const i=+cell.dataset.i; selDay=i;
+      showPop(cell, e.key, i);
+    };
+    document.getElementById('rClose').onclick=()=>overlay.classList.remove('show');
+    overlay.classList.add('show');
+    overlay.onclick=ev=>{ if(ev.target===overlay) overlay.classList.remove('show'); };
+  }
+
+  /** Parse Excel roster (SheetJS) — same layout as LỊCH TRỰC SPA SGN */
+  async function loadExcelFile(file){
+    if(typeof XLSX === 'undefined') throw new Error('SheetJS chưa load');
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+    // Find header row with dates
+    let headerRow = -1;
+    for(let i=0;i<Math.min(15,rows.length);i++){
+      const r=rows[i].map(c=>String(c));
+      if(r.some(c=>/26\/08|26\/8|Họ tên/i.test(c))) { headerRow=i; break; }
+    }
+    if(headerRow<0) throw new Error('Không tìm thấy dòng tiêu đề lịch');
+    // Map day columns: look for day numbers 26,27,...,25
+    const hdr = rows[headerRow].map(c=>String(c).trim());
+    // Prefer row with weekday labels or date labels
+    let dayStartCol = -1;
+    for(let c=0;c<hdr.length;c++){
+      if(/26/.test(hdr[c]) && (hdr[c+1]||'').match(/27/)) { dayStartCol=c; break; }
+    }
+    // Sometimes dates are on previous row
+    if(dayStartCol<0 && headerRow>0){
+      const prev=rows[headerRow-1].map(c=>String(c));
+      for(let c=0;c<prev.length;c++){
+        if(/26\/0?8|26$/.test(prev[c])) { dayStartCol=c; break; }
+      }
+    }
+    if(dayStartCol<0){
+      // fallback: find column after "Họ tên"
+      for(let c=0;c<hdr.length;c++) if(/Họ tên|Ho ten/i.test(hdr[c])) { dayStartCol=c+1; break; }
+    }
+    if(dayStartCol<0) dayStartCol=3;
+
+    const nameCol = hdr.findIndex(h=>/Họ tên|Ho ten/i.test(h));
+    const idCol = hdr.findIndex(h=>/Mã|nhân viên|Ma NV/i.test(h));
+    const posCol = hdr.findIndex(h=>/Vị trí|Vi tri|DSP|DM/i.test(h));
+
+    const parsed=[];
+    let currentDept='DM';
+    for(let i=headerRow+1;i<rows.length;i++){
+      const row=rows[i];
+      if(!row || !row.length) continue;
+      const name = String(row[nameCol>=0?nameCol:2]||'').trim();
+      if(!name || /HUY|PAIR|Tổng|HC$|^M$|^E$/i.test(name)) continue;
+      const id = String(row[idCol>=0?idCol:1]||'').trim();
+      // dept from merged cell or previous
+      const posRaw = String(row[posCol>=0?posCol:0]||'').trim();
+      if(posRaw){
+        if(/Duty Manager|^DM$/i.test(posRaw)) currentDept='DM';
+        else if(/DSP HDQ|HDQ/i.test(posRaw) && !/ASST/i.test(posRaw)) currentDept='HDQ';
+        else if(/ASST.*HDQ|DSP ASST HDQ/i.test(posRaw)) currentDept='ASST';
+        else if(/DSP SGN|^SGN$/i.test(posRaw)) currentDept='SGN';
+        else if(/OBS/i.test(posRaw)) currentDept='OBS';
+        else if(/PQC/i.test(posRaw)) currentDept='PQC';
+      }
+      const shifts=[];
+      for(let d=0;d<31;d++){
+        let v=String(row[dayStartCol+d]||'').trim().toUpperCase();
+        if(v==='E+'||v==='E') v='E';
+        else if(v==='SN'||v==='NC') v='';
+        else if(!['HC','M','E','C9','NL','P',''].includes(v)) v='';
+        shifts.push(v);
+      }
+      parsed.push({id, name, dept:currentDept, shifts, key:parsed.length,
+        counts:countShifts(shifts), total:calcTotal(shifts), note:''});
+    }
+    if(!parsed.length) throw new Error('Không đọc được dòng nhân viên nào');
+    parsed.forEach(e=>{ e.note=(e.total<208 && e.dept!=='OBS')?('thiếu '+(208-e.total)+'h'):''; });
+    EMP = parsed;
+    saveRoster();
+    renderAll();
+  }
+
+  // Mount when nav to roster
+  document.querySelectorAll('.nav-item[data-page="roster"]').forEach(btn=>{
+    btn.addEventListener('click', ()=> setTimeout(mountUI, 40));
+  });
+  if(document.getElementById('page-roster')?.classList.contains('active')) setTimeout(mountUI, 40);
+})();
+</script>
+
 </body>
 </html>
