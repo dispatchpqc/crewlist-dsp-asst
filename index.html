@@ -5355,15 +5355,13 @@ function exportExcel() {
   const GH_REPO = 'crewlist-dsp-asst';
   const GH_TOKEN_KEY = 'sunpq_gh_token';
 
-  // Token mặc định — mọi máy dùng chung, không hỏi lại khi đẩy lên GitHub
-  const DEFAULT_GH_TOKEN = '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';
-
+  // Token chỉ lưu trên máy (localStorage) — không gắn sẵn trong code
   function getGithubToken(){
     try {
       const stored = localStorage.getItem(GH_TOKEN_KEY);
       if (stored && stored.trim()) return stored.trim();
     } catch(e){}
-    return DEFAULT_GH_TOKEN;
+    return '';
   }
   function setGithubToken(tok){
     try {
@@ -5372,20 +5370,17 @@ function exportExcel() {
     } catch(e){}
   }
   function askGithubToken(){
-    // Luôn trả về token mặc định — không hỏi lại trên máy khác
-    const t = getGithubToken();
-    if (t) return t;
-    const cur = '';
+    const cur = getGithubToken();
     const msg = 'Dán GitHub Personal Access Token (quyền Contents: Read and write).\n\n'
       + 'Tạo tại: GitHub → Settings → Developer settings → Personal access tokens\n'
       + '(classic: scope "repo" | fine-grained: Contents Read/Write cho repo này)\n\n'
       + 'Token chỉ lưu trên máy này (localStorage), không gửi đi đâu khác.';
     const tok = window.prompt(msg, cur || '');
     if(tok === null) return null;
-    const tt = (tok || '').trim();
-    if(!tt){ setGithubToken(''); return ''; }
-    setGithubToken(tt);
-    return tt;
+    const t = (tok || '').trim();
+    if(!t){ setGithubToken(''); return ''; }
+    setGithubToken(t);
+    return t;
   }
 
   async function githubApi(path, opts){
@@ -5405,7 +5400,9 @@ function exportExcel() {
     try { body = text ? JSON.parse(text) : null; } catch(e){ body = { raw: text }; }
     if(!res.ok){
       const msg = (body && (body.message || body.error)) || ('HTTP ' + res.status);
-      throw new Error(msg);
+      const err = new Error(msg);
+      err.status = res.status;
+      throw err;
     }
     return body;
   }
@@ -5473,7 +5470,6 @@ function exportExcel() {
       token = askGithubToken();
       if(!token) return;
     }
-    // token mặc định đã có — không hỏi lại
     try {
       saveRoster();
       const payload = buildRosterPayloadFromEMP();
@@ -5481,14 +5477,17 @@ function exportExcel() {
       if(typeof showToast==='function') showToast('Đã đẩy lịch lên GitHub (data/roster-…json)', 'success');
     } catch(err){
       console.warn(err);
-      // token hết hạn / sai
-      if(/Bad credentials|401|403|Resource not accessible/i.test(String(err.message||err))){
+      const msg = String(err.message||err);
+      if(/Bad credentials|401|Requires authentication/i.test(msg) || err.status === 401){
         setGithubToken('');
         setSyncStatus('Token lỗi — nhập lại', false);
-        if(typeof showToast==='function') showToast('Token GitHub không hợp lệ. Bấm lại và dán token mới.', 'info');
+        if(typeof showToast==='function') showToast('Token GitHub không hợp lệ. Bấm đẩy lại và dán token mới.', 'info');
+      } else if(/403|Resource not accessible/i.test(msg) || err.status === 403){
+        setSyncStatus('Không có quyền ghi repo', false);
+        if(typeof showToast==='function') showToast('Token không có quyền ghi repo dispatchpqc/crewlist-dsp-asst', 'info');
       } else {
-        setSyncStatus('Lỗi đẩy: ' + (err.message||err), false);
-        if(typeof showToast==='function') showToast(String(err.message||err).slice(0,120), 'info');
+        setSyncStatus('Lỗi đẩy: ' + msg.slice(0,80), false);
+        if(typeof showToast==='function') showToast(msg.slice(0,120), 'info');
       }
     }
   }
@@ -5527,7 +5526,7 @@ function exportExcel() {
       if(typeof showToast==='function') showToast('Đã upload JSON lên GitHub và cập nhật bảng', 'success');
     } catch(err){
       console.warn(err);
-      if(/Bad credentials|401|403/i.test(String(err.message||err))) setGithubToken('');
+      /* token mặc định — không xóa */
       setSyncStatus('Lỗi: ' + (err.message||err), false);
       alert('Lỗi đẩy JSON: ' + (err.message||err));
     }
