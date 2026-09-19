@@ -5030,6 +5030,7 @@ function exportExcel() {
 
   // Dữ liệu từng ngày từ file Excel LỊCH TRỰC SPA SGN (tháng 09/2026)
   // Transcribed from OneDrive sheet — cột 26/08 → 25/09
+  const CUSTOM_SHIFTS_EMBED = {};
   const RAW_SHIFTS = [
     // id, name, dept, shifts[31]
     ['030346','Đàm Xuân Hiến','DM',['HC','M','E','E','','','NL','NL','HC','HC','M','','M','HC','HC','M','','M','HC','M','E','','E','M','M','HC','','','','','']],
@@ -5424,45 +5425,110 @@ function exportExcel() {
     };
   }
 
+  function utf8ToBase64(str){
+    const bytes = new TextEncoder().encode(str);
+    let binary = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+  }
+  function base64ToUtf8(b64){
+    const bin = atob(String(b64 || '').replace(/\s/g, ''));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+
+  function buildRawShiftsJs(){
+    const rows = EMP.map(e => {
+      const shifts = (e.shifts || []).slice(0, 31);
+      while (shifts.length < 31) shifts.push('');
+      return '    [' + JSON.stringify(String(e.id || '')) + ','
+        + JSON.stringify(String(e.name || '')) + ','
+        + JSON.stringify(String(e.dept || 'DM')) + ','
+        + JSON.stringify(shifts) + ']';
+    });
+    return '  const RAW_SHIFTS = [\n'
+      + '    // id, name, dept, shifts[31]\n'
+      + rows.join(',\n')
+      + '\n  ];';
+  }
+
+  function buildCustomShiftsEmbedJs(){
+    let custom = {};
+    try { custom = JSON.parse(localStorage.getItem('sunpq_custom_shifts') || '{}'); } catch(e){}
+    return '  const CUSTOM_SHIFTS_EMBED = ' + JSON.stringify(custom) + ';';
+  }
+
+  async function putGithubFile(path, contentStr, message){
+    const apiPath = '/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + path;
+    let sha = null;
+    try {
+      const existing = await githubApi(apiPath);
+      if (existing && existing.sha) sha = existing.sha;
+    } catch(e){
+      if (!/Not Found|404/i.test(String(e.message || e))) throw e;
+    }
+    const body = {
+      message: message || ('Update ' + path + ' from web'),
+      content: utf8ToBase64(contentStr),
+      branch: 'main'
+    };
+    if (sha) body.sha = sha;
+    return githubApi(apiPath, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+  }
+
   async function pushRosterJsonToGithub(payload){
     if(!payload || !Array.isArray(payload.employees)) throw new Error('Payload JSON không hợp lệ');
     const y = payload.year || currentYear;
     const m = payload.month || currentMonth;
     const path = 'data/roster-' + y + '-' + String(m).padStart(2,'0') + '.json';
-    const apiPath = '/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + path;
-
-    let sha = null;
-    try {
-      const existing = await githubApi(apiPath);
-      if(existing && existing.sha) sha = existing.sha;
-    } catch(e){
-      // 404 = file chưa có → tạo mới
-      if(!/Not Found|404/i.test(String(e.message||e))) throw e;
-    }
-
-    const contentStr = JSON.stringify(payload, null, 2);
-    // base64 utf-8
-    const bytes = new TextEncoder().encode(contentStr);
-    let binary = '';
-    bytes.forEach(b => { binary += String.fromCharCode(b); });
-    const contentB64 = btoa(binary);
-
-    const body = {
-      message: 'Update roster ' + y + '-' + String(m).padStart(2,'0') + ' from web',
-      content: contentB64,
-      branch: 'main'
-    };
-    if(sha) body.sha = sha;
-
-    setSyncStatus('Đang đẩy lên GitHub…');
-    const result = await githubApi(apiPath, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    setSyncStatus('✓ Đã đẩy ' + path + ' · ' + new Date().toLocaleTimeString('vi-VN'), true);
+    setSyncStatus('Đang đẩy roster JSON…');
+    const result = await putGithubFile(
+      path,
+      JSON.stringify(payload, null, 2),
+      'Update roster ' + y + '-' + String(m).padStart(2,'0') + ' from web'
+    );
+    setSyncStatus('✓ JSON ' + path + ' · ' + new Date().toLocaleTimeString('vi-VN'), true);
     return result;
   }
+
+  /** Cập nhật RAW_SHIFTS + CUSTOM_SHIFTS_EMBED trong index.html trên GitHub */
+  async function pushIndexHtmlToGithub(){
+    setSyncStatus('Đang cập nhật index.html trên GitHub…');
+    const apiPath = '/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/index.html';
+    const existing = await githubApi(apiPath);
+    if (!existing || !existing.content) throw new Error('Không đọc được index.html trên GitHub');
+    let html = base64ToUtf8(existing.content);
+
+    const newRaw = buildRawShiftsJs();
+    const reRaw = /[ \t]*const RAW_SHIFTS\s*=\s*\[[\s\S]*?\n[ \t]*\];/;
+    if (!reRaw.test(html)) throw new Error('Không tìm thấy khối RAW_SHIFTS trong index.html');
+    html = html.replace(reRaw, newRaw);
+
+    const newCustom = buildCustomShiftsEmbedJs();
+    const reCustom = /[ \t]*const CUSTOM_SHIFTS_EMBED\s*=\s*\{[\s\S]*?\};/;
+    if (reCustom.test(html)) {
+      html = html.replace(reCustom, newCustom);
+    } else {
+      // chèn CUSTOM_SHIFTS_EMBED ngay trước RAW_SHIFTS vừa thay
+      html = html.replace(newRaw, newCustom + '\n' + newRaw);
+    }
+
+    await putGithubFile(
+      'index.html',
+      html,
+      'Update index.html roster (NV/ca) from web · ' + currentYear + '-' + String(currentMonth).padStart(2,'0')
+    );
+    setSyncStatus('✓ index.html + JSON · ' + new Date().toLocaleTimeString('vi-VN'), true);
+  }
+
 
   async function pushCurrentToGithub(opts){
     const forceAsk = !!(opts && opts.forceAsk);
@@ -5475,7 +5541,14 @@ function exportExcel() {
       saveRoster();
       const payload = buildRosterPayloadFromEMP();
       await pushRosterJsonToGithub(payload);
-      if(typeof showToast==='function') showToast('Đã đẩy lịch lên GitHub (data/roster-…json)', 'success');
+      try {
+        await pushIndexHtmlToGithub();
+      } catch (htmlErr) {
+        console.warn('push index.html', htmlErr);
+        if(typeof showToast==='function') showToast('JSON ok, nhưng lỗi cập nhật index.html: ' + String(htmlErr.message||htmlErr).slice(0,80), 'info');
+        // vẫn coi là thành công một phần nếu JSON đã đẩy
+      }
+      if(typeof showToast==='function') showToast('Đã đẩy GitHub: roster JSON + index.html', 'success');
     } catch(err){
       console.warn(err);
       const msg = String(err.message||err);
@@ -5690,11 +5763,16 @@ function exportExcel() {
     };
   }
 
-  // Load custom shifts on init
+  // Load custom shifts on init (localStorage ưu tiên, sau đó CUSTOM_SHIFTS_EMBED trong HTML)
   (function loadCustomShifts(){
     try {
-      const custom = JSON.parse(localStorage.getItem('sunpq_custom_shifts')||'{}');
-      Object.entries(custom).forEach(([code, info])=>{
+      let custom = {};
+      try { custom = JSON.parse(localStorage.getItem('sunpq_custom_shifts')||'{}'); } catch(e){}
+      if ((!custom || !Object.keys(custom).length) && typeof CUSTOM_SHIFTS_EMBED === 'object' && CUSTOM_SHIFTS_EMBED) {
+        custom = CUSTOM_SHIFTS_EMBED;
+        try { localStorage.setItem('sunpq_custom_shifts', JSON.stringify(custom)); } catch(e){}
+      }
+      Object.entries(custom || {}).forEach(([code, info])=>{
         SHIFT_HOURS[code] = info.hours || 0;
         SHIFT_INFO[code] = {
           label: info.label || (code + ' · ' + (info.hours||0) + 'h'),
