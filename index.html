@@ -5033,29 +5033,31 @@ function exportExcel() {
   const CUSTOM_SHIFTS_EMBED = {};
   const RAW_SHIFTS = [
     // id, name, dept, shifts[31]
-    ["030322","Nguyễn Thái Uy","DM",["E","","M","M","","","NL","NL","M","E","","","M","E","","M","E","","","M","E","","HC","M","","","M","M","E","E",""]],
-    ["031845","Nguyễn Ngọc Long","DM",["","E","","M","M","","E","E","","M","E","","M","E","","M","E","E","","","M","E","","M","","M","M","","","M",""]],
-    ["042014","Nguyễn Xuân Tuyên","DM",["M","E","","","","M","NL","NL","E","","","E","","M","E","","M","E","","","M","E","","E","","M","E","","M","HC",""]],
-    ["030904","Trần Đình Đạt","HDQ",["M","M","","","","M","M","NL","M","E","E","","M","E","","","M","E","","","M","E","","M","E","","","M","E","",""]],
-    ["030905","Nguyễn T.Hoàng Hưng","HDQ",["E","E","","","M","E","E","NL","","M","","","E","","","M","M","E","","","M","E","","M","M","","E","","M","E",""]],
-    ["030841","Vũ Hoàng Long","HDQ",["","","M","M","P","P","NL","E","","","M","E","E","","M","E","","","M","E","E","","M","E","","M","","M","E","","M"]],
-    ["—","Vũ Huy Hùng","HDQ",["HC","HC","HC","HC","","HC","M","NL","E","E","","","M","E","","","M","E","","","M","E","","E","","M","E","","M","",""]],
-    ["039278","Nguyễn Kiều Huyền Chi","ASST",["E","","","M","E","","","M","M","E","","","M","M","E","","M","E","E","","","M","","","","E","","","M","E",""]],
-    ["039280","Đặng Thảo Linh","ASST",["","","M","E","","E","NL","M","M","E","","M","E","","E","","","M","E","","","M","E","E","","","M","E","E","",""]],
-    ["039276","Bùi Việt Anh","ASST",["M","E","","","M","E","E","NL","P","","M","","","E","","M","M","E","","M","M","E","","E","","","M","E","","M",""]],
-    ["039274","Đỗ Nam Anh","ASST",["","M","E","","M","M","E","E","","M","E","","M","","","","E","","M","E","","M","E","","M","M","","M","E","",""]],
-    ["031844","Nguyễn Hoàng Huy","SGN",["E","","M","","E","E","NL","M","M","","","","M","E","","M","E","E","","","M","","","E","","M","","M","E","","M"]],
-    ["031843","Lương Trung Hiếu","SGN",["M","M","","E","","","NL","NL","","E","E","","","M","E","","M","E","","","M","","E","","M","","E","","M","E",""]],
-    ["031846","Nguyễn Phúc Thịnh","SGN",["E","E","","M","E","","M","E","","","M","M","E","","M","","","E","","M","E","","E","E","","M","M","","E","",""]],
-    ["031847","Hoàng Bảo Ngọc","SGN",["","","E","","M","M","NL","M","E","","","","E","","","M","M","E","","","M","E","","M","M","HC","E","","M","",""]],
-    ["","Đinh Minh Trí","OBS",["","","","","","","","","","","","","","","","","E","E","","E","","","E","","","","","","","",""]],
-    ["","Huỳnh Tấn Phước","OBS",["","","","","","","","","","","","","","","","","M","","","M","","","M","","M","E","E","","M","E","E"]],
-    ["","Vũ Trọng Khánh","OBS",["","","","","","","","","","","","","","","","","","","","","","","E","","","","","","","","M"]],
-    ["","Cù Trường Phú","OBS",["","","","","","","","","","","","","","","","","","","","","","","","","","","","M","","",""]],
-    ["041863","Lê Ngọc Thành Tài","PQC",["","M","C9","E","","C9","C9","M","E","","C9","","M","C9","","C9","","","C9","","M","C9","E","","C9","","","E","","C9",""]],
-    ["041865","Nguyễn Đức Lộc","PQC",["C9","E","","C9","","","M","C9","C9","","","C9","","M","C9","","C9","E","","C9","E","","C9","","C9","","C9","","M","C9",""]],
-    ["041867","Phan Thành Nghĩa","PQC",["M","C9","","","C9","E","E","E","","C9","E","","C9","","","M","C9","","M","C9","","M","C9","E","","C9","","C9","E","",""]],
-    ["","a","BRF",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]]
+    ['030346','Đàm Xuân Hiến','DM',['HC','M','E','E','','','NL','NL','HC','HC','M','','M','HC','HC','M','','M','HC','M','E','','E','M','M','HC','','','','','']],
+    ['030903','Đào Chí Dũng','DM',['','M','M','','E','E','NL','M','HC','HC','','','M','','HC','M','','M','E','','HC','M','E','E','','E','','M','','HC','']],
+    ['031930','Phạm Ninh Toàn','DM',['','','E','E','E','','M','M','E','','','M','','M','E','','','M','E','E','E','E','','M','E','','','E','E','','']],
+    ['030322','Nguyễn Thái Uy','DM',['E','','M','M','','','NL','NL','M','E','','','M','E','','M','E','','','M','E','','HC','M','','','M','M','E','E','']],
+    ['031845','Nguyễn Ngọc Long','DM',['','E','','M','M','','E','E','','M','E','','M','E','','M','E','E','','','M','E','','M','','M','M','','','M','']],
+    ['042014','Nguyễn Xuân Tuyên','DM',['M','E','','','','M','NL','NL','E','','','E','','M','E','','M','E','','','M','E','','E','','M','E','','M','HC','']],
+    ['030904','Trần Đình Đạt','HDQ',['M','M','','','','M','M','NL','M','E','E','','M','E','','','M','E','','','M','E','','M','E','','','M','E','','']],
+    ['030905','Nguyễn T.Hoàng Hưng','HDQ',['E','E','','','M','E','E','NL','','M','','','E','','','M','M','E','','','M','E','','M','M','','E','','M','E','']],
+    ['030841','Vũ Hoàng Long','HDQ',['','','M','M','P','P','NL','E','','','M','E','E','','M','E','','','M','E','E','','M','E','','M','','M','E','','M']],
+    ['—','Vũ Huy Hùng','HDQ',['HC','HC','HC','HC','','HC','M','NL','E','E','','','M','E','','','M','E','','','M','E','','E','','M','E','','M','','']],
+    ['039278','Nguyễn Kiều Huyền Chi','ASST',['E','','','M','E','','','M','M','E','','','M','M','E','','M','E','E','','','M','','','','E','','','M','E','']],
+    ['039280','Đặng Thảo Linh','ASST',['','','M','E','','E','NL','M','M','E','','M','E','','E','','','M','E','','','M','E','E','','','M','E','E','','']],
+    ['039276','Bùi Việt Anh','ASST',['M','E','','','M','E','E','NL','P','','M','','','E','','M','M','E','','M','M','E','','E','','','M','E','','M','']],
+    ['039274','Đỗ Nam Anh','ASST',['','M','E','','M','M','E','E','','M','E','','M','','','','E','','M','E','','M','E','','M','M','','M','E','','']],
+    ['031844','Nguyễn Hoàng Huy','SGN',['E','','M','','E','E','NL','M','M','','','','M','E','','M','E','E','','','M','','','E','','M','','M','E','','M']],
+    ['031843','Lương Trung Hiếu','SGN',['M','M','','E','','','NL','NL','','E','E','','','M','E','','M','E','','','M','','E','','M','','E','','M','E','']],
+    ['031846','Nguyễn Phúc Thịnh','SGN',['E','E','','M','E','','M','E','','','M','M','E','','M','','','E','','M','E','','E','E','','M','M','','E','','']],
+    ['031847','Hoàng Bảo Ngọc','SGN',['','','E','','M','M','NL','M','E','','','','E','','','M','M','E','','','M','E','','M','M','HC','E','','M','','']],
+    ['','Đinh Minh Trí','OBS',['','','','','','','','','','','','','','','','','E','E','','E','','','E','','','','','','','','']],
+    ['','Huỳnh Tấn Phước','OBS',['','','','','','','','','','','','','','','','','M','','','M','','','M','','M','E','E','','M','E','E']],
+    ['','Vũ Trọng Khánh','OBS',['','','','','','','','','','','','','','','','','','','','','','','E','','','','','','','','M']],
+    ['','Cù Trường Phú','OBS',['','','','','','','','','','','','','','','','','','','','','','','','','','','','M','','','']],
+    ['041863','Lê Ngọc Thành Tài','PQC',['','M','C9','E','','C9','C9','M','E','','C9','','M','C9','','C9','','','C9','','M','C9','E','','C9','','','E','','C9','']],
+    ['041865','Nguyễn Đức Lộc','PQC',['C9','E','','C9','','','M','C9','C9','','','C9','','M','C9','','C9','E','','C9','E','','C9','','C9','','C9','','M','C9','']],
+    ['041867','Phan Thành Nghĩa','PQC',['M','C9','','','C9','E','E','E','','C9','E','','C9','','','M','C9','','M','C9','','M','C9','E','','C9','','C9','E','','']],
   ];
 
   // pad/trim each to 31
@@ -5126,34 +5128,136 @@ function exportExcel() {
     }
   }
 
+  function empIdentity(e){
+    return String(e.id || '').trim() + '|' + String(e.name || '').trim().toLowerCase();
+  }
+
+  function normalizeEmpList(employees){
+    return (employees || []).map((e,i)=>({
+      id: e.id || '',
+      name: e.name || '',
+      dept: e.dept || 'DM',
+      shifts: (e.shifts || []).slice(0, 31).concat(Array(31).fill('')).slice(0, 31),
+      key: typeof e.key === 'number' ? e.key : i,
+      counts: {HC:0,M:0,E:0,C9:0,NL:0,P:0},
+      total: 0,
+      note: ''
+    })).map(e=>{
+      e.counts = countShifts(e.shifts);
+      e.total = calcTotal(e.shifts);
+      e.note = (e.total < 208 && e.dept !== 'OBS') ? ('thiếu '+(208-e.total)+'h') : '';
+      return e;
+    });
+  }
+
+  function readStoredEmployees(y, m){
+    try {
+      const raw = localStorage.getItem(storageKey(y, m));
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      if (data && Array.isArray(data.employees) && data.employees.length) return data.employees;
+    } catch (e) {}
+    return null;
+  }
+
+  /** Lấy danh sách NV từ tháng gần nhất trước đó (chỉ tên/mã/vị trí, ca trống) */
+  function seedEmployeesFromPrevious(y, m){
+    let yy = y, mm = m - 1;
+    for (let i = 0; i < 36; i++) {
+      if (mm < 1) { mm = 12; yy--; }
+      if (yy < 2020) break;
+      const prev = readStoredEmployees(yy, mm);
+      if (prev && prev.length) {
+        return prev.map((e, idx) => ({
+          id: e.id || '',
+          name: e.name || '',
+          dept: e.dept || 'DM',
+          shifts: Array(31).fill(''),
+          key: typeof e.key === 'number' ? e.key : idx
+        }));
+      }
+      mm--;
+    }
+    return null;
+  }
+
+  function forEachMonthFrom(y, m, includeStart, fn){
+    let yy = y, mm = includeStart ? m : m + 1;
+    if (!includeStart && mm > 12) { mm = 1; yy++; }
+    for (let n = 0; n < 36; n++) {
+      if (mm > 12) { mm = 1; yy++; }
+      fn(yy, mm);
+      mm++;
+    }
+  }
+
+  /** Xóa NV khỏi localStorage các tháng sau (không đụng tháng hiện tại / tháng trước) */
+  function removeEmployeeFromFutureLocal(emp, fromY, fromM){
+    const id = empIdentity(emp);
+    forEachMonthFrom(fromY, fromM, false, (y, m) => {
+      try {
+        const raw = localStorage.getItem(storageKey(y, m));
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (!data || !Array.isArray(data.employees)) return;
+        const before = data.employees.length;
+        data.employees = data.employees.filter(e => empIdentity(e) !== id);
+        if (data.employees.length !== before) {
+          data.savedAt = new Date().toISOString();
+          localStorage.setItem(storageKey(y, m), JSON.stringify(data));
+        }
+      } catch (e) {}
+    });
+  }
+
+  async function removeEmployeeFromFutureGithub(emp, fromY, fromM){
+    const id = empIdentity(emp);
+    const months = [];
+    forEachMonthFrom(fromY, fromM, false, (y, m) => {
+      if (months.length < 12) months.push([y, m]);
+    });
+    for (const [y, m] of months) {
+      const path = 'data/roster-' + y + '-' + String(m).padStart(2,'0') + '.json';
+      try {
+        const existing = await githubApi('/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + path);
+        if (!existing || !existing.content) continue;
+        const data = JSON.parse(base64ToUtf8(existing.content));
+        if (!data || !Array.isArray(data.employees)) continue;
+        const before = data.employees.length;
+        data.employees = data.employees.filter(e => empIdentity(e) !== id);
+        if (data.employees.length === before) continue;
+        data.exportedAt = new Date().toISOString();
+        await putGithubFile(path, JSON.stringify(data, null, 2),
+          'Remove employee from ' + path + ' (left after ' + fromY + '-' + String(fromM).padStart(2,'0') + ')');
+      } catch (e) {
+        // 404 / lỗi — bỏ qua
+      }
+    }
+  }
+
   function loadRoster(y, m){
     currentYear = y; currentMonth = m;
     try {
-      const raw = localStorage.getItem(storageKey(y, m));
-      if(raw){
-        const data = JSON.parse(raw);
-        if(data && Array.isArray(data.employees) && data.employees.length){
-          EMP = data.employees.map((e,i)=>({
-            id:e.id||'', name:e.name||'', dept:e.dept||'DM',
-            shifts: (e.shifts||[]).slice(0,31).concat(Array(31).fill('')).slice(0,31),
-            key: typeof e.key==='number' ? e.key : i,
-            counts: {HC:0,M:0,E:0,C9:0,NL:0,P:0}, total:0, note:''
-          }));
-          EMP.forEach(e=>{
-            e.counts = countShifts(e.shifts);
-            e.total = calcTotal(e.shifts);
-            e.note = (e.total < 208 && e.dept !== 'OBS') ? ('thiếu '+(208-e.total)+'h') : '';
-          });
-          return true;
-        }
+      const stored = readStoredEmployees(y, m);
+      if (stored) {
+        EMP = normalizeEmpList(stored);
+        return true;
       }
     } catch(err){ console.warn('load roster failed', err); }
-    // fallback: default only for 2026-09
-    if(y===2026 && m===9){
+
+    // Tháng chưa có dữ liệu: kế thừa danh sách NV từ tháng trước (ca trống)
+    const seeded = seedEmployeesFromPrevious(y, m);
+    if (seeded && seeded.length) {
+      EMP = normalizeEmpList(seeded);
+      saveRoster(); // lưu bản seed để tháng này độc lập
+      return false;
+    }
+
+    // fallback cuối: RAW_SHIFTS
+    if (y === 2026 && m === 9) {
       EMP = buildDefaultEMP();
     } else {
-      // empty template from names of default
-      EMP = buildDefaultEMP().map(e=>({
+      EMP = buildDefaultEMP().map(e => ({
         ...e,
         shifts: Array(31).fill(''),
         counts: {HC:0,M:0,E:0,C9:0,NL:0,P:0},
@@ -5675,12 +5779,18 @@ function exportExcel() {
     if(!canEditRoster()){ if(typeof showToast==='function') showToast('Guest chỉ được xem', 'info'); return; }
     const emp = EMP.find(e=>e.key===key);
     if(!emp) return;
-    if(!confirm('Xóa nhân viên "'+emp.name+'" khỏi lịch?')) return;
+    if(!confirm('Xóa "'+emp.name+'" khỏi tháng '+String(currentMonth).padStart(2,'0')+'/'+currentYear+'?\n\nCác tháng TRƯỚC vẫn giữ NV này.\nCác tháng SAU (đã lưu) sẽ bỏ NV này.')) return;
+    const removed = { id: emp.id, name: emp.name, dept: emp.dept };
+    const fromY = currentYear, fromM = currentMonth;
     EMP = EMP.filter(e=>e.key!==key);
     saveRoster();
+    // Tháng sau trên máy này: bỏ NV
+    removeEmployeeFromFutureLocal(removed, fromY, fromM);
     renderAll();
-    if(typeof showToast==='function') showToast('Đã xóa '+emp.name+' — đang đẩy GitHub…', 'success');
-    pushCurrentToGithub().catch(e=>console.warn(e));
+    if(typeof showToast==='function') showToast('Đã xóa '+removed.name+' (tháng này + các tháng sau) — đang đẩy GitHub…', 'success');
+    pushCurrentToGithub()
+      .then(() => removeEmployeeFromFutureGithub(removed, fromY, fromM))
+      .catch(e=>console.warn(e));
   }
 
   function openAddShiftModal(){
@@ -6085,14 +6195,23 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
     function onPeriodChange(){
       const m = parseInt(monthEl.value, 10);
       const y = parseInt(yearEl.value, 10);
-      // save current before switch
+      // lưu tháng hiện tại trước khi đổi
       saveRoster();
       const had = loadRoster(y, m);
       const title = document.getElementById('rTitleMonth');
       if(title) title.textContent = 'Tháng ' + String(m).padStart(2,'0') + '/' + y;
       renderAll();
+      // Thử tải đúng file tháng trên GitHub (không đụng tháng khác)
+      if (typeof syncFromGithub === 'function') {
+        syncFromGithub({ silent: true }).then(ok => {
+          if (!ok && !had) {
+            // giữ bản seed từ tháng trước
+            setSyncStatus('Tháng ' + m + '/' + y + ' · kế thừa NV từ tháng trước / local', null);
+          }
+        });
+      }
       if(typeof showToast==='function'){
-        showToast(had ? ('Đã tải lịch ' + m + '/' + y + ' (đã lưu trước)') : ('Lịch ' + m + '/' + y + ' (mới / mặc định)'), 'info');
+        showToast(had ? ('Đã tải lịch ' + m + '/' + y + ' (đã lưu trước)') : ('Lịch ' + m + '/' + y + ' (mới — kế thừa NV tháng trước nếu có)'), 'info');
       }
     }
     if(monthEl) monthEl.onchange = onPeriodChange;
