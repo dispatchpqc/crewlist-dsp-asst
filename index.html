@@ -5464,8 +5464,9 @@ function exportExcel() {
     return result;
   }
 
-  async function pushCurrentToGithub(){
-    let token = getGithubToken();
+  async function pushCurrentToGithub(opts){
+    const forceAsk = !!(opts && opts.forceAsk);
+    let token = forceAsk ? '' : getGithubToken();
     if(!token){
       token = askGithubToken();
       if(!token) return;
@@ -5481,7 +5482,15 @@ function exportExcel() {
       if(/Bad credentials|401|Requires authentication/i.test(msg) || err.status === 401){
         setGithubToken('');
         setSyncStatus('Token lỗi — nhập lại', false);
-        if(typeof showToast==='function') showToast('Token GitHub không hợp lệ. Bấm đẩy lại và dán token mới.', 'info');
+        // Tự hỏi token mới và thử lại 1 lần (tránh kẹt token cũ trong localStorage)
+        if(!(opts && opts._retried)){
+          if(typeof showToast==='function') showToast('Token cũ không hợp lệ — dán token mới', 'info');
+          const again = askGithubToken();
+          if(again){
+            return pushCurrentToGithub({ _retried: true, forceAsk: false });
+          }
+        }
+        if(typeof showToast==='function') showToast('Token GitHub không hợp lệ. Bấm Đẩy lên GitHub và dán token mới.', 'info');
       } else if(/403|Resource not accessible/i.test(msg) || err.status === 403){
         setSyncStatus('Không có quyền ghi repo', false);
         if(typeof showToast==='function') showToast('Token không có quyền ghi repo dispatchpqc/crewlist-dsp-asst', 'info');
@@ -5969,7 +5978,7 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
     <span>ℹ️</span>
     <div>
       <strong>Giờ công:</strong> HC = 9h (08:30–17:30) · M = 12h (07:30–19:30) · E = 12h (19:30–07:30) · C9 = 12h (09:00–21:00) · NL/P = 0h.
-      Cột tổng giờ đổi ngay khi sửa ca. Đồng bộ GitHub: sửa ca → <b>⬆ Đẩy lên GitHub</b> (cần token 1 lần) → máy khác bấm <b>⟳ Tải từ GitHub</b>. Hoặc <b>📁 Chọn JSON → GitHub</b> để upload file có sẵn.
+      Cột tổng giờ đổi ngay khi sửa ca. Đồng bộ GitHub: sửa ca → <b>⬆ Đẩy lên GitHub</b> (cần token 1 lần trên máy này) → máy khác bấm <b>⟳ Tải từ GitHub</b>.
       Ngày <b>18/09</b> (hôm nay) được đánh dấu ★ / viền vàng.
     </div>
   </div>
