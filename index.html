@@ -5033,25 +5033,31 @@ function exportExcel() {
   const CUSTOM_SHIFTS_EMBED = {};
   const RAW_SHIFTS = [
     // id, name, dept, shifts[31]
-    ["042014","Nguyễn Xuân Tuyên","DM",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["030905","Nguyễn T.Hoàng Hưng","HDQ",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["030841","Vũ Hoàng Long","HDQ",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["—","Vũ Huy Hùng","HDQ",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["039278","Nguyễn Kiều Huyền Chi","ASST",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["039280","Đặng Thảo Linh","ASST",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["039276","Bùi Việt Anh","ASST",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["039274","Đỗ Nam Anh","ASST",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["031844","Nguyễn Hoàng Huy","SGN",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["031843","Lương Trung Hiếu","SGN",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["031846","Nguyễn Phúc Thịnh","SGN",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["031847","Hoàng Bảo Ngọc","SGN",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["","Đinh Minh Trí","OBS",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["","Huỳnh Tấn Phước","OBS",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["","Vũ Trọng Khánh","OBS",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["","Cù Trường Phú","OBS",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["041863","Lê Ngọc Thành Tài","PQC",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["041865","Nguyễn Đức Lộc","PQC",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["041867","Phan Thành Nghĩa","PQC",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]]
+    ['030346','Đàm Xuân Hiến','DM',['HC','M','E','E','','','NL','NL','HC','HC','M','','M','HC','HC','M','','M','HC','M','E','','E','M','M','HC','','','','','']],
+    ['030903','Đào Chí Dũng','DM',['','M','M','','E','E','NL','M','HC','HC','','','M','','HC','M','','M','E','','HC','M','E','E','','E','','M','','HC','']],
+    ['031930','Phạm Ninh Toàn','DM',['','','E','E','E','','M','M','E','','','M','','M','E','','','M','E','E','E','E','','M','E','','','E','E','','']],
+    ['030322','Nguyễn Thái Uy','DM',['E','','M','M','','','NL','NL','M','E','','','M','E','','M','E','','','M','E','','HC','M','','','M','M','E','E','']],
+    ['031845','Nguyễn Ngọc Long','DM',['','E','','M','M','','E','E','','M','E','','M','E','','M','E','E','','','M','E','','M','','M','M','','','M','']],
+    ['042014','Nguyễn Xuân Tuyên','DM',['M','E','','','','M','NL','NL','E','','','E','','M','E','','M','E','','','M','E','','E','','M','E','','M','HC','']],
+    ['030904','Trần Đình Đạt','HDQ',['M','M','','','','M','M','NL','M','E','E','','M','E','','','M','E','','','M','E','','M','E','','','M','E','','']],
+    ['030905','Nguyễn T.Hoàng Hưng','HDQ',['E','E','','','M','E','E','NL','','M','','','E','','','M','M','E','','','M','E','','M','M','','E','','M','E','']],
+    ['030841','Vũ Hoàng Long','HDQ',['','','M','M','P','P','NL','E','','','M','E','E','','M','E','','','M','E','E','','M','E','','M','','M','E','','M']],
+    ['—','Vũ Huy Hùng','HDQ',['HC','HC','HC','HC','','HC','M','NL','E','E','','','M','E','','','M','E','','','M','E','','E','','M','E','','M','','']],
+    ['039278','Nguyễn Kiều Huyền Chi','ASST',['E','','','M','E','','','M','M','E','','','M','M','E','','M','E','E','','','M','','','','E','','','M','E','']],
+    ['039280','Đặng Thảo Linh','ASST',['','','M','E','','E','NL','M','M','E','','M','E','','E','','','M','E','','','M','E','E','','','M','E','E','','']],
+    ['039276','Bùi Việt Anh','ASST',['M','E','','','M','E','E','NL','P','','M','','','E','','M','M','E','','M','M','E','','E','','','M','E','','M','']],
+    ['039274','Đỗ Nam Anh','ASST',['','M','E','','M','M','E','E','','M','E','','M','','','','E','','M','E','','M','E','','M','M','','M','E','','']],
+    ['031844','Nguyễn Hoàng Huy','SGN',['E','','M','','E','E','NL','M','M','','','','M','E','','M','E','E','','','M','','','E','','M','','M','E','','M']],
+    ['031843','Lương Trung Hiếu','SGN',['M','M','','E','','','NL','NL','','E','E','','','M','E','','M','E','','','M','','E','','M','','E','','M','E','']],
+    ['031846','Nguyễn Phúc Thịnh','SGN',['E','E','','M','E','','M','E','','','M','M','E','','M','','','E','','M','E','','E','E','','M','M','','E','','']],
+    ['031847','Hoàng Bảo Ngọc','SGN',['','','E','','M','M','NL','M','E','','','','E','','','M','M','E','','','M','E','','M','M','HC','E','','M','','']],
+    ['','Đinh Minh Trí','OBS',['','','','','','','','','','','','','','','','','E','E','','E','','','E','','','','','','','','']],
+    ['','Huỳnh Tấn Phước','OBS',['','','','','','','','','','','','','','','','','M','','','M','','','M','','M','E','E','','M','E','E']],
+    ['','Vũ Trọng Khánh','OBS',['','','','','','','','','','','','','','','','','','','','','','','E','','','','','','','','M']],
+    ['','Cù Trường Phú','OBS',['','','','','','','','','','','','','','','','','','','','','','','','','','','','M','','','']],
+    ['041863','Lê Ngọc Thành Tài','PQC',['','M','C9','E','','C9','C9','M','E','','C9','','M','C9','','C9','','','C9','','M','C9','E','','C9','','','E','','C9','']],
+    ['041865','Nguyễn Đức Lộc','PQC',['C9','E','','C9','','','M','C9','C9','','','C9','','M','C9','','C9','E','','C9','E','','C9','','C9','','C9','','M','C9','']],
+    ['041867','Phan Thành Nghĩa','PQC',['M','C9','','','C9','E','E','E','','C9','E','','C9','','','M','C9','','M','C9','','M','C9','E','','C9','','C9','E','','']],
   ];
 
   // pad/trim each to 31
@@ -6102,6 +6108,45 @@ html.dark #rosterRoot .overlay{ background:rgba(0,0,0,.55); }
 html.dark #rosterRoot .viewtoggle button{ background:#1A1D24; color:#9CA3AF; }
 html.dark #rosterRoot .viewtoggle{ border-color:#2A2E38; }
 html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#3a2400; }
+
+/* ===== Tối ưu xem trên điện thoại ===== */
+@media (max-width:720px){
+  #rosterRoot .sun-field{ padding:16px 14px 10px; }
+  #rosterRoot h1{ font-size:19px; }
+  #rosterRoot .kpirow{ grid-template-columns:repeat(3,1fr); gap:8px; }
+  #rosterRoot .kpi{ padding:8px 9px; }
+  #rosterRoot .kpi .num{ font-size:17px; }
+  #rosterRoot .controls{ padding:8px 12px; gap:6px; }
+  #rosterRoot .search{ flex:1 1 100%; max-width:none; order:1; }
+  #rosterRoot .chipset{ order:2; overflow-x:auto; flex-wrap:nowrap; -webkit-overflow-scrolling:touch; padding-bottom:2px; }
+  #rosterRoot .chipset .chip{ flex:0 0 auto; }
+  #rosterRoot .viewtoggle{ order:3; margin-left:0; flex:1 1 100%; }
+  #rosterRoot .viewtoggle button{ flex:1; text-align:center; padding:9px 8px; }
+  #rosterRoot .btn-upload{ order:4; font-size:11.5px; padding:8px 10px; }
+  #rosterRoot #rSyncStatus{ order:5; max-width:100%; }
+  #rosterRoot main{ padding:12px 10px 30px; }
+  #rosterRoot .banner{ font-size:11.5px; padding:9px 11px; }
+  #rosterRoot .legend{ font-size:11px; gap:6px 10px; padding:8px 10px; }
+  /* Bảng đầy đủ vẫn cuộn ngang được, nhưng ô nhỏ lại + ngón tay bấm dễ hơn */
+  #rosterRoot .tablewrap{ max-height:60vh; border-radius:10px; }
+  #rosterRoot .cell{ width:30px; height:40px; font-size:10.5px; }
+  #rosterRoot thead th{ padding:5px 3px; font-size:10px; }
+  #rosterRoot th.sticky1, #rosterRoot td.sticky1{ min-width:118px; }
+  #rosterRoot .empname{ font-size:12px; }
+  #rosterRoot .empid{ font-size:10px; }
+  /* Lịch cá nhân: thẻ full-width, dễ chạm hơn trên điện thoại */
+  #rosterRoot .peoplegrid{ grid-template-columns:1fr; gap:10px; }
+  #rosterRoot .personcard{ padding:14px 16px; }
+  /* Modal lịch cá nhân full-screen trên điện thoại */
+  #rosterRoot .overlay{ padding:0; align-items:flex-end; }
+  #rosterRoot .modal{ max-width:none; width:100%; max-height:92vh; border-radius:18px 18px 0 0; padding:18px 16px 24px; }
+  #rosterRoot .cal{ gap:5px; }
+  #rosterRoot .calcell .d{ font-size:9px; }
+  #rosterRoot .calcell .s{ font-size:11px; }
+  /* Popup chọn ca to hơn, dễ bấm bằng ngón tay */
+  #rosterRoot .shift-pop{ min-width:min(240px,80vw); }
+  #rosterRoot .shift-pop button{ padding:12px 14px; font-size:14px; }
+}
 `;
       document.head.appendChild(st);
     }
@@ -6141,6 +6186,8 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
   </div>
   <div class="chipset" id="rChips"></div>
   <button type="button" class="btn-upload roster-edit-only" id="rLoadExcel">📂 Nạp Excel lịch</button>
+  <button type="button" class="btn-upload roster-edit-only" id="rLoadImage" style="border-color:#8B7355;background:#F5F0E8;color:#6B5638;">🖼 Nạp từ ảnh</button>
+  <input type="file" id="rImageInput" accept="image/*" style="display:none">
   <button type="button" class="btn-upload roster-edit-only" id="rExportXlsx" style="border-color:#3E6FA8;background:#E8EFF7;color:#245A9C;">⬇ Xuất Excel</button>
   <button type="button" class="btn-upload" id="rSyncGithub" style="border-color:#24292F;background:#F6F8FA;color:#24292F;">⟳ Tải từ GitHub</button>
   <button type="button" class="btn-upload roster-edit-only" id="rPushGithub" style="border-color:#1F883D;background:#DAFBE1;color:#1A7F37;">⬆ Đẩy lên GitHub</button>
@@ -6170,6 +6217,10 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
 <div class="overlay" id="rOverlay"><div class="modal" id="rModal"></div></div>
 `;
     wireEvents();
+    // Trên điện thoại, bảng 31 cột rất khó xem — mặc định mở "Lịch cá nhân"
+    if(window.innerWidth <= 720){
+      document.getElementById('rBtnCards')?.click();
+    }
     renderAll();
     // Ưu tiên dữ liệu trên GitHub nếu có (đồng bộ máy khác)
     if(typeof syncFromGithub === 'function'){
@@ -6240,6 +6291,19 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
       document.getElementById('rCards').style.display='block';
     };
     document.getElementById('rLoadExcel').onclick=()=>document.getElementById('rExcelInput').click();
+    document.getElementById('rLoadImage')?.addEventListener('click', ()=>document.getElementById('rImageInput').click());
+    document.getElementById('rImageInput')?.addEventListener('change', async (ev)=>{
+      const f = ev.target.files && ev.target.files[0];
+      if(!f) return;
+      ev.target.value='';
+      if(typeof showToast==='function') showToast('Đang nhận diện chữ trong ảnh (OCR)… có thể mất 10–30s', 'info');
+      try {
+        const text = await loadFromImageOcr(f, (msg)=>{ if(typeof showToast==='function') showToast(msg, 'info'); });
+        openOcrReview(text, f);
+      } catch(err){
+        alert('Lỗi OCR: ' + (err.message||err));
+      }
+    });
     document.getElementById('rExcelInput').onchange = async (ev)=>{
       const f = ev.target.files && ev.target.files[0];
       if(!f) return;
@@ -6425,64 +6489,67 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
   async function loadExcelFile(file){
     if(typeof XLSX === 'undefined') throw new Error('SheetJS chưa load');
     const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, {type:'array'});
+    // cellDates:true để các ô ngày (26/08, 27/08...) ở dòng tiêu đề đọc ra thành
+    // đối tượng Date thật, thay vì số serial Excel (vd 46260) — số serial trước đây
+    // hay bị nhận nhầm chứa chuỗi "26"/"27" khiến cột bắt đầu ngày bị lệch.
+    const wb = XLSX.read(buf, {type:'array', cellDates:true});
     const sheet = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
-    // Find header row with dates
+    const rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:'', raw:true});
+    // Tìm dòng tiêu đề có "Họ tên"
     let headerRow = -1;
     for(let i=0;i<Math.min(15,rows.length);i++){
       const r=rows[i].map(c=>String(c));
-      if(r.some(c=>/26\/08|26\/8|Họ tên/i.test(c))) { headerRow=i; break; }
+      if(r.some(c=>/Họ tên|Ho ten/i.test(c))) { headerRow=i; break; }
     }
-    if(headerRow<0) throw new Error('Không tìm thấy dòng tiêu đề lịch');
-    // Map day columns: look for day numbers 26,27,...,25
-    const hdr = rows[headerRow].map(c=>String(c).trim());
-    // Prefer row with weekday labels or date labels
-    let dayStartCol = -1;
-    for(let c=0;c<hdr.length;c++){
-      if(/26/.test(hdr[c]) && (hdr[c+1]||'').match(/27/)) { dayStartCol=c; break; }
-    }
-    // Sometimes dates are on previous row
-    if(dayStartCol<0 && headerRow>0){
-      const prev=rows[headerRow-1].map(c=>String(c));
-      for(let c=0;c<prev.length;c++){
-        if(/26\/0?8|26$/.test(prev[c])) { dayStartCol=c; break; }
-      }
-    }
-    if(dayStartCol<0){
-      // fallback: find column after "Họ tên"
-      for(let c=0;c<hdr.length;c++) if(/Họ tên|Ho ten/i.test(hdr[c])) { dayStartCol=c+1; break; }
-    }
-    if(dayStartCol<0) dayStartCol=3;
+    if(headerRow<0) throw new Error('Không tìm thấy dòng tiêu đề lịch (thiếu cột "Họ tên")');
 
+    const hdrRaw = rows[headerRow];
+    const hdr = hdrRaw.map(c=>String(c).trim());
     const nameCol = hdr.findIndex(h=>/Họ tên|Ho ten/i.test(h));
+    if(nameCol<0) throw new Error('Không xác định được cột "Họ tên"');
     const idCol = hdr.findIndex(h=>/Mã|nhân viên|Ma NV/i.test(h));
     const posCol = hdr.findIndex(h=>/Vị trí|Vi tri|DSP|DM/i.test(h));
+
+    // Cột ngày luôn nằm NGAY SAU cột "Họ tên" — đây là cách xác định đáng tin cậy
+    // duy nhất (không dò theo nội dung số serial, dễ trùng khớp giả).
+    const dayStartCol = nameCol + 1;
+    // Đếm số cột ngày liên tiếp: dừng khi ô tiêu đề không còn là Date/số (vd gặp
+    // cột tổng hợp "Tổng giờ công", "Note" phía sau, hoặc hết ô).
+    let dayCount = 0;
+    for(let c=dayStartCol; c<hdrRaw.length; c++){
+      const v = hdrRaw[c];
+      const isDayHeader = (v instanceof Date) || (typeof v === 'number' && v > 0);
+      if(!isDayHeader) break;
+      dayCount++;
+    }
+    if(dayCount < 7) dayCount = 31; // fallback nếu không đọc được kiểu Date (file không chuẩn)
 
     const parsed=[];
     let currentDept='DM';
     for(let i=headerRow+1;i<rows.length;i++){
       const row=rows[i];
       if(!row || !row.length) continue;
-      const name = String(row[nameCol>=0?nameCol:2]||'').trim();
+      const name = String(row[nameCol]||'').trim();
       if(!name || /HUY|PAIR|Tổng|HC$|^M$|^E$/i.test(name)) continue;
-      const id = String(row[idCol>=0?idCol:1]||'').trim();
-      // dept from merged cell or previous
-      const posRaw = String(row[posCol>=0?posCol:0]||'').trim();
+      const id = String(row[idCol>=0?idCol:(nameCol-1)]||'').trim();
+      // dept từ ô merge (chỉ có giá trị ở dòng đầu nhóm) hoặc giữ dept trước đó
+      const posRaw = String(row[posCol>=0?posCol:(nameCol-2)]||'').trim();
       if(posRaw){
         if(/Duty Manager|^DM$/i.test(posRaw)) currentDept='DM';
         else if(/DSP HDQ|HDQ/i.test(posRaw) && !/ASST/i.test(posRaw)) currentDept='HDQ';
         else if(/ASST.*HDQ|DSP ASST HDQ/i.test(posRaw)) currentDept='ASST';
         else if(/DSP SGN|^SGN$/i.test(posRaw)) currentDept='SGN';
         else if(/OBS/i.test(posRaw)) currentDept='OBS';
+        else if(/Briefing|^BRF$/i.test(posRaw)) currentDept='BRF';
         else if(/PQC/i.test(posRaw)) currentDept='PQC';
       }
       const shifts=[];
       for(let d=0;d<31;d++){
-        let v=String(row[dayStartCol+d]||'').trim().toUpperCase();
+        let raw = d < dayCount ? row[dayStartCol+d] : '';
+        let v=String(raw==null?'':raw).trim().toUpperCase();
         if(v==='E+'||v==='E') v='E';
         else if(v==='SN'||v==='NC') v='';
-        else if(!['HC','M','E','C9','NL','P',''].includes(v)) v='';
+        else if(!['HC','M','E','C9','NL','P',''].includes(v)) v = SHIFT_INFO[v] ? v : '';
         shifts.push(v);
       }
       parsed.push({id, name, dept:currentDept, shifts, key:parsed.length,
@@ -6493,6 +6560,50 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
     EMP = parsed;
     saveRoster();
     renderAll();
+  }
+
+  /** Nạp lịch từ ẢNH (thử nghiệm) — OCR bằng Tesseract.js đã có sẵn trong app.
+   *  Vì bảng lịch là lưới nhiều màu dày đặc, OCR không thể tách chính xác từng ô
+   *  theo đúng hàng/cột như Excel, nên hàm này CHỈ trích văn bản thô ra cho người
+   *  dùng xem & đối chiếu thủ công, không tự động ghi đè lịch để tránh sai dữ liệu.
+   */
+  async function loadFromImageOcr(file, onProgress){
+    const Tesseract = (typeof crEnsureTesseract === 'function')
+      ? await crEnsureTesseract(onProgress)
+      : window.Tesseract;
+    if(!Tesseract) throw new Error('Không tải được Tesseract.js');
+    const worker = typeof Tesseract.createWorker === 'function' ? await Tesseract.createWorker('vie+eng') : null;
+    let text = '';
+    if(worker){
+      const { data } = await worker.recognize(file);
+      text = data.text || '';
+      await worker.terminate();
+    } else {
+      const res = await Tesseract.recognize(file, 'vie+eng');
+      text = (res && res.data && res.data.text) || '';
+    }
+    return text;
+  }
+
+  function openOcrReview(text, file){
+    const modal=document.getElementById('rModal');
+    const overlay=document.getElementById('rOverlay');
+    const imgUrl = URL.createObjectURL(file);
+    modal.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div><h3 style="margin:0 0 4px;font-size:18px;font-weight:800">🖼 Kết quả nhận diện ảnh (OCR)</h3>
+        <div style="font-size:12.5px;color:#6B5B4C">${file.name}</div></div>
+        <button type="button" id="rOcrClose" style="border:none;background:#F9F3E6;width:32px;height:32px;border-radius:50%;cursor:pointer">✕</button>
+      </div>
+      <div style="background:#FFF6E4;border:1px solid #F3D48A;border-radius:10px;padding:10px 12px;margin:12px 0;font-size:12.5px;color:#6B5100;line-height:1.5;">
+        ⚠️ Bảng lịch là lưới nhiều màu dày đặc nên OCR <b>không thể tự ghép đúng ca vào từng ngày/từng người</b> — vì vậy hệ thống chỉ trích chữ thô ra để bạn đối chiếu, <b>không tự động ghi đè lịch</b>. Cách đáng tin cậy nhất vẫn là dùng file Excel gốc (nút 📂 Nạp Excel lịch). Bạn có thể dùng văn bản bên dưới làm tham khảo rồi sửa tay từng ô trên bảng.
+      </div>
+      <img src="${imgUrl}" style="max-width:100%;border-radius:10px;border:1px solid var(--line,#EFE0C4);margin-bottom:10px;">
+      <textarea readonly style="width:100%;min-height:220px;border:1.5px solid var(--line,#EFE0C4);border-radius:10px;padding:10px;font-family:monospace;font-size:12px;background:#FBF7ED;color:#2A1D14;">${(text||'(không nhận diện được chữ nào)').replace(/</g,'&lt;')}</textarea>
+    `;
+    document.getElementById('rOcrClose').onclick=()=>{ overlay.classList.remove('show'); URL.revokeObjectURL(imgUrl); };
+    overlay.classList.add('show');
+    overlay.onclick=ev=>{ if(ev.target===overlay){ overlay.classList.remove('show'); URL.revokeObjectURL(imgUrl); } };
   }
 
   // Mount when nav to roster
