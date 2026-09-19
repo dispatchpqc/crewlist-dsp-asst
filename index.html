@@ -62,6 +62,27 @@
       z-index: 100;
       transition: width 0.2s;
     }
+    body.sidebar-collapsed {
+      --sidebar-w: 72px;
+    }
+    body.sidebar-collapsed .sidebar .brand-text,
+    body.sidebar-collapsed .sidebar .nav-item span:not(.icon),
+    body.sidebar-collapsed .sidebar-footer .theme-label { display: none; }
+    body.sidebar-collapsed .sidebar .brand-logo { width: 40px; }
+    body.sidebar-collapsed .nav-item { justify-content: center; padding: 14px; }
+    .sidebar-collapse-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; margin-top: 8px; padding: 8px;
+      border: 1px solid var(--border); border-radius: 8px;
+      background: var(--hover); color: var(--text);
+      font-size: 0.8rem; font-weight: 700; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .sidebar-collapse-btn:hover { border-color: var(--gold); }
+    body.roster-readonly .roster-edit-only { display: none !important; }
+    body.roster-readonly #rosterRoot .cell { cursor: default !important; pointer-events: none; }
+    body.roster-readonly #rosterRoot .cell:hover { transform: none; box-shadow: none; }
+    body.roster-readonly #rosterRoot .namecell { cursor: pointer; }
     .sidebar-brand {
       display: flex;
       flex-direction: column;
@@ -1029,10 +1050,13 @@
       </button>
     </nav>
 
-    <div class="sidebar-footer">
-      <button class="theme-btn" id="themeToggle" title="Đổi giao diện">
+    <div class="sidebar-footer" style="flex-direction:column;gap:8px;align-items:stretch;">
+      <button class="theme-btn" id="themeToggle" title="Đổi giao diện" style="width:100%;justify-content:center;">
         <span id="themeIcon">🌙</span>
         <span class="theme-label" id="themeLabel">Dark mode</span>
+      </button>
+      <button type="button" class="sidebar-collapse-btn" id="sidebarCollapseBtn" title="Thu gọn / Mở rộng menu">
+        ☰ <span class="theme-label">Thu gọn</span>
       </button>
     </div>
   </aside>
@@ -1291,18 +1315,27 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       const AUTH_KEY = 'sunpq_auth_v2';
 
       // Tài khoản hiện có:
-      // ADMIN: admin / admin  -> toàn quyền
-      // GUEST: guest / guest  -> chỉ được "Lọc chuyến bay"
+      // ADMIN:  admin  / admin  -> toàn quyền
+      // ADMIN1: admin1 / admin1 -> Lọc chuyến bay + Lịch trực (được chỉnh sửa)
+      // GUEST:  guest  / guest  -> chỉ xem Lịch trực (không chỉnh sửa, ẩn hết nút)
       const ACCOUNTS = {
         admin: {
           password: 'admin',
           role: 'admin',
-          permissions: ['filter', 'print', 'ofp', 'pib', 'roster']
+          permissions: ['filter', 'print', 'ofp', 'pib', 'roster'],
+          canEditRoster: true
+        },
+        admin1: {
+          password: 'admin1',
+          role: 'admin1',
+          permissions: ['filter', 'roster'],
+          canEditRoster: true
         },
         guest: {
           password: 'guest',
           role: 'guest',
-          permissions: ['filter']
+          permissions: ['roster'],
+          canEditRoster: false
         }
       };
 
@@ -1369,19 +1402,41 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
           btn.classList.toggle('guest-hidden', !allowed);
         });
 
-        // Guest luôn bắt đầu và chỉ được ở trang Lọc chuyến bay.
-        if (session && session.role === 'guest') {
+        // Guest: chỉ xem Lịch trực (không chỉnh sửa).
+        // Admin1: Lọc chuyến bay + Lịch trực.
+        if (session && (session.role === 'guest' || session.role === 'admin1')) {
+          const prefer = session.role === 'guest' ? 'roster' : 'filter';
           document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-          const filterBtn = document.querySelector('.nav-item[data-page="filter"]');
-          if (filterBtn) filterBtn.classList.add('active');
+          const preferBtn = document.querySelector('.nav-item[data-page="' + prefer + '"]');
+          if (preferBtn) preferBtn.classList.add('active');
 
           document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-          const filterPage = document.getElementById('page-filter');
-          if (filterPage) filterPage.classList.add('active');
+          const preferPage = document.getElementById('page-' + prefer);
+          if (preferPage) preferPage.classList.add('active');
 
           const title = document.getElementById('pageTitle');
-          if (title) title.innerHTML = '<span>Lọc chuyến bay</span> · PQC Duty Sequences';
+          if (title) {
+            if (prefer === 'roster') title.innerHTML = '<span>Lịch trực</span> · DSP Roster';
+            else title.innerHTML = '<span>Lọc chuyến bay</span> · PQC Duty Sequences';
+          }
+          if (prefer === 'roster') {
+            setTimeout(function(){
+              try {
+                const root = document.getElementById('rosterRoot');
+                if (root && !root.dataset.mounted) {
+                  // mountUI nằm trong IIFE roster — kích hoạt bằng click nav
+                  document.querySelector('.nav-item[data-page="roster"]')?.click();
+                }
+              } catch(e){}
+            }, 60);
+          }
         }
+
+        // Báo hiệu cho module roster: guest = view-only
+        try {
+          document.body.classList.toggle('roster-readonly', !!(session && session.role === 'guest'));
+          window.DSP_AUTH_CAN_EDIT_ROSTER = !!(session && ACCOUNTS[session.username] && ACCOUNTS[session.username].canEditRoster);
+        } catch (e) {}
       }
 
       function showApp() {
@@ -1415,8 +1470,10 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
           if (typeof showToast === 'function') {
             showToast(
               account.role === 'guest'
-                ? 'Đăng nhập Guest · chỉ được dùng Lọc chuyến bay'
-                : 'Đăng nhập Admin thành công',
+                ? 'Đăng nhập Guest · chỉ xem Lịch trực (không chỉnh sửa)'
+                : (account.role === 'admin1'
+                  ? 'Đăng nhập Admin1 · Lọc chuyến bay + Lịch trực'
+                  : 'Đăng nhập Admin thành công'),
               'success'
             );
           }
@@ -1454,7 +1511,11 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       window.DSP_AUTH = {
         getSession,
         hasPermission,
-        logout
+        logout,
+        canEditRoster: function() {
+          const s = getSession();
+          return !!(s && ACCOUNTS[s.username] && ACCOUNTS[s.username].canEditRoster);
+        }
       };
     })();
 
@@ -1479,6 +1540,27 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
     }
     applyTheme(localStorage.getItem('theme') === 'dark');
     themeBtn.addEventListener('click', () => applyTheme(!html.classList.contains('dark')));
+
+    // Sidebar collapse
+    (function() {
+      const COLLAPSE_KEY = 'sunpq_sidebar_collapsed';
+      const btn = document.getElementById('sidebarCollapseBtn');
+      function applyCollapse(collapsed) {
+        document.body.classList.toggle('sidebar-collapsed', !!collapsed);
+        try { localStorage.setItem(COLLAPSE_KEY, collapsed ? '1' : '0'); } catch(e) {}
+        if (btn) {
+          const label = btn.querySelector('.theme-label');
+          if (label) label.textContent = collapsed ? 'Mở rộng' : 'Thu gọn';
+          btn.title = collapsed ? 'Mở rộng menu' : 'Thu gọn menu';
+        }
+      }
+      try {
+        applyCollapse(localStorage.getItem(COLLAPSE_KEY) === '1');
+      } catch(e) { applyCollapse(false); }
+      btn?.addEventListener('click', () => {
+        applyCollapse(!document.body.classList.contains('sidebar-collapsed'));
+      });
+    })();
 
     /* ========== NAVIGATION ========== */
     const pageTitles = {
@@ -2098,10 +2180,27 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
             f.staffIds.add(m[2]);
             const roleNorm = m[1].replace(/\s+/g, '').toUpperCase();
             const isDeadhead = roleNorm.includes('DHC');
+            if (!f.crewMembers) f.crewMembers = [];
+            // Lấy tên trước (ROLE)
+            let memberName = null;
+            try {
+              const nameRe = new RegExp('-?\\s*(.+?)\\(\\s*' + m[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[,)]', 'i');
+              const nm = line.match(nameRe);
+              if (nm) memberName = nm[1].trim().replace(/\s*\d+$/, '').trim();
+            } catch (e) {}
+            const roleBase = roleNorm.split(',')[0].replace(/DHC/g, '').trim();
+            f.crewMembers.push({
+              role: roleNorm,
+              roleBase: roleBase || roleNorm,
+              id: m[2],
+              name: memberName || '',
+              dhc: isDeadhead
+            });
             const isCpPlus = roleNorm.includes('CP+') || roleNorm.includes('CPT+') || roleNorm === 'CP';
             const isCm = roleNorm === 'CM' || roleNorm.startsWith('CM,');
             const isFo = roleNorm === 'FO' || roleNorm.startsWith('FO,');
             const isCa = roleNorm === 'CA' || roleNorm.startsWith('CA,');
+            const isBm = roleNorm === 'BM' || roleNorm.startsWith('BM,') || roleNorm.includes('BM');
             if (isCpPlus && !isDeadhead) {
               f.cpPlusId = m[2];
               const nm = extractNameBeforeRole(line, 'C\\s*P\\s*T?\\s*\\+?');
@@ -2122,6 +2221,11 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
               const nm = extractNameBeforeRole(line, 'C\\s*A');
               if (nm) f.caName = nm;
             }
+            if (isBm && !isDeadhead) {
+              f.bmId = m[2];
+              const nm = extractNameBeforeRole(line, 'B\\s*M');
+              if (nm) f.bmName = nm;
+            }
           }
         }
         if (isValidDate(f.date) && isValidDate(f.std)) {
@@ -2138,6 +2242,25 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       }
     }
 
+
+    function formatCrewList(f) {
+      const list = (f && f.crewMembers) ? f.crewMembers : [];
+      if (!list.length) {
+        // fallback từ các field đã parse
+        const parts = [];
+        if (f.cpPlusId) parts.push('CP+ ' + (f.cpPlusName || '') + ' (' + f.cpPlusId + ')');
+        if (f.foId) parts.push('FO ' + (f.foName || '') + ' (' + f.foId + ')');
+        if (f.cmId) parts.push('CM ' + (f.cmName || '') + ' (' + f.cmId + ')');
+        if (f.caId) parts.push('CA ' + (f.caName || '') + ' (' + f.caId + ')');
+        if (f.bmId) parts.push('BM ' + (f.bmName || '') + ' (' + f.bmId + ')');
+        return parts.join(' · ');
+      }
+      return list.map(c => {
+        const tag = c.dhc ? (c.roleBase + ',DHC') : c.roleBase;
+        return tag + ' ' + (c.name || '') + ' (' + c.id + ')';
+      }).join(' · ');
+    }
+
     let filterMode = 'CP'; // 'CP' = lọc theo CP+ (cơ trưởng), 'CM' = lọc theo CM (tiếp viên trưởng)
 
     function setFilterMode(mode) {
@@ -2148,7 +2271,7 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       sw.classList.toggle('mode-cm', mode === 'CM');
       document.getElementById('modeBtnCP').classList.toggle('active', mode === 'CP');
       document.getElementById('modeBtnCM').classList.toggle('active', mode === 'CM');
-      document.getElementById('resultRoleHeader').textContent = mode === 'CM' ? 'CM' : 'CP+';
+      document.getElementById('resultRoleHeader').textContent = mode === 'CM' ? 'Tổ bay (CM/CA/BM…)' : 'CP+';
 
       const card = document.getElementById('resultCard');
       if (rawFlights.length) {
@@ -2301,6 +2424,9 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
               brf = formatTime(brfDt);
             }
             const isFirst = idx === 0;
+            const crewCell = (filterMode === 'CM')
+              ? formatCrewList(f)
+              : (isFirst ? r.cp : '');
             tr.innerHTML = `
               <td>${formatDate(local.date)}</td>
               <td class="${isFirst ? 'first-of-duty' : ''}">${f.flt}</td>
@@ -2309,7 +2435,7 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
               <td>${f.arr}</td>
               <td>${local.timeStr}</td>
               <td>${isFirst ? brf : ''}</td>
-              <td class="cp-name">${isFirst ? r.cp : ''}</td>`;
+              <td class="cp-name" style="font-size:0.78rem;line-height:1.35;max-width:420px;white-space:normal;">${crewCell}</td>`;
             tbody.appendChild(tr);
           });
           const sep = document.createElement('tr');
@@ -2452,7 +2578,11 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
 
 function exportExcel() {
       if (!lastResults.length) return;
-      const aoa = [['DATE', 'FLT', 'REG', 'DEP', 'ARR', 'STD', 'TIME BRF', lastRoleLabel]];
+      const isCm = lastRoleLabel === 'CM' || filterMode === 'CM';
+      const header = isCm
+        ? ['DATE', 'FLT', 'REG', 'DEP', 'ARR', 'STD', 'TIME BRF', 'CM', 'TỔ BAY (CA/BM/…)']
+        : ['DATE', 'FLT', 'REG', 'DEP', 'ARR', 'STD', 'TIME BRF', lastRoleLabel];
+      const aoa = [header];
       for (const r of lastResults) {
         r.seq.forEach((f, idx) => {
           const local = toLocal(f.stdDt);
@@ -2460,7 +2590,15 @@ function exportExcel() {
           if (idx === 0 && local.dt) {
             brf = formatTime(new Date(local.dt.getTime() - brfOffsetMinFor(f.arr) * 60000));
           }
-          aoa.push([formatDate(local.date), f.flt, f.reg, f.dep, f.arr, local.timeStr, brf, idx === 0 ? r.cp : '']);
+          if (isCm) {
+            aoa.push([
+              formatDate(local.date), f.flt, f.reg, f.dep, f.arr, local.timeStr, brf,
+              idx === 0 ? r.cp : '',
+              formatCrewList(f)
+            ]);
+          } else {
+            aoa.push([formatDate(local.date), f.flt, f.reg, f.dep, f.arr, local.timeStr, brf, idx === 0 ? r.cp : '']);
+          }
         });
         aoa.push([]);
       }
@@ -4877,6 +5015,7 @@ function exportExcel() {
     SGN:{name:'DSP SGN',color:'#3E6FA8',bg:'#E8EFF7'},
     OBS:{name:'OBS SGN',color:'#8B7355',bg:'#F5F0E8'},
     PQC:{name:'DSP ASST PQC',color:'#C4548A',bg:'#FAECF2'},
+    BRF:{name:'Briefing',color:'#5B6EE1',bg:'#EEF0FF'},
   };
   const SHIFT_INFO = {
     HC:{label:'HC · 9h (08:30–17:30)', cls:'s-HC'},
@@ -5172,6 +5311,20 @@ function exportExcel() {
         e.total = calcTotal(e.shifts);
         e.note = (e.total < 208 && e.dept !== 'OBS') ? ('thiếu '+(208-e.total)+'h') : '';
       });
+      if(data.customShifts && typeof data.customShifts === 'object'){
+        try {
+          localStorage.setItem('sunpq_custom_shifts', JSON.stringify(data.customShifts));
+          Object.entries(data.customShifts).forEach(([code, info])=>{
+            SHIFT_HOURS[code] = info.hours || 0;
+            SHIFT_INFO[code] = {
+              label: info.label || (code + ' · ' + (info.hours||0) + 'h'),
+              cls: 's-' + code,
+              from: info.from||'', to: info.to||'', hours: info.hours||0
+            };
+            if(!SHIFT_LIST.includes(code)) SHIFT_LIST.push(code);
+          });
+        } catch(e){}
+      }
       const monthEl = document.getElementById('rMonth');
       const yearEl = document.getElementById('rYear');
       if(monthEl) monthEl.value = String(currentMonth);
@@ -5202,8 +5355,15 @@ function exportExcel() {
   const GH_REPO = 'crewlist-dsp-asst';
   const GH_TOKEN_KEY = 'sunpq_gh_token';
 
+  // Token mặc định — mọi máy dùng chung, không hỏi lại khi đẩy lên GitHub
+  const DEFAULT_GH_TOKEN = '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';
+
   function getGithubToken(){
-    try { return localStorage.getItem(GH_TOKEN_KEY) || ''; } catch(e){ return ''; }
+    try {
+      const stored = localStorage.getItem(GH_TOKEN_KEY);
+      if (stored && stored.trim()) return stored.trim();
+    } catch(e){}
+    return DEFAULT_GH_TOKEN;
   }
   function setGithubToken(tok){
     try {
@@ -5212,17 +5372,20 @@ function exportExcel() {
     } catch(e){}
   }
   function askGithubToken(){
-    const cur = getGithubToken();
+    // Luôn trả về token mặc định — không hỏi lại trên máy khác
+    const t = getGithubToken();
+    if (t) return t;
+    const cur = '';
     const msg = 'Dán GitHub Personal Access Token (quyền Contents: Read and write).\n\n'
       + 'Tạo tại: GitHub → Settings → Developer settings → Personal access tokens\n'
       + '(classic: scope "repo" | fine-grained: Contents Read/Write cho repo này)\n\n'
       + 'Token chỉ lưu trên máy này (localStorage), không gửi đi đâu khác.';
     const tok = window.prompt(msg, cur || '');
     if(tok === null) return null;
-    const t = (tok || '').trim();
-    if(!t){ setGithubToken(''); return ''; }
-    setGithubToken(t);
-    return t;
+    const tt = (tok || '').trim();
+    if(!tt){ setGithubToken(''); return ''; }
+    setGithubToken(tt);
+    return tt;
   }
 
   async function githubApi(path, opts){
@@ -5248,12 +5411,15 @@ function exportExcel() {
   }
 
   function buildRosterPayloadFromEMP(){
+    let customShifts = {};
+    try { customShifts = JSON.parse(localStorage.getItem('sunpq_custom_shifts')||'{}'); } catch(e){}
     return {
       app: 'sunpq-roster',
       version: 1,
       year: currentYear,
       month: currentMonth,
       exportedAt: new Date().toISOString(),
+      customShifts,
       employees: EMP.map(e=>({
         id:e.id, name:e.name, dept:e.dept, shifts:e.shifts.slice(), key:e.key,
         total:e.total, counts:e.counts
@@ -5307,6 +5473,7 @@ function exportExcel() {
       token = askGithubToken();
       if(!token) return;
     }
+    // token mặc định đã có — không hỏi lại
     try {
       saveRoster();
       const payload = buildRosterPayloadFromEMP();
@@ -5365,6 +5532,171 @@ function exportExcel() {
       alert('Lỗi đẩy JSON: ' + (err.message||err));
     }
   }
+
+
+  function canEditRoster(){
+    try {
+      if (window.DSP_AUTH && typeof window.DSP_AUTH.canEditRoster === 'function') {
+        return window.DSP_AUTH.canEditRoster();
+      }
+    } catch(e){}
+    return !document.body.classList.contains('roster-readonly');
+  }
+
+  function openAddEmployeeModal(){
+    if(!canEditRoster()){ if(typeof showToast==='function') showToast('Guest chỉ được xem, không chỉnh sửa', 'info'); return; }
+    const overlay = document.getElementById('rOverlay');
+    const modal = document.getElementById('rModal');
+    if(!overlay || !modal) return;
+    const deptOpts = Object.entries(DEPTS).map(([k,d])=>`<option value="${k}">${d.name}</option>`).join('')
+      + '<option value="BRF">Briefing</option>';
+    modal.innerHTML = `
+      <h3 style="margin:0 0 12px;font-size:18px;font-weight:800;">＋ Thêm nhân viên</h3>
+      <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Họ tên *</label>
+      <input id="addEmpName" style="width:100%;padding:8px 10px;border:1.5px solid #EFE0C4;border-radius:8px;font-family:inherit;margin-bottom:10px;" placeholder="Nguyễn Văn A">
+      <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Mã NV (có thể để trống)</label>
+      <input id="addEmpId" style="width:100%;padding:8px 10px;border:1.5px solid #EFE0C4;border-radius:8px;font-family:inherit;margin-bottom:10px;" placeholder="041xxx">
+      <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Vị trí</label>
+      <select id="addEmpDept" style="width:100%;padding:8px 10px;border:1.5px solid #EFE0C4;border-radius:8px;font-family:inherit;margin-bottom:14px;">
+        ${deptOpts}
+      </select>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" id="addEmpSave" style="flex:1;border:none;background:#1F883D;color:#fff;font-weight:700;padding:10px;border-radius:10px;cursor:pointer;font-family:inherit;">Lưu & đẩy GitHub</button>
+        <button type="button" id="addEmpCancel" style="border:1.5px solid #EFE0C4;background:#fff;font-weight:700;padding:10px 14px;border-radius:10px;cursor:pointer;font-family:inherit;">Hủy</button>
+      </div>
+    `;
+    overlay.classList.add('show');
+    overlay.onclick = ev => { if(ev.target===overlay) overlay.classList.remove('show'); };
+    document.getElementById('addEmpCancel').onclick = ()=> overlay.classList.remove('show');
+    document.getElementById('addEmpSave').onclick = async ()=>{
+      const name = (document.getElementById('addEmpName').value||'').trim();
+      const id = (document.getElementById('addEmpId').value||'').trim();
+      let dept = document.getElementById('addEmpDept').value || 'DM';
+      if(!name){ alert('Nhập họ tên'); return; }
+      if(dept === 'BRF'){
+        if(!DEPTS.BRF) DEPTS.BRF = {name:'Briefing', color:'#5B6EE1', bg:'#EEF0FF'};
+      }
+      const key = EMP.length ? Math.max(...EMP.map(e=>e.key))+1 : 0;
+      const shifts = Array(31).fill('');
+      const emp = {
+        id, name, dept, shifts, key,
+        counts: countShifts(shifts), total: calcTotal(shifts), note: ''
+      };
+      emp.note = (emp.total < 208 && emp.dept !== 'OBS') ? ('thiếu '+(208-emp.total)+'h') : '';
+      EMP.push(emp);
+      saveRoster();
+      renderAll();
+      overlay.classList.remove('show');
+      if(typeof showToast==='function') showToast('Đã thêm '+name+' — đang đẩy GitHub…', 'success');
+      try { await pushCurrentToGithub(); } catch(e){ console.warn(e); }
+    };
+  }
+
+  function deleteEmployee(key){
+    if(!canEditRoster()){ if(typeof showToast==='function') showToast('Guest chỉ được xem', 'info'); return; }
+    const emp = EMP.find(e=>e.key===key);
+    if(!emp) return;
+    if(!confirm('Xóa nhân viên "'+emp.name+'" khỏi lịch?')) return;
+    EMP = EMP.filter(e=>e.key!==key);
+    saveRoster();
+    renderAll();
+    if(typeof showToast==='function') showToast('Đã xóa '+emp.name+' — đang đẩy GitHub…', 'success');
+    pushCurrentToGithub().catch(e=>console.warn(e));
+  }
+
+  function openAddShiftModal(){
+    if(!canEditRoster()){ if(typeof showToast==='function') showToast('Guest chỉ được xem, không chỉnh sửa', 'info'); return; }
+    const overlay = document.getElementById('rOverlay');
+    const modal = document.getElementById('rModal');
+    if(!overlay || !modal) return;
+    modal.innerHTML = `
+      <h3 style="margin:0 0 12px;font-size:18px;font-weight:800;">＋ Thêm ca mới</h3>
+      <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Tên ca *</label>
+      <input id="addShiftCode" style="width:100%;padding:8px 10px;border:1.5px solid #EFE0C4;border-radius:8px;font-family:inherit;margin-bottom:10px;" placeholder="VD: N / S / C8" maxlength="6">
+      <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Số giờ ca *</label>
+      <input id="addShiftHours" type="number" min="0" max="24" step="0.5" style="width:100%;padding:8px 10px;border:1.5px solid #EFE0C4;border-radius:8px;font-family:inherit;margin-bottom:10px;" placeholder="12">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+        <div>
+          <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Từ (HH:MM)</label>
+          <input id="addShiftFrom" style="width:100%;padding:8px 10px;border:1.5px solid #EFE0C4;border-radius:8px;font-family:inherit;" placeholder="07:30">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Đến (HH:MM)</label>
+          <input id="addShiftTo" style="width:100%;padding:8px 10px;border:1.5px solid #EFE0C4;border-radius:8px;font-family:inherit;" placeholder="19:30">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" id="addShiftSave" style="flex:1;border:none;background:#D98600;color:#fff;font-weight:700;padding:10px;border-radius:10px;cursor:pointer;font-family:inherit;">Thêm & đẩy GitHub</button>
+        <button type="button" id="addShiftCancel" style="border:1.5px solid #EFE0C4;background:#fff;font-weight:700;padding:10px 14px;border-radius:10px;cursor:pointer;font-family:inherit;">Hủy</button>
+      </div>
+      <p style="font-size:11px;color:#6B5B4C;margin-top:10px;">Ca mới sẽ xuất hiện trong danh sách chọn ca. Cấu hình ca được lưu cùng roster JSON trên GitHub (trường customShifts).</p>
+    `;
+    overlay.classList.add('show');
+    overlay.onclick = ev => { if(ev.target===overlay) overlay.classList.remove('show'); };
+    document.getElementById('addShiftCancel').onclick = ()=> overlay.classList.remove('show');
+    document.getElementById('addShiftSave').onclick = async ()=>{
+      const code = (document.getElementById('addShiftCode').value||'').trim().toUpperCase();
+      const hours = parseFloat(document.getElementById('addShiftHours').value);
+      const from = (document.getElementById('addShiftFrom').value||'').trim();
+      const to = (document.getElementById('addShiftTo').value||'').trim();
+      if(!code){ alert('Nhập tên ca'); return; }
+      if(isNaN(hours) || hours < 0){ alert('Nhập số giờ hợp lệ'); return; }
+      if(SHIFT_INFO[code] && !confirm('Ca "'+code+'" đã có — ghi đè?')) return;
+      SHIFT_HOURS[code] = hours;
+      SHIFT_INFO[code] = {
+        label: code + ' · ' + hours + 'h' + (from && to ? (' ('+from+'–'+to+')') : ''),
+        cls: 's-' + code,
+        from, to, hours
+      };
+      if(!SHIFT_LIST.includes(code)) SHIFT_LIST.push(code);
+      // persist custom shifts
+      try {
+        const custom = JSON.parse(localStorage.getItem('sunpq_custom_shifts')||'{}');
+        custom[code] = { hours, from, to, label: SHIFT_INFO[code].label };
+        localStorage.setItem('sunpq_custom_shifts', JSON.stringify(custom));
+      } catch(e){}
+      // rebuild pop menu
+      const pop = document.getElementById('rPop');
+      if(pop){
+        pop.innerHTML = SHIFT_LIST.map(c=>{
+          const info=SHIFT_INFO[c]||{label:c};
+          return `<button type="button" data-code="${c}">${c||'—'} · ${info.label}</button>`;
+        }).join('');
+      }
+      const leg = document.getElementById('rLegend');
+      if(leg){
+        leg.innerHTML = Object.entries(SHIFT_INFO).map(([code,info])=>
+          `<div class="item"><div class="swatch ${info.cls}">${code||'—'}</div>${info.label}</div>`
+        ).join('') + `<div class="item"><div class="swatch" style="background:#FFF1D6;color:#B58900">CN</div>Chủ nhật</div>
+          <div class="item"><div class="swatch" style="background:#E9F3E6;color:#4C8C5A">QK</div>Quốc khánh</div>
+          <div class="item"><div class="swatch" style="background:var(--gold);color:#3a2400">★</div>Hôm nay</div>`;
+      }
+      overlay.classList.remove('show');
+      if(typeof showToast==='function') showToast('Đã thêm ca '+code+' — đang đẩy GitHub…', 'success');
+      // include customShifts in payload via monkeypatch
+      try {
+        const orig = buildRosterPayloadFromEMP;
+        window.__customShiftsPayload = JSON.parse(localStorage.getItem('sunpq_custom_shifts')||'{}');
+      } catch(e){}
+      try { await pushCurrentToGithub(); } catch(e){ console.warn(e); }
+    };
+  }
+
+  // Load custom shifts on init
+  (function loadCustomShifts(){
+    try {
+      const custom = JSON.parse(localStorage.getItem('sunpq_custom_shifts')||'{}');
+      Object.entries(custom).forEach(([code, info])=>{
+        SHIFT_HOURS[code] = info.hours || 0;
+        SHIFT_INFO[code] = {
+          label: info.label || (code + ' · ' + (info.hours||0) + 'h'),
+          cls: 's-' + code,
+          from: info.from||'', to: info.to||'', hours: info.hours||0
+        };
+        if(!SHIFT_LIST.includes(code)) SHIFT_LIST.push(code);
+      });
+    } catch(e){}
+  })();
 
   // Inject full schedule UI HTML+CSS into #rosterRoot
   function mountUI(){
@@ -5533,6 +5865,55 @@ function exportExcel() {
 #rosterRoot .calcell.today-cell{ box-shadow:0 0 0 2px var(--gold); }
 #rosterRoot .calcell .d{ font-size:10px; font-weight:600; opacity:.65; }
 #rosterRoot .calcell .s{ font-size:12px; font-weight:800; margin-top:1px; }
+
+/* ===== Dark mode đồng bộ (tối hơn, không thuần đen) ===== */
+html.dark #rosterRoot {
+  background:#1A1D24; color:#E8EAED;
+  --cream:#1A1D24; --paper:#22262F; --ink:#E8EAED; --ink-soft:#9CA3AF;
+  --line:#2A2E38; --line-soft:#2A2E38; --sun:#2A2E38;
+}
+html.dark #rosterRoot .sun-field{
+  background:radial-gradient(circle at 88% -10%,rgba(245,163,0,.12) 0%,rgba(255,243,214,0) 46%),#1A1D24;
+}
+html.dark #rosterRoot .kpi,
+html.dark #rosterRoot .tablewrap,
+html.dark #rosterRoot .personcard,
+html.dark #rosterRoot .legend,
+html.dark #rosterRoot .modal,
+html.dark #rosterRoot .shift-pop {
+  background:#22262F; border-color:#2A2E38; color:#E8EAED;
+}
+html.dark #rosterRoot .controls{
+  background:rgba(26,29,36,.94); border-color:#2A2E38;
+}
+html.dark #rosterRoot thead th{ background:#22262F; color:#9CA3AF; border-color:#2A2E38; }
+html.dark #rosterRoot th.sticky1, html.dark #rosterRoot td.sticky1{ background:#22262F; }
+html.dark #rosterRoot td{ border-color:#2A2E38; }
+html.dark #rosterRoot .search input{
+  background:#1A1D24; border-color:#2A2E38; color:#E8EAED;
+}
+html.dark #rosterRoot .chip{
+  background:#1A1D24; border-color:#2A2E38; color:#9CA3AF;
+}
+html.dark #rosterRoot .chip.active{ background:#E8EAED; color:#1A1D24; border-color:#E8EAED; }
+html.dark #rosterRoot .banner{
+  background:rgba(245,163,0,.12); border-color:rgba(245,163,0,.35); color:#FCD34D;
+}
+html.dark #rosterRoot .s-M{ background:rgba(36,90,156,.25); color:#93C5FD; }
+html.dark #rosterRoot .s-E{ background:rgba(178,91,18,.25); color:#FDBA74; }
+html.dark #rosterRoot .s-HC{ background:rgba(210,32,43,.22); color:#FCA5A5; }
+html.dark #rosterRoot .s-C9{ background:rgba(106,61,150,.25); color:#D8B4FE; }
+html.dark #rosterRoot .s-NL{ background:rgba(76,140,90,.22); color:#86EFAC; }
+html.dark #rosterRoot .s-P{ background:rgba(138,109,0,.22); color:#FDE68A; }
+html.dark #rosterRoot .cell.wk-sun{ background:rgba(245,163,0,.08); }
+html.dark #rosterRoot .cell.wk-hol{ background:rgba(76,140,90,.08); }
+html.dark #rosterRoot thead th.wk-sun{ background:rgba(245,163,0,.15); color:#F5A300; }
+html.dark #rosterRoot thead th.wk-hol{ background:rgba(76,140,90,.15); color:#86EFAC; }
+html.dark #rosterRoot td.namecell:hover{ background:#2A2E38; }
+html.dark #rosterRoot .overlay{ background:rgba(0,0,0,.55); }
+html.dark #rosterRoot .viewtoggle button{ background:#1A1D24; color:#9CA3AF; }
+html.dark #rosterRoot .viewtoggle{ border-color:#2A2E38; }
+html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#3a2400; }
 `;
       document.head.appendChild(st);
     }
@@ -5571,17 +5952,14 @@ function exportExcel() {
     <input id="rSearch" placeholder="Tìm tên hoặc mã NV...">
   </div>
   <div class="chipset" id="rChips"></div>
-  <button type="button" class="btn-upload" id="rLoadExcel">📂 Nạp Excel lịch</button>
-  <button type="button" class="btn-upload" id="rExportJson" style="border-color:#3E8E8A;background:#E7F3F2;color:#2A6B68;">⬇ Xuất JSON</button>
-  <button type="button" class="btn-upload" id="rExportXlsx" style="border-color:#3E6FA8;background:#E8EFF7;color:#245A9C;">⬇ Xuất Excel</button>
-  <button type="button" class="btn-upload" id="rImportJson" style="border-color:#9C5E86;background:#F5EAF1;color:#7A3D68;">⬆ Nhập JSON</button>
+  <button type="button" class="btn-upload roster-edit-only" id="rLoadExcel">📂 Nạp Excel lịch</button>
+  <button type="button" class="btn-upload roster-edit-only" id="rExportXlsx" style="border-color:#3E6FA8;background:#E8EFF7;color:#245A9C;">⬇ Xuất Excel</button>
   <button type="button" class="btn-upload" id="rSyncGithub" style="border-color:#24292F;background:#F6F8FA;color:#24292F;">⟳ Tải từ GitHub</button>
-  <button type="button" class="btn-upload" id="rPushGithub" style="border-color:#1F883D;background:#DAFBE1;color:#1A7F37;">⬆ Đẩy lên GitHub</button>
-  <button type="button" class="btn-upload" id="rPickJsonPush" style="border-color:#1F883D;background:#EFF6FF;color:#1D4ED8;">📁 Chọn JSON → GitHub</button>
-  <input type="file" id="rJsonPushInput" accept=".json,application/json" style="display:none">
+  <button type="button" class="btn-upload roster-edit-only" id="rPushGithub" style="border-color:#1F883D;background:#DAFBE1;color:#1A7F37;">⬆ Đẩy lên GitHub</button>
+  <button type="button" class="btn-upload roster-edit-only" id="rAddEmpBtn" style="border-color:#C4548A;background:#FAECF2;color:#9C5E86;">＋ Thêm nhân viên</button>
+  <button type="button" class="btn-upload roster-edit-only" id="rAddShiftBtn" style="border-color:#D98600;background:#FFF6E4;color:#6B5100;">＋ Thêm ca mới</button>
   <span id="rSyncStatus" style="font-size:11px;font-weight:600;color:#6B5B4C;max-width:280px;"></span>
   <input type="file" id="rExcelInput" accept=".xlsx,.xls" style="display:none">
-  <input type="file" id="rJsonInput" accept=".json,application/json" style="display:none">
   <div class="viewtoggle">
     <button type="button" id="rBtnGrid" class="active">Bảng đầy đủ</button>
     <button type="button" id="rBtnCards">Lịch cá nhân</button>
@@ -5676,29 +6054,16 @@ function exportExcel() {
       }
       ev.target.value='';
     };
-    document.getElementById('rExportJson')?.addEventListener('click', exportRosterJson);
     document.getElementById('rExportXlsx')?.addEventListener('click', exportRosterXlsx);
-    document.getElementById('rImportJson')?.addEventListener('click', ()=>document.getElementById('rJsonInput').click());
-    document.getElementById('rJsonInput')?.addEventListener('change', async (ev)=>{
-      const f = ev.target.files && ev.target.files[0];
-      if(!f) return;
-      try {
-        await importRosterJsonFile(f);
-        if(typeof showToast==='function') showToast('Đã nhập JSON: '+f.name+' — đã lưu local', 'success');
-      } catch(err){
-        alert('Lỗi nhập JSON: '+(err.message||err));
-      }
-      ev.target.value='';
-    });
     document.getElementById('rSyncGithub')?.addEventListener('click', ()=> syncFromGithub({silent:false}));
     document.getElementById('rPushGithub')?.addEventListener('click', ()=> pushCurrentToGithub());
-    document.getElementById('rPickJsonPush')?.addEventListener('click', ()=> document.getElementById('rJsonPushInput').click());
-    document.getElementById('rJsonPushInput')?.addEventListener('change', async (ev)=>{
-      const f = ev.target.files && ev.target.files[0];
-      if(!f) return;
-      await pushPickedJsonFile(f);
-      ev.target.value = '';
-    });
+    document.getElementById('rAddEmpBtn')?.addEventListener('click', ()=> openAddEmployeeModal());
+    document.getElementById('rAddShiftBtn')?.addEventListener('click', ()=> openAddShiftModal());
+
+    // Ẩn nút chỉnh sửa nếu guest
+    if(!canEditRoster()){
+      document.querySelectorAll('#rosterRoot .roster-edit-only').forEach(el=>{ el.style.display='none'; });
+    }
 
     // pop
     const pop = document.getElementById('rPop');
@@ -5725,6 +6090,7 @@ function exportExcel() {
   }
 
   function showPop(anchor, key, day){
+    if(!canEditRoster()) return;
     const pop=document.getElementById('rPop');
     popKey=key; popDay=day;
     const r=anchor.getBoundingClientRect();
@@ -5819,7 +6185,10 @@ function exportExcel() {
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
         <div><h3 style="margin:0 0 4px;font-size:18px;font-weight:800">${e.name}</h3>
         <div style="font-size:12.5px;color:#6B5B4C">${e.id||'—'} · <span style="color:${d.color}">${d.name}</span></div></div>
-        <button type="button" id="rClose" style="border:none;background:#F9F3E6;width:32px;height:32px;border-radius:50%;cursor:pointer">✕</button>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button type="button" id="rDeleteEmp" class="roster-edit-only" style="border:1.5px solid #FCA5A5;background:#FEF2F2;color:#B91C1C;font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:inherit;">Xóa NV</button>
+          <button type="button" id="rClose" style="border:none;background:#F9F3E6;width:32px;height:32px;border-radius:50%;cursor:pointer">✕</button>
+        </div>
       </div>
       <div style="display:flex;gap:8px;margin:14px 0;flex-wrap:wrap">
         <div style="background:#F9F3E6;border-radius:10px;padding:8px 12px"><b style="display:block;font-size:16px" id="rModalTotal">${e.total}h</b><span style="font-size:10px;color:#6B5B4C">Tổng giờ</span></div>
@@ -5843,6 +6212,14 @@ function exportExcel() {
       showPop(cell, e.key, i);
     };
     document.getElementById('rClose').onclick=()=>overlay.classList.remove('show');
+    const delBtn = document.getElementById('rDeleteEmp');
+    if(delBtn){
+      if(!canEditRoster()) delBtn.style.display='none';
+      delBtn.onclick=()=>{
+        overlay.classList.remove('show');
+        deleteEmployee(e.key);
+      };
+    }
     overlay.classList.add('show');
     overlay.onclick=ev=>{ if(ev.target===overlay) overlay.classList.remove('show'); };
   }
