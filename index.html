@@ -4988,22 +4988,58 @@ function exportExcel() {
 /* ========== LỊCH TRỰC — UI giống schedule.html + data Excel ========== */
 (function(){
   const SHIFT_HOURS = { HC:9, M:12, E:12, C9:12, NL:0, P:0, '':0 };
-  const DAYS = [
-    [26,'T4',8],[27,'T5',8],[28,'T6',8],[29,'T7',8],[30,'CN',8],[31,'T2',8],
-    [1,'T3',9],[2,'T4',9],[3,'T5',9],[4,'T6',9],[5,'T7',9],[6,'CN',9],[7,'T2',9],
-    [8,'T3',9],[9,'T4',9],[10,'T5',9],[11,'T6',9],[12,'T7',9],[13,'CN',9],[14,'T2',9],
-    [15,'T3',9],[16,'T4',9],[17,'T5',9],[18,'T6',9],[19,'T7',9],[20,'CN',9],[21,'T2',9],
-    [22,'T3',9],[23,'T4',9],[24,'T5',9],[25,'T6',9]
+  const DOW_LABELS = ['CN','T2','T3','T4','T5','T6','T7'];
+
+  /** Danh sách ngày lễ VN — ngày cố định lặp lại mỗi năm (tháng, ngày) */
+  const VN_FIXED_HOLIDAYS = [
+    [1,1],           // Tết Dương lịch
+    [4,30],          // Ngày Giải phóng miền Nam
+    [5,1],           // Quốc tế Lao động
+    [9,1],[9,2],     // Quốc khánh (công ty tính nghỉ 2 ngày)
+    [11,24],         // Ngày Văn hóa Việt Nam (từ 2026)
   ];
-  const SUN_IDX = [4,11,18,25];
-  const HOL_IDX = [6,7]; // 1-2/9
+  /** Ngày lễ âm lịch (Tết, Giỗ Tổ Hùng Vương...) — quy đổi sẵn ra dương lịch theo năm,
+   *  vì tính lịch âm cần thuật toán riêng. Thêm năm mới vào đây khi cần. */
+  const VN_LUNAR_HOLIDAY_RANGES = {
+    2026: [
+      ['2026-02-16', '2026-02-22'], // Tết Nguyên Đán Bính Ngọ (lịch nghỉ chính thức + cuối tuần liền kề)
+      ['2026-04-26', '2026-04-27'], // Giỗ Tổ Hùng Vương (10/3 ÂL, rơi Chủ nhật) + nghỉ bù
+    ],
+  };
+  function isVNHoliday(y, m, d){
+    if (VN_FIXED_HOLIDAYS.some(([mm,dd]) => mm === m && dd === d)) return true;
+    const ranges = VN_LUNAR_HOLIDAY_RANGES[y] || [];
+    const t = new Date(y, m-1, d).getTime();
+    return ranges.some(([a,b]) => {
+      const ta = new Date(a + 'T00:00:00').getTime();
+      const tb = new Date(b + 'T00:00:00').getTime();
+      return t >= ta && t <= tb;
+    });
+  }
+
+  /** Xây danh sách 31 "ngày công" của kỳ lịch: 6 ngày cuối tháng trước → 25 ngày đầu
+   *  tháng hiện tại (giống quy ước bảng gốc), tính đúng theo lịch thật cho MỌI tháng/năm —
+   *  không còn cố định theo 08–09/2026 như trước. Mỗi phần tử: [ngày, thứ, tháng, năm]. */
+  function buildDays(year, month){
+    const endDate = new Date(year, month - 1, 25);
+    const cur = new Date(endDate); cur.setDate(cur.getDate() - 30);
+    const days = [];
+    for(let i=0;i<31;i++){
+      days.push([cur.getDate(), DOW_LABELS[cur.getDay()], cur.getMonth()+1, cur.getFullYear()]);
+      cur.setDate(cur.getDate()+1);
+    }
+    return days;
+  }
+
+  let currentMonth = 9;
+  let currentYear = 2026;
+  let DAYS = buildDays(currentYear, currentMonth);
+  function refreshDays(){ DAYS = buildDays(currentYear, currentMonth); }
 
   function todayIdx(){
     const now = new Date();
     const y=now.getFullYear(), m=now.getMonth()+1, d=now.getDate();
-    // Only highlight today if viewing the same month/year as system date
-    if(y !== currentYear || m !== currentMonth) return -1;
-    for(let i=0;i<DAYS.length;i++) if(DAYS[i][0]===d && DAYS[i][2]===m) return i;
+    for(let i=0;i<DAYS.length;i++) if(DAYS[i][0]===d && DAYS[i][2]===m && DAYS[i][3]===y) return i;
     return -1;
   }
   function getTodayIdx(){ return todayIdx(); }
@@ -5033,28 +5069,31 @@ function exportExcel() {
   const CUSTOM_SHIFTS_EMBED = {};
   const RAW_SHIFTS = [
     // id, name, dept, shifts[31]
-    ["30346","Đàm Xuân Hiến","DM",["HC","M","E","E","","","NL","NL","HC","HC","M","","M","","HC","HC","M","","M","","HC","","M","E","","E","","M","","M","HC"]],
-    ["30903","Đào Chí Dũng","DM",["M","","M","","E","E","NL","M","HC","HC","","","M","","HC","M","","M","E","","HC","M","E","E","","","E","","M","","HC"]],
-    ["31930","Phạm Ninh Toàn","DM",["","","E","E","E","","M","M","E","","","M","","M","E","","","M","E","E","E","E","","","M","E","","","E","E",""]],
-    ["30322","Nguyễn Thái Uy","DM",["E","","M","M","","","NL","NL","M","E","","M","E","","M","E","","","","M","E","","HC","M","","","","M","M","E","E"]],
-    ["31845","Nguyễn Ngọc Long","DM",["","E","","M","M","","E","E","","M","E","","M","E","","M","E","E","","","M","E","","M","","M","M","","","","M"]],
-    ["42014","Nguyễn Xuân Tuyền","DM",["M","E","","","","M","NL","NL","E","","","E","","M","E","","M","E","","","","M","E","","E","","M","E","","M","HC"]],
-    ["30904","Trần Đình Đạt","HDQ",["M","M","","","","M","M","NL","M","E","E","","M","E","","","M","E","","","M","E","","","M","E","","","M","E",""]],
-    ["30905","Nguyễn T.Hoàng Hưng","HDQ",["E","E","","","M","E","E","NL","","M","","","E","","M","M","E","","","M","E","","M","M","","","E","","","M","E"]],
-    ["30841","Vũ Hoàng Long","HDQ",["","","M","M","P","P","NL","E","","","M","E","E","","M","E","","","M","E","","","M","E","","M","","M","E","","M"]],
-    ["39280","Đặng Thảo Linh","HDQ",["","","M","E","","E","NL","M","M","E","","M","E","","E","","","","","M","E","","","M","E","E","","","M","E","E"]],
-    ["39276","Bùi Việt Anh","HDQ",["M","E","","","M","E","E","NL","P","","M","","","E","","M","M","E","","M","M","E","","E","","","M","E","","","M"]],
-    ["39274","Đỗ Nam Anh","HDQ",["","M","E","","M","M","E","E","","M","E","","M","","","","E","","M","E","","M","E","","M","M","","M","E","",""]],
-    ["31843","Lương Trung Hiếu","HDQ",["M","M","","E","","","NL","NL","","E","E","","M","E","","M","E","","","M","","E","","M","","E","","M","","E",""]],
-    ["31846","Nguyễn Phúc Thịnh","HDQ",["E","E","","M","E","","M","E","","","M","M","E","","M","","","","","","E","","M","E","","E","E","","M","","E"]],
-    ["31847","Hoàng Bảo Ngọc","HDQ",["","","E","","M","M","NL","M","E","","E","E","","","","E","","M","M","E","","M","E","","M","M","HC","E","","M",""]],
-    ["","Đinh Minh Trí","OBS",["","","","","","","","","","","","","","","","","E","E","","E","","","E","","","","","","","",""]],
-    ["","Huỳnh Tấn Phước","OBS",["","","","","","","","","","","","","","","","","M","","","M","","M","","M","E","E","","M","E","E",""]],
-    ["","Vũ Trọng Khánh","OBS",["","","","","","","","","","","","","","","","","","","","","","E","","","","","","","","","M"]],
-    ["","Cù Trường Phú","OBS",["","","","","","","","","","","","","","","","","","","","","","","","","","","M","","","",""]],
-    ["41863","Lê Ngọc Thành Tài","PQC",["","M","C9","E","","C9","C9","M","E","","C9","","M","C9","","C9","","","C9","","M","C9","E","","C9","","","E","","C9",""]],
-    ["41865","Nguyễn Đức Lộc","PQC",["C9","E","","C9","","","M","C9","C9","","","C9","","M","C9","","C9","E","","C9","E","","C9","","","C9","","C9","","M","C9"]],
-    ["41867","Phan Thành Nghĩa","PQC",["M","C9","","","C9","E","E","E","","C9","E","","C9","","","","","C9","","M","C9","","M","C9","E","","C9","","C9","E",""]]
+    ['030346','Đàm Xuân Hiến','DM',['HC','M','E','E','','','NL','NL','HC','HC','M','','M','HC','HC','M','','M','HC','M','E','','E','M','M','HC','','','','','']],
+    ['030903','Đào Chí Dũng','DM',['','M','M','','E','E','NL','M','HC','HC','','','M','','HC','M','','M','E','','HC','M','E','E','','E','','M','','HC','']],
+    ['031930','Phạm Ninh Toàn','DM',['','','E','E','E','','M','M','E','','','M','','M','E','','','M','E','E','E','E','','M','E','','','E','E','','']],
+    ['030322','Nguyễn Thái Uy','DM',['E','','M','M','','','NL','NL','M','E','','','M','E','','M','E','','','M','E','','HC','M','','','M','M','E','E','']],
+    ['031845','Nguyễn Ngọc Long','DM',['','E','','M','M','','E','E','','M','E','','M','E','','M','E','E','','','M','E','','M','','M','M','','','M','']],
+    ['042014','Nguyễn Xuân Tuyên','DM',['M','E','','','','M','NL','NL','E','','','E','','M','E','','M','E','','','M','E','','E','','M','E','','M','HC','']],
+    ['030904','Trần Đình Đạt','HDQ',['M','M','','','','M','M','NL','M','E','E','','M','E','','','M','E','','','M','E','','M','E','','','M','E','','']],
+    ['030905','Nguyễn T.Hoàng Hưng','HDQ',['E','E','','','M','E','E','NL','','M','','','E','','','M','M','E','','','M','E','','M','M','','E','','M','E','']],
+    ['030841','Vũ Hoàng Long','HDQ',['','','M','M','P','P','NL','E','','','M','E','E','','M','E','','','M','E','E','','M','E','','M','','M','E','','M']],
+    ['—','Vũ Huy Hùng','HDQ',['HC','HC','HC','HC','','HC','M','NL','E','E','','','M','E','','','M','E','','','M','E','','E','','M','E','','M','','']],
+    ['039278','Nguyễn Kiều Huyền Chi','ASST',['E','','','M','E','','','M','M','E','','','M','M','E','','M','E','E','','','M','','','','E','','','M','E','']],
+    ['039280','Đặng Thảo Linh','ASST',['','','M','E','','E','NL','M','M','E','','M','E','','E','','','M','E','','','M','E','E','','','M','E','E','','']],
+    ['039276','Bùi Việt Anh','ASST',['M','E','','','M','E','E','NL','P','','M','','','E','','M','M','E','','M','M','E','','E','','','M','E','','M','']],
+    ['039274','Đỗ Nam Anh','ASST',['','M','E','','M','M','E','E','','M','E','','M','','','','E','','M','E','','M','E','','M','M','','M','E','','']],
+    ['031844','Nguyễn Hoàng Huy','SGN',['E','','M','','E','E','NL','M','M','','','','M','E','','M','E','E','','','M','','','E','','M','','M','E','','M']],
+    ['031843','Lương Trung Hiếu','SGN',['M','M','','E','','','NL','NL','','E','E','','','M','E','','M','E','','','M','','E','','M','','E','','M','E','']],
+    ['031846','Nguyễn Phúc Thịnh','SGN',['E','E','','M','E','','M','E','','','M','M','E','','M','','','E','','M','E','','E','E','','M','M','','E','','']],
+    ['031847','Hoàng Bảo Ngọc','SGN',['','','E','','M','M','NL','M','E','','','','E','','','M','M','E','','','M','E','','M','M','HC','E','','M','','']],
+    ['','Đinh Minh Trí','OBS',['','','','','','','','','','','','','','','','','E','E','','E','','','E','','','','','','','','']],
+    ['','Huỳnh Tấn Phước','OBS',['','','','','','','','','','','','','','','','','M','','','M','','','M','','M','E','E','','M','E','E']],
+    ['','Vũ Trọng Khánh','OBS',['','','','','','','','','','','','','','','','','','','','','','','E','','','','','','','','M']],
+    ['','Cù Trường Phú','OBS',['','','','','','','','','','','','','','','','','','','','','','','','','','','','M','','','']],
+    ['041863','Lê Ngọc Thành Tài','PQC',['','M','C9','E','','C9','C9','M','E','','C9','','M','C9','','C9','','','C9','','M','C9','E','','C9','','','E','','C9','']],
+    ['041865','Nguyễn Đức Lộc','PQC',['C9','E','','C9','','','M','C9','C9','','','C9','','M','C9','','C9','E','','C9','E','','C9','','C9','','C9','','M','C9','']],
+    ['041867','Phan Thành Nghĩa','PQC',['M','C9','','','C9','E','E','E','','C9','E','','C9','','','M','C9','','M','C9','','M','C9','E','','C9','','C9','E','','']],
   ];
 
   // pad/trim each to 31
@@ -5081,8 +5120,6 @@ function exportExcel() {
   }
 
   const STORAGE_PREFIX = 'sunpq_roster_v1_';
-  let currentMonth = 9;
-  let currentYear = 2026;
 
   function storageKey(y, m){
     return STORAGE_PREFIX + y + '-' + String(m).padStart(2,'0');
@@ -5233,7 +5270,7 @@ function exportExcel() {
   }
 
   function loadRoster(y, m){
-    currentYear = y; currentMonth = m;
+    currentYear = y; currentMonth = m; refreshDays();
     try {
       const stored = readStoredEmployees(y, m);
       if (stored) {
@@ -5270,8 +5307,11 @@ function exportExcel() {
 
   function dayClass(i){
     let c='';
-    if(SUN_IDX.includes(i)) c+=' wk-sun';
-    if(HOL_IDX.includes(i)) c+=' wk-hol';
+    const dd = DAYS[i];
+    if(dd){
+      if(dd[1]==='CN') c+=' wk-sun';
+      if(isVNHoliday(dd[3], dd[2], dd[0])) c+=' wk-hol';
+    }
     if(i===getTodayIdx()) c+=' today-cell';
     return c.trim();
   }
@@ -5310,6 +5350,7 @@ function exportExcel() {
           }
           if(data.year) currentYear = +data.year;
           if(data.month) currentMonth = +data.month;
+          refreshDays();
           EMP = data.employees.map((e,i)=>({
             id:e.id||'', name:e.name||'', dept:e.dept||'DM',
             shifts:(e.shifts||[]).slice(0,31).concat(Array(31).fill('')).slice(0,31),
@@ -5400,6 +5441,7 @@ function exportExcel() {
       }
       if(data.year) currentYear = +data.year;
       if(data.month) currentMonth = +data.month;
+      refreshDays();
       EMP = data.employees.map((e,i)=>({
         id:e.id||'', name:e.name||'', dept:e.dept||'DM',
         shifts:(e.shifts||[]).slice(0,31).concat(Array(31).fill('')).slice(0,31),
@@ -5687,6 +5729,7 @@ function exportExcel() {
       // apply to UI too
       if(payload.year) currentYear = +payload.year;
       if(payload.month) currentMonth = +payload.month;
+      refreshDays();
       EMP = payload.employees.map((e,i)=>({
         id:e.id||'', name:e.name||'', dept:e.dept||'DM',
         shifts:(e.shifts||[]).slice(0,31).concat(Array(31).fill('')).slice(0,31),
@@ -5854,7 +5897,7 @@ function exportExcel() {
         leg.innerHTML = Object.entries(SHIFT_INFO).map(([code,info])=>
           `<div class="item"><div class="swatch ${info.cls}">${code||'—'}</div>${info.label}</div>`
         ).join('') + `<div class="item"><div class="swatch" style="background:#FFF1D6;color:#B58900">CN</div>Chủ nhật</div>
-          <div class="item"><div class="swatch" style="background:#E9F3E6;color:#4C8C5A">QK</div>Quốc khánh</div>
+          <div class="item"><div class="swatch" style="background:#E9F3E6;color:#4C8C5A">QK</div>Ngày lễ VN</div>
           <div class="item"><div class="swatch" style="background:var(--gold);color:#3a2400">★</div>Hôm nay</div>`;
       }
       overlay.classList.remove('show');
@@ -6203,7 +6246,7 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
     <div>
       <strong>Giờ công:</strong> HC = 9h (08:30–17:30) · M = 12h (07:30–19:30) · E = 12h (19:30–07:30) · C9 = 12h (09:00–21:00) · NL/P = 0h.
       Cột tổng giờ đổi ngay khi sửa ca. Đồng bộ GitHub: sửa ca → <b>⬆ Đẩy lên GitHub</b> (cần token 1 lần trên máy này) → máy khác bấm <b>⟳ Tải từ GitHub</b>.
-      Ngày <b>18/09</b> (hôm nay) được đánh dấu ★ / viền vàng.
+      Hôm nay được đánh dấu ★ / viền vàng · Chủ nhật &amp; ngày lễ VN (Tết Dương lịch, Tết Nguyên Đán, Giỗ Tổ, 30/4–1/5, Quốc khánh, Ngày Văn hóa VN) được tự động tô màu theo từng tháng/năm đang xem.
     </div>
   </div>
   <div class="legend" id="rLegend"></div>
@@ -6272,7 +6315,7 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
     document.getElementById('rLegend').innerHTML = Object.entries(SHIFT_INFO).map(([code,info])=>
       `<div class="item"><div class="swatch ${info.cls}">${code||'—'}</div>${info.label}</div>`
     ).join('') + `<div class="item"><div class="swatch" style="background:#FFF1D6;color:#B58900">CN</div>Chủ nhật</div>
-      <div class="item"><div class="swatch" style="background:#E9F3E6;color:#4C8C5A">QK</div>Quốc khánh</div>
+      <div class="item"><div class="swatch" style="background:#E9F3E6;color:#4C8C5A">QK</div>Ngày lễ VN</div>
       <div class="item"><div class="swatch" style="background:var(--gold);color:#3a2400">★</div>Hôm nay</div>`;
 
     document.getElementById('rBtnGrid').onclick=()=>{
