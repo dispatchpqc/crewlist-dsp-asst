@@ -973,7 +973,9 @@
     #rosterRoot {
       width: 100%;
       max-width: 100%;
-      overflow-x: auto;
+      /* KHÔNG đặt overflow ở đây — overflow phá position:fixed của tab
+         và làm sticky cột tên không dính khi kéo ngang */
+      overflow: visible;
     }
 
   </style>
@@ -5033,6 +5035,8 @@ function exportExcel() {
 
   let currentMonth = 9;
   let currentYear = 2026;
+  /** Tổng giờ công kế hoạch của tháng hiện tại (mỗi tháng có thể khác) */
+  let monthTargetHours = 208;
   let DAYS = buildDays(currentYear, currentMonth);
   function refreshDays(){ DAYS = buildDays(currentYear, currentMonth); }
 
@@ -5063,34 +5067,151 @@ function exportExcel() {
     '':{label:'Nghỉ / trống', cls:'s-'},
   };
   const SHIFT_LIST = ['','HC','M','E','C9','NL','P'];
+  /** Giờ bắt đầu/kết thúc ca (phút trong ngày 0–1439). Ca E qua đêm. */
+  const SHIFT_TIMES = {
+    HC: { start: 8*60+30, end: 17*60+30, overnight: false, label: '08:30–17:30' },
+    M:  { start: 7*60+30, end: 19*60+30, overnight: false, label: '07:30–19:30' },
+    E:  { start: 19*60+30, end: 7*60+30, overnight: true,  label: '19:30–07:30' },
+    C9: { start: 9*60,     end: 21*60,    overnight: false, label: '09:00–21:00' },
+  };
+  const UPCOMING_WINDOW_MIN = 180; // sắp vào ca trong 3 giờ tới
+
+  function minutesNow(d){
+    const t = d || new Date();
+    return t.getHours()*60 + t.getMinutes();
+  }
+  function fmtHM(mins){
+    const h = Math.floor(((mins%1440)+1440)%1440 / 60);
+    const m = ((mins%1440)+1440)%1440 % 60;
+    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+  }
+  function shiftWindowForCode(code, dayStartMs){
+    const st = SHIFT_TIMES[code];
+    if(!st) return null;
+    const start = dayStartMs + st.start * 60000;
+    let end = dayStartMs + st.end * 60000;
+    if(st.overnight) end += 24*60*60000;
+    return { start, end, overnight: st.overnight, label: st.label, code };
+  }
+  /** Đang trong khung ca đêm E? (19:30 → 07:30 hôm sau) */
+  function isNightDutyPeriod(now){
+    const m = minutesNow(now || new Date());
+    return m >= (19*60+30) || m < (7*60+30);
+  }
+
+  /** Phân loại NV theo thời điểm hiện tại: on | upcoming | off
+   *  Sắp vào ca (handoff theo ca đang chạy):
+   *  - Đang ca đêm E → sắp vào ca = M / HC / C9 của sáng mai
+   *  - Đang ca sáng M/HC/C9 (ban ngày) → sắp vào ca = E của ngày hôm đó
+   */
+  function classifyDutyStatus(emp, now){
+    now = now || new Date();
+    const idx = todayIdx();
+    const nowMs = now.getTime();
+    const results = [];
+
+    // Ca E hôm qua còn kéo sang sáng nay
+    if(idx > 0){
+      const yCode = emp.shifts[idx-1] || '';
+      if(yCode === 'E' && SHIFT_TIMES.E){
+        const yDay = DAYS[idx-1];
+        if(yDay){
+          const dayStart = new Date(yDay[3], yDay[2]-1, yDay[0]).getTime();
+          const w = shiftWindowForCode('E', dayStart);
+          if(w && nowMs >= w.start && nowMs < w.end){
+            results.push({ status:'on', code:'E', fromYesterday:true, endMs:w.end, label:w.label });
+          }
+        }
+      }
+    }
+
+    if(idx >= 0){
+      const code = emp.shifts[idx] || '';
+      const day = DAYS[idx];
+      if(day && SHIFT_TIMES[code]){
+        const dayStart = new Date(day[3], day[2]-1, day[0]).getTime();
+        const w = shiftWindowForCode(code, dayStart);
+        if(w && nowMs >= w.start && nowMs < w.end){
+          results.push({ status:'on', code, fromYesterday:false, endMs:w.end, label:w.label });
+        }
+      }
+    }
+
+    if(results.some(r=>r.status==='on')){
+      const on = results.find(r=>r.status==='on');
+      return { status:'on', ...on };
+    }
+
+    // Sắp vào ca theo handoff ca (không còn cửa sổ ≤3h cứng)
+    const night = isNightDutyPeriod(now);
+    if(night){
+      // Ca đêm → người ca sáng mai (M / HC / C9)
+      const nextIdx = idx + 1;
+      if(nextIdx >= 0 && nextIdx < DAYS.length){
+        const code = emp.shifts[nextIdx] || '';
+        if(code === 'M' || code === 'HC' || code === 'C9'){
+          const day = DAYS[nextIdx];
+          const dayStart = new Date(day[3], day[2]-1, day[0]).getTime();
+          const w = shiftWindowForCode(code, dayStart);
+          const minsLeft = w ? Math.max(0, Math.round((w.start - nowMs)/60000)) : 0;
+          return {
+            status:'upcoming', code, startMs: w ? w.start : 0, endMs: w ? w.end : 0,
+            label: w ? w.label : (SHIFT_INFO[code]||{}).label, minsLeft,
+            handoff: 'sáng mai'
+          };
+        }
+      }
+    } else if(idx >= 0){
+      // Ban ngày (ca M/HC/C9) → người ca E hôm nay
+      const code = emp.shifts[idx] || '';
+      if(code === 'E'){
+        const day = DAYS[idx];
+        const dayStart = new Date(day[3], day[2]-1, day[0]).getTime();
+        const w = shiftWindowForCode('E', dayStart);
+        const minsLeft = w ? Math.max(0, Math.round((w.start - nowMs)/60000)) : 0;
+        return {
+          status:'upcoming', code:'E', startMs: w ? w.start : 0, endMs: w ? w.end : 0,
+          label: w ? w.label : (SHIFT_INFO.E||{}).label, minsLeft,
+          handoff: 'tối nay'
+        };
+      }
+    }
+
+    const todayCode = (idx>=0 ? (emp.shifts[idx]||'') : '');
+    return { status:'off', code: todayCode, label: (SHIFT_INFO[todayCode]||{}).label || 'Nghỉ / trống' };
+  }
+
 
   // Dữ liệu từng ngày từ file Excel LỊCH TRỰC SPA SGN (tháng 09/2026)
   // Transcribed from OneDrive sheet — cột 26/08 → 25/09
   const CUSTOM_SHIFTS_EMBED = {};
   const RAW_SHIFTS = [
     // id, name, dept, shifts[31]
-    ["30346","Đàm Xuân Hiến","DM",["HC","M","E","E","","","NL","NL","HC","HC","M","","M","","HC","HC","M","","M","","HC","","M","E","","E","","M","","M","HC"]],
-    ["30903","Đào Chí Dũng","DM",["M","","M","","E","E","NL","M","HC","HC","","","M","","HC","M","","M","E","","HC","M","E","E","","","E","","M","","HC"]],
-    ["31930","Phạm Ninh Toàn","DM",["","","E","E","E","","M","M","E","","","M","","M","E","","","M","E","E","E","E","","","M","E","","","E","E",""]],
-    ["30322","Nguyễn Thái Uy","DM",["E","","M","M","","","NL","NL","M","E","","M","E","","M","E","","","","M","E","","HC","M","","","","M","M","E","E"]],
-    ["31845","Nguyễn Ngọc Long","DM",["","E","","M","M","","E","E","","M","E","","M","E","","M","E","E","","","M","E","","M","","M","M","","","","M"]],
-    ["42014","Nguyễn Xuân Tuyền","DM",["M","E","","","","M","NL","NL","E","","","E","","M","E","","M","E","","","","M","E","","E","","M","E","","M","HC"]],
-    ["30904","Trần Đình Đạt","HDQ",["M","M","","","","M","M","NL","M","E","E","","M","E","","","M","E","","","M","E","","","M","E","","","M","E",""]],
-    ["30905","Nguyễn T.Hoàng Hưng","HDQ",["E","E","","","M","E","E","NL","","M","","","E","","M","M","E","","","M","E","","M","M","","","E","","","M","E"]],
-    ["30841","Vũ Hoàng Long","HDQ",["","","M","M","P","P","NL","E","","","M","E","E","","M","E","","","M","E","","","M","E","","M","","M","E","","M"]],
-    ["39280","Đặng Thảo Linh","HDQ",["","","M","E","","E","NL","M","M","E","","M","E","","E","","","","","M","E","","","M","E","E","","","M","E","E"]],
-    ["39276","Bùi Việt Anh","HDQ",["M","E","","","M","E","E","NL","P","","M","","","E","","M","M","E","","M","M","E","","E","","","M","E","","","M"]],
-    ["39274","Đỗ Nam Anh","HDQ",["","M","E","","M","M","E","E","","M","E","","M","","","","E","","M","E","","M","E","","M","M","","M","E","",""]],
-    ["31843","Lương Trung Hiếu","HDQ",["M","M","","E","","","NL","NL","","E","E","","M","E","","M","E","","","M","","E","","M","","E","","M","","E",""]],
-    ["31846","Nguyễn Phúc Thịnh","HDQ",["E","E","","M","E","","M","E","","","M","M","E","","M","","","","","","E","","M","E","","E","E","","M","","E"]],
-    ["31847","Hoàng Bảo Ngọc","HDQ",["","","E","","M","M","NL","M","E","","E","E","","","","E","","M","M","E","","M","E","","M","M","HC","E","","M",""]],
-    ["","Đinh Minh Trí","OBS",["","","","","","","","","","","","","","","","","E","E","","E","","","E","","","","","","","",""]],
-    ["","Huỳnh Tấn Phước","OBS",["","","","","","","","","","","","","","","","","M","","","M","","M","","M","E","E","","M","E","E",""]],
-    ["","Vũ Trọng Khánh","OBS",["","","","","","","","","","","","","","","","","","","","","","E","","","","","","","","","M"]],
-    ["","Cù Trường Phú","OBS",["","","","","","","","","","","","","","","","","","","","","","","","","","","M","","","",""]],
-    ["41863","Lê Ngọc Thành Tài","PQC",["","M","C9","E","","C9","C9","M","E","","C9","","M","C9","","C9","","","C9","","M","C9","E","","C9","","","E","","C9",""]],
-    ["41865","Nguyễn Đức Lộc","PQC",["C9","E","","C9","","","M","C9","C9","","","C9","","M","C9","","C9","E","","C9","E","","C9","","","C9","","C9","","M","C9"]],
-    ["41867","Phan Thành Nghĩa","PQC",["M","C9","","","C9","E","E","E","","C9","E","","C9","","","","","C9","","M","C9","","M","C9","E","","C9","","C9","E",""]]
+    ['030346','Đàm Xuân Hiến','DM',['HC','M','E','E','','','NL','NL','HC','HC','M','','M','HC','HC','M','','M','HC','M','E','','E','M','M','HC','','','','','']],
+    ['030903','Đào Chí Dũng','DM',['','M','M','','E','E','NL','M','HC','HC','','','M','','HC','M','','M','E','','HC','M','E','E','','E','','M','','HC','']],
+    ['031930','Phạm Ninh Toàn','DM',['','','E','E','E','','M','M','E','','','M','','M','E','','','M','E','E','E','E','','M','E','','','E','E','','']],
+    ['030322','Nguyễn Thái Uy','DM',['E','','M','M','','','NL','NL','M','E','','','M','E','','M','E','','','M','E','','HC','M','','','M','M','E','E','']],
+    ['031845','Nguyễn Ngọc Long','DM',['','E','','M','M','','E','E','','M','E','','M','E','','M','E','E','','','M','E','','M','','M','M','','','M','']],
+    ['042014','Nguyễn Xuân Tuyên','DM',['M','E','','','','M','NL','NL','E','','','E','','M','E','','M','E','','','M','E','','E','','M','E','','M','HC','']],
+    ['030904','Trần Đình Đạt','HDQ',['M','M','','','','M','M','NL','M','E','E','','M','E','','','M','E','','','M','E','','M','E','','','M','E','','']],
+    ['030905','Nguyễn T.Hoàng Hưng','HDQ',['E','E','','','M','E','E','NL','','M','','','E','','','M','M','E','','','M','E','','M','M','','E','','M','E','']],
+    ['030841','Vũ Hoàng Long','HDQ',['','','M','M','P','P','NL','E','','','M','E','E','','M','E','','','M','E','E','','M','E','','M','','M','E','','M']],
+    ['—','Vũ Huy Hùng','HDQ',['HC','HC','HC','HC','','HC','M','NL','E','E','','','M','E','','','M','E','','','M','E','','E','','M','E','','M','','']],
+    ['039278','Nguyễn Kiều Huyền Chi','ASST',['E','','','M','E','','','M','M','E','','','M','M','E','','M','E','E','','','M','','','','E','','','M','E','']],
+    ['039280','Đặng Thảo Linh','ASST',['','','M','E','','E','NL','M','M','E','','M','E','','E','','','M','E','','','M','E','E','','','M','E','E','','']],
+    ['039276','Bùi Việt Anh','ASST',['M','E','','','M','E','E','NL','P','','M','','','E','','M','M','E','','M','M','E','','E','','','M','E','','M','']],
+    ['039274','Đỗ Nam Anh','ASST',['','M','E','','M','M','E','E','','M','E','','M','','','','E','','M','E','','M','E','','M','M','','M','E','','']],
+    ['031844','Nguyễn Hoàng Huy','SGN',['E','','M','','E','E','NL','M','M','','','','M','E','','M','E','E','','','M','','','E','','M','','M','E','','M']],
+    ['031843','Lương Trung Hiếu','SGN',['M','M','','E','','','NL','NL','','E','E','','','M','E','','M','E','','','M','','E','','M','','E','','M','E','']],
+    ['031846','Nguyễn Phúc Thịnh','SGN',['E','E','','M','E','','M','E','','','M','M','E','','M','','','E','','M','E','','E','E','','M','M','','E','','']],
+    ['031847','Hoàng Bảo Ngọc','SGN',['','','E','','M','M','NL','M','E','','','','E','','','M','M','E','','','M','E','','M','M','HC','E','','M','','']],
+    ['','Đinh Minh Trí','OBS',['','','','','','','','','','','','','','','','','E','E','','E','','','E','','','','','','','','']],
+    ['','Huỳnh Tấn Phước','OBS',['','','','','','','','','','','','','','','','','M','','','M','','','M','','M','E','E','','M','E','E']],
+    ['','Vũ Trọng Khánh','OBS',['','','','','','','','','','','','','','','','','','','','','','','E','','','','','','','','M']],
+    ['','Cù Trường Phú','OBS',['','','','','','','','','','','','','','','','','','','','','','','','','','','','M','','','']],
+    ['041863','Lê Ngọc Thành Tài','PQC',['','M','C9','E','','C9','C9','M','E','','C9','','M','C9','','C9','','','C9','','M','C9','E','','C9','','','E','','C9','']],
+    ['041865','Nguyễn Đức Lộc','PQC',['C9','E','','C9','','','M','C9','C9','','','C9','','M','C9','','C9','E','','C9','E','','C9','','C9','','C9','','M','C9','']],
+    ['041867','Phan Thành Nghĩa','PQC',['M','C9','','','C9','E','E','E','','C9','E','','C9','','','M','C9','','M','C9','','M','C9','E','','C9','','C9','E','','']],
   ];
 
   // pad/trim each to 31
@@ -5122,15 +5243,80 @@ function exportExcel() {
     return STORAGE_PREFIX + y + '-' + String(m).padStart(2,'0');
   }
 
+  function getTargetHours(){
+    const t = Number(monthTargetHours);
+    return (Number.isFinite(t) && t > 0) ? t : 208;
+  }
+
+  /** Ghi chú thiếu giờ theo tổng giờ công kế hoạch của tháng */
+  function applyNotes(list){
+    const target = getTargetHours();
+    (list || EMP).forEach(e=>{
+      if(e.dept === 'OBS'){ e.note = ''; return; }
+      e.note = (e.total < target) ? ('thiếu '+(target - e.total)+'h') : '';
+    });
+    return list || EMP;
+  }
+
+  function updateTargetHoursKpi(){
+    const el = document.getElementById('rKpiTarget');
+    if (el) el.textContent = String(getTargetHours());
+    const btn = document.getElementById('rEditTargetHours');
+    if (btn) btn.title = 'Tổng giờ công kế hoạch: ' + getTargetHours() + 'h — bấm để đổi';
+  }
+
+  /** Hỏi tổng giờ công khi vào tháng mới / khi người dùng muốn đổi */
+  function ensureMonthTargetHours(y, m, opts){
+    opts = opts || {};
+    const force = !!opts.force;
+    const silent = !!opts.silent; // không hiện prompt (dùng lúc init / trước đăng nhập)
+    const stored = (function(){
+      try {
+        const raw = localStorage.getItem(storageKey(y, m));
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        const t = Number(data && data.targetHours);
+        return (Number.isFinite(t) && t > 0) ? t : null;
+      } catch(e){ return null; }
+    })();
+    if (!force && stored != null) {
+      monthTargetHours = stored;
+      return monthTargetHours;
+    }
+    // Lần đầu load trang / chưa vào roster: không hỏi, dùng mặc định
+    if (silent && !force) {
+      monthTargetHours = stored != null ? stored : (monthTargetHours || 208);
+      return monthTargetHours;
+    }
+    const prev = stored != null ? stored : (monthTargetHours || 208);
+    const label = 'Tháng ' + String(m).padStart(2,'0') + '/' + y;
+    while (true) {
+      const raw = window.prompt(
+        'Nhập TỔNG GIỜ CÔNG KẾ HOẠCH cho ' + label + '\n'
+        + '(Mỗi tháng có thể khác — dùng để ghi chú "thiếu …h" trên cột Note)\n'
+        + 'Ví dụ: 200, 192, 208…',
+        String(prev)
+      );
+      if (raw === null) {
+        monthTargetHours = stored != null ? stored : (Number(prev) || 208);
+        break;
+      }
+      const n = parseInt(String(raw).replace(/[^0-9]/g, ''), 10);
+      if (Number.isFinite(n) && n > 0 && n < 500) {
+        monthTargetHours = n;
+        break;
+      }
+      alert('Vui lòng nhập số giờ hợp lệ (1–499).');
+    }
+    return monthTargetHours;
+  }
+
   function buildDefaultEMP(){
     const list = RAW_SHIFTS.map((r,i)=>({
       id:r[0], name:r[1], dept:r[2], shifts:r[3].slice(), key:i,
       counts: countShifts(r[3]), total: calcTotal(r[3]), note:''
     }));
-    list.forEach(e=>{
-      if(e.total < 208 && e.dept !== 'OBS') e.note = 'thiếu '+(208-e.total)+'h';
-      else e.note = '';
-    });
+    applyNotes(list);
     return list;
   }
 
@@ -5139,6 +5325,7 @@ function exportExcel() {
       const payload = {
         year: currentYear,
         month: currentMonth,
+        targetHours: getTargetHours(),
         savedAt: new Date().toISOString(),
         employees: EMP.map(e=>({
           id:e.id, name:e.name, dept:e.dept, shifts:e.shifts.slice(), key:e.key
@@ -5164,7 +5351,7 @@ function exportExcel() {
   }
 
   function normalizeEmpList(employees){
-    return (employees || []).map((e,i)=>({
+    const list = (employees || []).map((e,i)=>({
       id: e.id || '',
       name: e.name || '',
       dept: e.dept || 'DM',
@@ -5176,9 +5363,10 @@ function exportExcel() {
     })).map(e=>{
       e.counts = countShifts(e.shifts);
       e.total = calcTotal(e.shifts);
-      e.note = (e.total < 208 && e.dept !== 'OBS') ? ('thiếu '+(208-e.total)+'h') : '';
+      e.note = '';
       return e;
     });
+    return applyNotes(list);
   }
 
   function readStoredEmployees(y, m){
@@ -5266,12 +5454,17 @@ function exportExcel() {
     }
   }
 
-  function loadRoster(y, m){
+  function loadRoster(y, m, opts){
+    opts = opts || {};
+    // askTarget: true khi user chủ động đổi tháng / mở roster — không hỏi lúc init trang login
+    const askTarget = opts.askTarget === true;
     currentYear = y; currentMonth = m; refreshDays();
+    ensureMonthTargetHours(y, m, { silent: !askTarget, force: !!opts.forceTarget });
     try {
       const stored = readStoredEmployees(y, m);
       if (stored) {
         EMP = normalizeEmpList(stored);
+        updateTargetHoursKpi();
         return true;
       }
     } catch(err){ console.warn('load roster failed', err); }
@@ -5280,7 +5473,9 @@ function exportExcel() {
     const seeded = seedEmployeesFromPrevious(y, m);
     if (seeded && seeded.length) {
       EMP = normalizeEmpList(seeded);
-      saveRoster(); // lưu bản seed để tháng này độc lập
+      // Chỉ lưu seed khi user đã vào roster (askTarget) — tránh ghi localStorage lúc mở login
+      if (askTarget) saveRoster();
+      updateTargetHoursKpi();
       return false;
     }
 
@@ -5295,7 +5490,10 @@ function exportExcel() {
         total: 0,
         note: ''
       }));
+      applyNotes(EMP);
     }
+    if (askTarget) saveRoster();
+    updateTargetHoursKpi();
     return false;
   }
 
@@ -5321,6 +5519,7 @@ function exportExcel() {
       version: 1,
       year: currentYear,
       month: currentMonth,
+      targetHours: getTargetHours(),
       exportedAt: new Date().toISOString(),
       employees: EMP.map(e=>({
         id:e.id, name:e.name, dept:e.dept, shifts:e.shifts.slice(), key:e.key,
@@ -5347,6 +5546,11 @@ function exportExcel() {
           }
           if(data.year) currentYear = +data.year;
           if(data.month) currentMonth = +data.month;
+          if(data.targetHours != null && Number(data.targetHours) > 0) {
+            monthTargetHours = Number(data.targetHours);
+          } else {
+            ensureMonthTargetHours(currentYear, currentMonth);
+          }
           refreshDays();
           EMP = data.employees.map((e,i)=>({
             id:e.id||'', name:e.name||'', dept:e.dept||'DM',
@@ -5357,7 +5561,7 @@ function exportExcel() {
           EMP.forEach(e=>{
             e.counts = countShifts(e.shifts);
             e.total = calcTotal(e.shifts);
-            e.note = (e.total < 208 && e.dept !== 'OBS') ? ('thiếu '+(208-e.total)+'h') : '';
+            e.note = (e.total < getTargetHours() && e.dept !== 'OBS') ? ('thiếu '+(getTargetHours()-e.total)+'h') : '';
           });
           // sync selectors
           const monthEl = document.getElementById('rMonth');
@@ -5438,6 +5642,9 @@ function exportExcel() {
       }
       if(data.year) currentYear = +data.year;
       if(data.month) currentMonth = +data.month;
+      if(data.targetHours != null && Number(data.targetHours) > 0) {
+        monthTargetHours = Number(data.targetHours);
+      }
       refreshDays();
       EMP = data.employees.map((e,i)=>({
         id:e.id||'', name:e.name||'', dept:e.dept||'DM',
@@ -5448,8 +5655,9 @@ function exportExcel() {
       EMP.forEach(e=>{
         e.counts = countShifts(e.shifts);
         e.total = calcTotal(e.shifts);
-        e.note = (e.total < 208 && e.dept !== 'OBS') ? ('thiếu '+(208-e.total)+'h') : '';
+        e.note = (e.total < getTargetHours() && e.dept !== 'OBS') ? ('thiếu '+(getTargetHours()-e.total)+'h') : '';
       });
+      try { updateTargetHoursKpi(); } catch(e){}
       if(data.customShifts && typeof data.customShifts === 'object'){
         try {
           localStorage.setItem('sunpq_custom_shifts', JSON.stringify(data.customShifts));
@@ -5554,6 +5762,7 @@ function exportExcel() {
       version: 1,
       year: currentYear,
       month: currentMonth,
+      targetHours: getTargetHours(),
       exportedAt: new Date().toISOString(),
       customShifts,
       employees: EMP.map(e=>({
@@ -5736,7 +5945,7 @@ function exportExcel() {
       EMP.forEach(e=>{
         e.counts = countShifts(e.shifts);
         e.total = calcTotal(e.shifts);
-        e.note = (e.total < 208 && e.dept !== 'OBS') ? ('thiếu '+(208-e.total)+'h') : '';
+        e.note = (e.total < getTargetHours() && e.dept !== 'OBS') ? ('thiếu '+(getTargetHours()-e.total)+'h') : '';
       });
       const monthEl = document.getElementById('rMonth');
       const yearEl = document.getElementById('rYear');
@@ -5754,7 +5963,13 @@ function exportExcel() {
   }
 
 
+  /** Điện thoại (≤768px): chỉ xem, không chỉnh sửa — kể cả admin.
+   *  Laptop / máy tính bảng: chỉnh sửa theo quyền tài khoản. */
+  function isPhoneDevice(){
+    return window.innerWidth <= 768;
+  }
   function canEditRoster(){
+    if(isPhoneDevice()) return false;
     try {
       if (window.DSP_AUTH && typeof window.DSP_AUTH.canEditRoster === 'function') {
         return window.DSP_AUTH.canEditRoster();
@@ -5762,9 +5977,28 @@ function exportExcel() {
     } catch(e){}
     return !document.body.classList.contains('roster-readonly');
   }
+  function applyRosterReadonlyByDevice(){
+    const phone = isPhoneDevice();
+    let accountReadonly = false;
+    try {
+      if (window.DSP_AUTH && typeof window.DSP_AUTH.canEditRoster === 'function') {
+        accountReadonly = !window.DSP_AUTH.canEditRoster();
+      } else {
+        accountReadonly = document.body.classList.contains('roster-readonly') && !phone;
+      }
+    } catch(e){}
+    // phone luôn readonly; desktop/tablet theo quyền account
+    document.body.classList.toggle('roster-readonly', phone || accountReadonly);
+    document.querySelectorAll('#rosterRoot .roster-edit-only').forEach(el=>{
+      el.style.display = (phone || accountReadonly) ? 'none' : '';
+    });
+  }
 
   function openAddEmployeeModal(){
-    if(!canEditRoster()){ if(typeof showToast==='function') showToast('Guest chỉ được xem, không chỉnh sửa', 'info'); return; }
+    if(!canEditRoster()){
+      if(typeof showToast==='function') showToast(isPhoneDevice() ? 'Trên điện thoại chỉ xem lịch — chỉnh sửa trên laptop/máy tính bảng' : 'Tài khoản chỉ được xem, không chỉnh sửa', 'info');
+      return;
+    }
     const overlay = document.getElementById('rOverlay');
     const modal = document.getElementById('rModal');
     if(!overlay || !modal) return;
@@ -5802,7 +6036,7 @@ function exportExcel() {
         id, name, dept, shifts, key,
         counts: countShifts(shifts), total: calcTotal(shifts), note: ''
       };
-      emp.note = (emp.total < 208 && emp.dept !== 'OBS') ? ('thiếu '+(208-emp.total)+'h') : '';
+      emp.note = (emp.total < getTargetHours() && emp.dept !== 'OBS') ? ('thiếu '+(getTargetHours()-emp.total)+'h') : '';
       EMP.push(emp);
       saveRoster();
       renderAll();
@@ -5813,7 +6047,7 @@ function exportExcel() {
   }
 
   function deleteEmployee(key){
-    if(!canEditRoster()){ if(typeof showToast==='function') showToast('Guest chỉ được xem', 'info'); return; }
+    if(!canEditRoster()){ if(typeof showToast==='function') showToast(isPhoneDevice() ? 'Trên điện thoại chỉ xem lịch — chỉnh sửa trên laptop/máy tính bảng' : 'Tài khoản chỉ được xem', 'info'); return; }
     const emp = EMP.find(e=>e.key===key);
     if(!emp) return;
     if(!confirm('Xóa "'+emp.name+'" khỏi tháng '+String(currentMonth).padStart(2,'0')+'/'+currentYear+'?\n\nCác tháng TRƯỚC vẫn giữ NV này.\nCác tháng SAU (đã lưu) sẽ bỏ NV này.')) return;
@@ -5831,7 +6065,7 @@ function exportExcel() {
   }
 
   function openAddShiftModal(){
-    if(!canEditRoster()){ if(typeof showToast==='function') showToast('Guest chỉ được xem, không chỉnh sửa', 'info'); return; }
+    if(!canEditRoster()){ if(typeof showToast==='function') showToast(isPhoneDevice() ? 'Trên điện thoại chỉ xem lịch — chỉnh sửa trên laptop/máy tính bảng' : 'Tài khoản chỉ được xem, không chỉnh sửa', 'info'); return; }
     const overlay = document.getElementById('rOverlay');
     const modal = document.getElementById('rModal');
     if(!overlay || !modal) return;
@@ -6019,12 +6253,21 @@ function exportExcel() {
 #rosterRoot .dhead h2{ font-size:15px; font-weight:800; margin:0; }
 #rosterRoot .dhead .count{ font-size:12px; color:var(--ink-soft); }
 #rosterRoot .tablewrap{
-  background:#fff; border:1px solid var(--line); border-radius:14px; overflow:auto;
+  background:#fff; border:1px solid var(--line); border-radius:14px;
+  overflow-x: auto; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   box-shadow:0 1px 2px rgba(42,29,20,.04); max-height:65vh;
+  /* sticky cột tên bám theo container cuộn này */
+  position: relative;
 }
-#rosterRoot table{ border-collapse:collapse; width:100%; min-width:1180px; }
+#rosterRoot table{
+  border-collapse: separate; /* separate giúp sticky ổn định hơn collapse trên mobile */
+  border-spacing: 0;
+  width: max-content;
+  min-width: 100%;
+}
 #rosterRoot thead th{
-  position:sticky; top:0; background:#fff; z-index:3;
+  position: -webkit-sticky; position: sticky; top: 0; background:#fff; z-index:3;
   font-size:11px; font-weight:700; color:var(--ink-soft);
   padding:6px 4px; text-align:center; border-bottom:1.5px solid var(--line); white-space:nowrap;
 }
@@ -6032,8 +6275,22 @@ function exportExcel() {
 #rosterRoot thead th.wk-hol{ background:#E9F3E6; color:#6E8F5C; }
 #rosterRoot thead th.today-col{ box-shadow:inset 0 -3px 0 var(--gold); color:var(--gold-deep); font-weight:900; }
 #rosterRoot th.sticky1, #rosterRoot td.sticky1{
-  position:sticky; left:0; background:#fff; z-index:4; text-align:left; min-width:150px;
-  box-shadow:1px 0 0 var(--line);
+  position: -webkit-sticky; position: sticky;
+  left: 0;
+  background: #fff;
+  z-index: 4;
+  text-align: left;
+  min-width: 150px;
+  max-width: 180px;
+  box-shadow: 2px 0 6px rgba(42,29,20,.08);
+}
+#rosterRoot thead th.sticky1{
+  z-index: 6; /* góc trên-trái: sticky cả top lẫn left */
+  top: 0;
+  background: #fff;
+}
+#rosterRoot td.sticky1, #rosterRoot td.namecell.sticky1{
+  background: #fff;
 }
 #rosterRoot td{ padding:0; text-align:center; border-bottom:1px solid var(--line-soft); }
 #rosterRoot td.namecell{ padding:8px 10px; cursor:pointer; }
@@ -6119,6 +6376,8 @@ html.dark #rosterRoot .controls{
 }
 html.dark #rosterRoot thead th{ background:#22262F; color:#9CA3AF; border-color:#2A2E38; }
 html.dark #rosterRoot th.sticky1, html.dark #rosterRoot td.sticky1{ background:#22262F; }
+html.dark #rosterRoot[data-mtab="grid"] th.sticky1,
+html.dark #rosterRoot[data-mtab="grid"] td.sticky1{ background:#22262F; }
 html.dark #rosterRoot td{ border-color:#2A2E38; }
 html.dark #rosterRoot .search input{
   background:#1A1D24; border-color:#2A2E38; color:#E8EAED;
@@ -6184,7 +6443,237 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
   #rosterRoot .shift-pop{ min-width:min(240px,80vw); }
   #rosterRoot .shift-pop button{ padding:12px 14px; font-size:14px; }
 }
+
+/* ===== Mobile 3-tab: full-width bottom bar trên body ===== */
+#rMobileTabs {
+  display: none !important;
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 72px !important;
+  right: 0 !important;
+  width: auto !important;
+  max-width: none !important;
+  height: auto !important;
+  z-index: 9999 !important;
+  margin: 0 !important;
+  background: #ffffff !important;
+  border: none !important;
+  border-top: 1px solid #E5E7EB !important;
+  border-radius: 0 !important;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)) !important;
+  gap: 4px !important;
+  box-shadow: 0 -4px 16px rgba(0,0,0,.08) !important;
+  pointer-events: auto !important;
+  box-sizing: border-box !important;
+  flex-direction: row !important;
+  align-items: stretch !important;
+  justify-content: space-between !important;
+  overflow: visible !important;
+}
+/* Chỉ hiện khi body có class (JS bật khi ở trang Lịch trực + mobile) */
+body.show-roster-mtabs #rMobileTabs {
+  display: flex !important;
+}
+#rMobileTabs button {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  border: none !important;
+  background: transparent !important;
+  font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  color: #6B7280 !important;
+  padding: 6px 2px 4px !important;
+  border-radius: 10px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  box-shadow: none !important;
+}
+#rMobileTabs button .ico {
+  width: 22px !important;
+  height: 22px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 0 !important;
+  flex-shrink: 0 !important;
+}
+#rMobileTabs button .ico svg {
+  width: 20px !important;
+  height: 20px !important;
+  stroke: currentColor !important;
+  fill: none !important;
+  stroke-width: 1.85 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+#rMobileTabs button.active {
+  background: #FEE2E2 !important;
+  color: #DC2626 !important;
+  box-shadow: none !important;
+}
+#rMobileTabs button.active .ico svg { stroke-width: 2.2 !important; }
+#rosterRoot .m-duty { display: none; padding: 12px 12px 100px; }
+#rosterRoot .m-duty-clock {
+  text-align: center; margin-bottom: 14px;
+  padding: 12px; border-radius: 14px;
+  background: linear-gradient(135deg,#FFF6E4,#fff);
+  border: 1px solid #F3D48A;
+}
+#rosterRoot .m-duty-clock .time {
+  font-size: 28px; font-weight: 900; color: var(--red); letter-spacing: 0.02em;
+}
+#rosterRoot .m-duty-clock .date { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+#rosterRoot .m-sec { margin-bottom: 16px; }
+#rosterRoot .m-sec-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px; padding: 0 2px;
+}
+#rosterRoot .m-sec-head h3 {
+  margin: 0; font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 6px;
+}
+#rosterRoot .m-sec-head .cnt {
+  font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+  background: var(--sun); color: var(--ink-soft);
+}
+#rosterRoot .m-card {
+  background: #fff; border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px 14px; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 1px 3px rgba(42,29,20,.04);
+}
+#rosterRoot .m-card:active { transform: scale(0.98); }
+#rosterRoot .m-avatar {
+  width: 40px; height: 40px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 14px; color: #fff; flex-shrink: 0;
+}
+#rosterRoot .m-card .info { flex: 1; min-width: 0; }
+#rosterRoot .m-card .name { font-weight: 800; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#rosterRoot .m-card .meta { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+#rosterRoot .m-badge {
+  font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 8px;
+  white-space: nowrap; flex-shrink: 0;
+}
+#rosterRoot .m-badge.on { background: #DCFCE7; color: #166534; }
+#rosterRoot .m-badge.up { background: #FEF3C7; color: #92400E; }
+#rosterRoot .m-badge.off { background: #F3F4F6; color: #6B7280; }
+#rosterRoot .m-empty {
+  text-align: center; padding: 20px 12px; color: var(--ink-soft); font-size: 13px;
+  background: #fff; border: 1px dashed var(--line); border-radius: 12px;
+}
+#rosterRoot .m-live-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: #22C55E; box-shadow: 0 0 0 3px rgba(34,197,94,.25);
+  animation: mPulse 1.6s ease infinite;
+}
+@keyframes mPulse {
+  0%,100% { box-shadow: 0 0 0 3px rgba(34,197,94,.25); }
+  50% { box-shadow: 0 0 0 6px rgba(34,197,94,.1); }
+}
+
+html.dark #rMobileTabs {
+  background: #1A1D24 !important;
+  border-top-color: #2A2E38 !important;
+}
+html.dark #rMobileTabs button { color: #9CA3AF !important; }
+html.dark #rMobileTabs button.active {
+  background: rgba(227,6,19,.2) !important;
+  color: #FCA5A5 !important;
+}
+html.dark #rosterRoot .m-duty-clock {
+  background: linear-gradient(135deg,rgba(245,163,0,.12),#22262F);
+  border-color: rgba(245,163,0,.3);
+}
+html.dark #rosterRoot .m-card {
+  background: #22262F; border-color: #2A2E38;
+}
+html.dark #rosterRoot .m-badge.off { background: #2A2E38; color: #9CA3AF; }
+html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
+
+@media (max-width:900px){
+  /* hiện tab do body.show-roster-mtabs điều khiển, không auto-flex ở đây */
+  #rosterRoot .m-desktop-only { display: none !important; }
+  #rosterRoot main.m-show-grid .m-desktop-only-grid { display: block !important; }
+  #rosterRoot .sun-field { padding-bottom: 8px; }
+  #rosterRoot .sun-field .lede,
+  #rosterRoot .sun-field .kpirow { display: none; }
+  #rosterRoot .controls {
+    padding: 8px 10px;
+  }
+  #rosterRoot .controls .chipset,
+  #rosterRoot .controls .viewtoggle,
+  #rosterRoot .controls .btn-upload,
+  #rosterRoot #rSyncStatus { display: none !important; }
+  #rosterRoot .controls .search { flex: 1 1 100%; max-width: none; order: 1; }
+  #rosterRoot main { padding-bottom: 88px; }
+  #rosterRoot .banner,
+  #rosterRoot .legend { display: none; }
+  /* default mobile: hide grid/cards until tab picks them */
+  #rosterRoot main #rGrid,
+  #rosterRoot main #rCards { display: none !important; }
+  #rosterRoot[data-mtab="duty"] .m-duty { display: block; }
+  #rosterRoot[data-mtab="person"] #rCards { display: block !important; }
+  #rosterRoot[data-mtab="grid"] #rGrid { display: block !important; }
+  #rosterRoot[data-mtab="grid"] .banner,
+  #rosterRoot[data-mtab="grid"] .legend { display: block; }
+  #rosterRoot[data-mtab="grid"] .controls .chipset { display: flex !important; }
+  /* Tổng lịch mobile: tên cố định, chỉ kéo ngang cột ngày */
+  #rosterRoot[data-mtab="grid"] main {
+    padding-bottom: 96px;
+  }
+  #rosterRoot[data-mtab="grid"] .tablewrap{
+    max-height: calc(100dvh - 200px);
+    overflow-x: auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 12px;
+    overscroll-behavior: contain;
+  }
+  #rosterRoot[data-mtab="grid"] table{
+    min-width: 0;
+    width: max-content;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  #rosterRoot[data-mtab="grid"] th.sticky1,
+  #rosterRoot[data-mtab="grid"] td.sticky1,
+  #rosterRoot[data-mtab="grid"] td.namecell.sticky1{
+    position: -webkit-sticky !important;
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 5;
+    min-width: 120px;
+    max-width: 136px;
+    background: #fff !important;
+    box-shadow: 3px 0 8px rgba(42,29,20,.1);
+  }
+  #rosterRoot[data-mtab="grid"] thead th.sticky1{
+    z-index: 7;
+    top: 0;
+    background: #fff !important;
+  }
+  #rosterRoot[data-mtab="grid"] .col-extra{ display: none !important; }
+  #rosterRoot[data-mtab="grid"] .cell{ width: 34px; height: 42px; font-size: 11px; }
+  #rosterRoot[data-mtab="grid"] thead th:not(.sticky1){ min-width: 34px; padding: 6px 2px; }
+  /* padding đáy để nội dung không bị tab che */
+  #rosterRoot[data-mtab="duty"] .m-duty,
+  #rosterRoot[data-mtab="person"] #rCards,
+  #rosterRoot[data-mtab="grid"] main {
+    padding-bottom: 88px !important;
+  }
+}
 `;
+
       document.head.appendChild(st);
     }
     root.innerHTML = `
@@ -6210,7 +6699,10 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
   <p class="lede">HC 9h · M/E/C9 12h · Bấm ô ngày để chọn ca · ★ = hôm nay · Chỉnh sửa được <b>lưu tự động</b> trên máy này (localStorage)</p>
   <div class="kpirow">
     <div class="kpi"><div class="num" id="rKpiEmp">–</div><div class="lbl">Nhân viên</div></div>
-    <div class="kpi"><div class="num">27</div><div class="lbl">Công kế hoạch</div></div>
+    <div class="kpi" id="rEditTargetHours" style="cursor:pointer;" title="Bấm để đổi tổng giờ công kế hoạch tháng này">
+      <div class="num" id="rKpiTarget">208</div>
+      <div class="lbl">Giờ công KH</div>
+    </div>
     <div class="kpi"><div class="num">31</div><div class="lbl">Ngày trong kỳ</div></div>
     <div class="kpi"><div class="num" id="rKpiAvg">–</div><div class="lbl">Giờ công TB</div></div>
     <div class="kpi"><div class="num" id="rKpiShort">–</div><div class="lbl">Người thiếu giờ</div></div>
@@ -6247,18 +6739,33 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
     </div>
   </div>
   <div class="legend" id="rLegend"></div>
+  <div class="m-duty" id="rDuty"></div>
   <div id="rGrid"></div>
   <div id="rCards" style="display:none"></div>
 </main>
+<!-- Bottom tabs được tạo/quản lý bởi ensureMobileTabsFixed() trên document.body — không đặt trong #rosterRoot để tránh mất khi render -->
 <div class="shift-pop" id="rPop"></div>
 <div class="overlay" id="rOverlay"><div class="modal" id="rModal"></div></div>
 `;
     wireEvents();
-    // Trên điện thoại, bảng 31 cột rất khó xem — mặc định mở "Lịch cá nhân"
-    if(window.innerWidth <= 720){
-      document.getElementById('rBtnCards')?.click();
+    // Điện thoại/tablet hẹp: tab Duty mặc định; desktop giữ bảng đầy đủ
+    if(window.innerWidth <= 900){
+      setMobileTab('duty');
+    } else {
+      document.getElementById('rosterRoot')?.removeAttribute('data-mtab');
+      document.body.classList.remove('show-roster-mtabs');
     }
+    ensureMobileTabsFixed();
+    applyRosterReadonlyByDevice();
     renderAll();
+    // Đồng hồ Duty tự refresh mỗi phút
+    if(!window.__rosterDutyTimer){
+      window.__rosterDutyTimer = setInterval(()=>{
+        if(document.getElementById('rosterRoot')?.dataset.mtab === 'duty'){
+          try { renderDutyBoard(); } catch(e){}
+        }
+      }, 30000);
+    }
     // Ưu tiên dữ liệu trên GitHub nếu có (đồng bộ máy khác)
     if(typeof syncFromGithub === 'function'){
       syncFromGithub({silent:true}).then(ok=>{
@@ -6279,9 +6786,11 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
       const y = parseInt(yearEl.value, 10);
       // lưu tháng hiện tại trước khi đổi
       saveRoster();
-      const had = loadRoster(y, m);
+      // Đổi tháng: hỏi tổng giờ nếu tháng chưa có targetHours trong JSON
+      const had = loadRoster(y, m, { askTarget: true });
       const title = document.getElementById('rTitleMonth');
       if(title) title.textContent = 'Tháng ' + String(m).padStart(2,'0') + '/' + y;
+      updateTargetHoursKpi();
       renderAll();
       // Thử tải đúng file tháng trên GitHub (không đụng tháng khác)
       if (typeof syncFromGithub === 'function') {
@@ -6298,6 +6807,33 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
     }
     if(monthEl) monthEl.onchange = onPeriodChange;
     if(yearEl) yearEl.onchange = onPeriodChange;
+
+    document.getElementById('rEditTargetHours')?.addEventListener('click', ()=>{
+      if(!canEditRoster()) return;
+      ensureMonthTargetHours(currentYear, currentMonth, {force:true});
+      applyNotes(EMP);
+      saveRoster();
+      updateTargetHoursKpi();
+      renderAll();
+      if(typeof showToast==='function') showToast('Đã cập nhật giờ công kế hoạch: '+getTargetHours()+'h', 'success');
+    });
+    // Lần đầu mở trang Lịch trực: nếu tháng chưa có targetHours đã lưu thì hỏi (không hỏi lúc login)
+    (function(){
+      try {
+        const raw = localStorage.getItem(storageKey(currentYear, currentMonth));
+        let has = false;
+        if (raw) {
+          const data = JSON.parse(raw);
+          has = data && Number(data.targetHours) > 0;
+        }
+        if (!has) {
+          ensureMonthTargetHours(currentYear, currentMonth, { force: false, silent: false });
+          applyNotes(EMP);
+          saveRoster();
+        }
+      } catch(e){}
+      updateTargetHoursKpi();
+    })();
 
     document.getElementById('rSearch').oninput = e=>{ query=e.target.value; renderAll(); };
     const chips = document.getElementById('rChips');
@@ -6358,6 +6894,23 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
     document.getElementById('rAddEmpBtn')?.addEventListener('click', ()=> openAddEmployeeModal());
     document.getElementById('rAddShiftBtn')?.addEventListener('click', ()=> openAddShiftModal());
 
+    ensureMobileTabsFixed();
+    applyRosterReadonlyByDevice();
+    if(!window.__rosterTabsResizeBound){
+      window.__rosterTabsResizeBound = true;
+      window.addEventListener('resize', ()=>{
+        try{
+          ensureMobileTabsFixed();
+          applyRosterReadonlyByDevice();
+          // Đổi kích thước: nếu đang grid trên mobile thì về duty
+          if(window.innerWidth <= 900 && mobileTab === 'grid') setMobileTab('duty');
+        }catch(e){}
+      });
+      document.querySelectorAll('.nav-item').forEach(btn=>{
+        btn.addEventListener('click', ()=>{ setTimeout(()=>{ try{ ensureMobileTabsFixed(); applyRosterReadonlyByDevice(); }catch(e){} }, 30); });
+      });
+    }
+
     // Ẩn nút chỉnh sửa nếu guest
     if(!canEditRoster()){
       document.querySelectorAll('#rosterRoot .roster-edit-only').forEach(el=>{ el.style.display='none'; });
@@ -6376,7 +6929,7 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
       emp.shifts[popDay]=code;
       emp.counts=countShifts(emp.shifts);
       emp.total=calcTotal(emp.shifts);
-      emp.note = (emp.total<208 && emp.dept!=='OBS') ? ('thiếu '+(208-emp.total)+'h') : '';
+      emp.note = (emp.total<getTargetHours() && emp.dept!=='OBS') ? ('thiếu '+(getTargetHours()-emp.total)+'h') : '';
       saveRoster();
       hidePop();
       renderAll();
@@ -6397,6 +6950,177 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
     pop.style.top = Math.min(r.bottom+4, window.innerHeight-320)+'px';
   }
   function hidePop(){ document.getElementById('rPop')?.classList.remove('show'); popKey=null; popDay=null; }
+
+  let mobileTab = 'duty';
+  function setMobileTab(tab){
+    // Chỉ còn Duty + Cá nhân (đã bỏ Tổng lịch trên mobile)
+    if(tab === 'grid') tab = 'duty';
+    mobileTab = tab || 'duty';
+    const root = document.getElementById('rosterRoot');
+    if(root) root.dataset.mtab = mobileTab;
+    if(mobileTab === 'person'){
+      document.getElementById('rBtnCards')?.classList.add('active');
+      document.getElementById('rBtnGrid')?.classList.remove('active');
+    } else {
+      document.getElementById('rBtnGrid')?.classList.remove('active');
+      document.getElementById('rBtnCards')?.classList.remove('active');
+    }
+    if(mobileTab === 'duty'){
+      try { renderDutyBoard(); } catch(e){ console.warn('renderDutyBoard', e); }
+    }
+    try { ensureMobileTabsFixed(); } catch(e){}
+    requestAnimationFrame(()=>{ try { ensureMobileTabsFixed(); } catch(e){} });
+  }
+
+  /** Bottom tabs: chỉ Duty + Cá nhân. Hiện khi Lịch trực + màn hẹp. */
+  function ensureMobileTabsFixed(){
+    let tabs = document.getElementById('rMobileTabs');
+    if(!tabs){
+      tabs = document.createElement('nav');
+      tabs.id = 'rMobileTabs';
+      tabs.className = 'm-tabs';
+      tabs.setAttribute('aria-label', 'Chế độ xem');
+      tabs.innerHTML = `
+        <button type="button" data-mtab="duty" class="active">
+          <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none"/></svg></span>
+          <span class="lbl">Duty</span>
+        </button>
+        <button type="button" data-mtab="person">
+          <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 19.5c1.6-3.2 3.9-4.8 6.5-4.8s4.9 1.6 6.5 4.8"/></svg></span>
+          <span class="lbl">Cá nhân</span>
+        </button>`;
+      document.body.appendChild(tabs);
+      tabs.addEventListener('click', e=>{
+        const b = e.target.closest('button[data-mtab]');
+        if(!b) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setMobileTab(b.dataset.mtab);
+      });
+    } else {
+      // Gỡ nút Tổng lịch nếu còn sót từ bản cũ
+      tabs.querySelectorAll('button[data-mtab="grid"]').forEach(b=>b.remove());
+    }
+
+    Array.from(document.querySelectorAll('#rMobileTabs')).forEach(el=>{
+      if(el !== tabs) el.remove();
+    });
+    if(tabs.parentElement !== document.body){
+      document.body.appendChild(tabs);
+    }
+
+    const isMobile = window.innerWidth <= 900;
+    const onRoster = !!document.getElementById('page-roster')?.classList.contains('active');
+    const show = isMobile && onRoster;
+
+    document.body.classList.toggle('show-roster-mtabs', show);
+
+    const sideW = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-w'), 10);
+    tabs.style.left = (sideW > 0 ? sideW : 72) + 'px';
+    tabs.style.right = '0';
+    tabs.style.bottom = '0';
+
+    if(mobileTab === 'grid') mobileTab = 'duty';
+    tabs.querySelectorAll('button[data-mtab]').forEach(b=>{
+      b.classList.toggle('active', b.dataset.mtab === (mobileTab || 'duty'));
+    });
+
+    // Điện thoại: luôn khóa chỉnh sửa
+    try { applyRosterReadonlyByDevice(); } catch(e){}
+  }
+
+  function initials(name){
+    const p = String(name||'').trim().split(/\s+/);
+    if(!p.length) return '?';
+    if(p.length===1) return p[0].slice(0,2).toUpperCase();
+    return (p[0][0] + p[p.length-1][0]).toUpperCase();
+  }
+
+  function renderDutyBoard(){
+    const el = document.getElementById('rDuty');
+    if(!el) return;
+    const now = new Date();
+    const list = filterEmp();
+    const on = [], up = [], off = [];
+    list.forEach(e=>{
+      const st = classifyDutyStatus(e, now);
+      const row = { emp: e, st };
+      if(st.status === 'on') on.push(row);
+      else if(st.status === 'upcoming') up.push(row);
+      else off.push(row);
+    });
+    // sắp xếp: on theo giờ kết thúc sớm trước; upcoming theo giờ vào ca
+    on.sort((a,b)=>(a.st.endMs||0)-(b.st.endMs||0));
+    up.sort((a,b)=>(a.st.startMs||0)-(b.st.startMs||0) || a.emp.name.localeCompare(b.emp.name,'vi'));
+    off.sort((a,b)=>a.emp.name.localeCompare(b.emp.name,'vi'));
+
+    const timeStr = now.toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit', hour12:false});
+    const dateStr = now.toLocaleDateString('vi-VN', {weekday:'long', day:'2-digit', month:'2-digit', year:'numeric'});
+    const idx = todayIdx();
+    const night = isNightDutyPeriod(now);
+    const upHint = night ? 'ca sáng mai (M/HC/C9)' : 'ca E tối nay';
+    const dayNote = idx < 0
+      ? '<div style="font-size:11px;color:#A85E00;margin-top:6px">⚠ Hôm nay không nằm trong kỳ lịch tháng đang xem — đổi tháng/năm cho khớp</div>'
+      : '';
+
+    function fmtLeft(mins){
+      if(mins == null || mins < 0) return '';
+      if(mins >= 60) return Math.floor(mins/60)+'h'+(mins%60 ? (mins%60)+'p' : '');
+      return mins+'p';
+    }
+
+    function card(row, kind){
+      const e = row.emp, st = row.st;
+      const d = DEPTS[e.dept] || {color:'#888', name:e.dept||'', bg:'#eee'};
+      let badge = '', meta = d.name.replace(/^DSP /,'');
+      if(kind === 'on'){
+        const left = st.endMs ? Math.max(0, Math.round((st.endMs - now.getTime())/60000)) : 0;
+        badge = `<span class="m-badge on">${st.code||'?'}</span>`;
+        meta += ` · ${st.label||''}` + (st.fromYesterday ? ' (ca đêm hôm qua)' : '') + ` · còn ${fmtLeft(left)}`;
+      } else if(kind === 'up'){
+        badge = `<span class="m-badge up">${st.code||'?'}</span>`;
+        const when = st.handoff === 'sáng mai' ? 'sáng mai' : (st.handoff === 'tối nay' ? 'tối nay' : '');
+        const startLabel = st.label ? st.label.split('–')[0] : '';
+        meta += ` · ${st.code||''}` + (startLabel ? ` ${startLabel}` : '') + (when ? ` · ${when}` : '');
+        if(st.minsLeft != null) meta += ` · còn ${fmtLeft(st.minsLeft)}`;
+      } else {
+        const code = st.code || '';
+        badge = code
+          ? `<span class="m-badge off">${code}</span>`
+          : `<span class="m-badge off">OFF</span>`;
+        meta += code ? ` · ${st.label||code}` : ' · Không ca hôm nay';
+      }
+      return `<div class="m-card" data-key="${e.key}">
+        <div class="m-avatar" style="background:${d.color}">${initials(e.name)}</div>
+        <div class="info"><div class="name">${e.name}</div><div class="meta">${meta}</div></div>
+        ${badge}
+      </div>`;
+    }
+
+    el.innerHTML = `
+      <div class="m-duty-clock">
+        <div class="time">${timeStr}</div>
+        <div class="date">${dateStr}</div>
+        ${dayNote}
+      </div>
+      <div class="m-sec">
+        <div class="m-sec-head"><h3><span class="m-live-dot"></span> Đang trực</h3><span class="cnt">${on.length}</span></div>
+        ${on.length ? on.map(r=>card(r,'on')).join('') : '<div class="m-empty">Không ai đang trong ca</div>'}
+      </div>
+      <div class="m-sec">
+        <div class="m-sec-head"><h3>⏳ Sắp vào ca <span style="font-weight:600;color:var(--ink-soft);font-size:11px">· ${upHint}</span></h3><span class="cnt">${up.length}</span></div>
+        ${up.length ? up.map(r=>card(r,'up')).join('') : '<div class="m-empty">Không có ca sắp bắt đầu</div>'}
+      </div>
+      <div class="m-sec">
+        <div class="m-sec-head"><h3>💤 Off / nghỉ</h3><span class="cnt">${off.length}</span></div>
+        ${off.length ? off.map(r=>card(r,'off')).join('') : '<div class="m-empty">—</div>'}
+      </div>
+    `;
+    el.onclick = ev=>{
+      const c = ev.target.closest('.m-card');
+      if(c) openPerson(+c.dataset.key);
+    };
+  }
 
   function filterEmp(){
     return EMP.filter(e=>{
@@ -6427,17 +7151,17 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
           <thead><tr>
             <th class="sticky1" style="min-width:160px;text-align:left;padding-left:10px;">Họ tên</th>
             ${DAYS.map((dd,i)=>`<th class="${dayClass(i)}${i===getTodayIdx()?' today-col':''}">${dd[0]}${i===getTodayIdx()?' ★':''}</th>`).join('')}
-            <th style="min-width:60px">HC/M/E</th>
-            <th style="min-width:52px">Tổng giờ</th>
-            <th style="min-width:72px">Ghi chú</th>
+            <th class="col-extra" style="min-width:60px">HC/M/E</th>
+            <th class="col-extra" style="min-width:52px">Tổng giờ</th>
+            <th class="col-extra" style="min-width:72px">Ghi chú</th>
           </tr></thead>
           <tbody>
             ${rows.map(e=>`<tr>
               <td class="namecell sticky1" data-key="${e.key}"><div class="empname">${e.name}</div><div class="empid">${e.id||'—'}</div></td>
               ${e.shifts.map((s,i)=>`<td><div class="cell s-${s||''} ${dayClass(i)}" data-key="${e.key}" data-day="${i}">${s||''}</div></td>`).join('')}
-              <td class="tot">${e.counts.HC}·${e.counts.M}·${e.counts.E}${e.counts.C9?('·'+e.counts.C9):''}<div class="sub">HC·M·E${e.counts.C9?'·C9':''}</div></td>
-              <td class="hours">${e.total}h</td>
-              <td class="note">${e.note?`<span class="warn">${e.note}</span>`:`<span class="okmark">Đủ giờ</span>`}</td>
+              <td class="tot col-extra">${e.counts.HC}·${e.counts.M}·${e.counts.E}${e.counts.C9?('·'+e.counts.C9):''}<div class="sub">HC·M·E${e.counts.C9?'·C9':''}</div></td>
+              <td class="hours col-extra">${e.total}h</td>
+              <td class="note col-extra">${e.note?`<span class="warn">${e.note}</span>`:`<span class="okmark">Đủ giờ</span>`}</td>
             </tr>`).join('')}
           </tbody>
         </table></div>
@@ -6472,6 +7196,9 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
       </div>`;
     }).join('')+`</div>`;
     cards.onclick=e=>{ const c=e.target.closest('.personcard'); if(c) openPerson(+c.dataset.key); };
+
+    // Duty board (mobile tab 1)
+    try { renderDutyBoard(); } catch(err){ console.warn('duty board', err); }
   }
 
   function openPerson(key){
@@ -6593,7 +7320,7 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
         counts:countShifts(shifts), total:calcTotal(shifts), note:''});
     }
     if(!parsed.length) throw new Error('Không đọc được dòng nhân viên nào');
-    parsed.forEach(e=>{ e.note=(e.total<208 && e.dept!=='OBS')?('thiếu '+(208-e.total)+'h'):''; });
+    parsed.forEach(e=>{ e.note=(e.total<getTargetHours() && e.dept!=='OBS')?('thiếu '+(getTargetHours()-e.total)+'h'):''; });
     EMP = parsed;
     saveRoster();
     renderAll();
@@ -6605,21 +7332,76 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
    *  dùng xem & đối chiếu thủ công, không tự động ghi đè lịch để tránh sai dữ liệu.
    */
   async function loadFromImageOcr(file, onProgress){
+    // Dùng cùng cơ chế multi-CDN như OFP OCR để tránh NetworkError worker
     const Tesseract = (typeof crEnsureTesseract === 'function')
       ? await crEnsureTesseract(onProgress)
       : window.Tesseract;
-    if(!Tesseract) throw new Error('Không tải được Tesseract.js');
-    const worker = typeof Tesseract.createWorker === 'function' ? await Tesseract.createWorker('vie+eng') : null;
-    let text = '';
-    if(worker){
-      const { data } = await worker.recognize(file);
-      text = data.text || '';
-      await worker.terminate();
-    } else {
-      const res = await Tesseract.recognize(file, 'vie+eng');
-      text = (res && res.data && res.data.text) || '';
+    if(!Tesseract || typeof Tesseract.createWorker !== 'function') {
+      throw new Error('Không tải được Tesseract.js — kiểm tra mạng / chặn CDN');
     }
-    return text;
+    let worker = null;
+    let lastErr = null;
+    // Ưu tiên hàm tạo worker đã thử nhiều CDN (OFP)
+    if (typeof crCreateTessWorker === 'function') {
+      try {
+        worker = await crCreateTessWorker(Tesseract, onProgress);
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    // Fallback: thử lần lượt các CDN (eng — ổn định hơn vie+eng trên một số CDN)
+    if (!worker) {
+      const sets = [
+        {
+          workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
+          corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1/tesseract-core.wasm.js',
+          langPath: 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0_best_int'
+        },
+        {
+          workerPath: 'https://unpkg.com/tesseract.js@5.1.1/dist/worker.min.js',
+          corePath: 'https://unpkg.com/tesseract.js-core@5.1.1/tesseract-core.wasm.js',
+          langPath: 'https://tessdata.projectnaptha.com/4.0.0'
+        },
+        {
+          workerPath: 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/worker.min.js',
+          corePath: 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js-core/5.1.1/tesseract-core.wasm.js',
+          langPath: 'https://tessdata.projectnaptha.com/4.0.0'
+        }
+      ];
+      for (const set of sets) {
+        try {
+          if (onProgress) onProgress('OCR worker…');
+          worker = await Tesseract.createWorker('eng', 1, {
+            workerPath: set.workerPath,
+            corePath: set.corePath,
+            langPath: set.langPath,
+            logger: m => {
+              if (onProgress && m && m.status) {
+                onProgress(m.status + (m.progress != null ? ' ' + Math.round(m.progress * 100) + '%' : ''));
+              }
+            }
+          });
+          break;
+        } catch (e) {
+          lastErr = e;
+          worker = null;
+        }
+      }
+    }
+    if (!worker) {
+      throw new Error(
+        'OCR worker không tải được (NetworkError CDN). '
+        + 'Thử lại khi mạng ổn định, hoặc dùng 📂 Nạp Excel lịch. '
+        + (lastErr ? ('Chi tiết: ' + (lastErr.message || lastErr)) : '')
+      );
+    }
+    try {
+      if (onProgress) onProgress('Đang nhận diện chữ…');
+      const { data } = await worker.recognize(file);
+      return (data && data.text) || '';
+    } finally {
+      try { await worker.terminate(); } catch(e) {}
+    }
   }
 
   function openOcrReview(text, file){
