@@ -6466,32 +6466,31 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
 #rMobileTabs {
   display: none !important;
   position: fixed !important;
-  /* bottom điều chỉnh bằng JS (visualViewport) để Chrome toolbar không che */
-  bottom: 0 !important;
-  left: 0 !important;
+  top: auto !important;
+  bottom: 0;
+  left: 72px !important;
   right: 0 !important;
   width: auto !important;
   max-width: none !important;
   height: auto !important;
+  min-height: 52px !important;
   z-index: 10050 !important;
   margin: 0 !important;
   background: #ffffff !important;
   border: none !important;
   border-top: 1px solid #E5E7EB !important;
-  border-radius: 0 !important;
-  /* Không cộng safe-area quá lớn — JS xử lý Chrome UI; chỉ chừa mỏng cho notch */
-  padding: 4px 6px max(4px, env(safe-area-inset-bottom, 0px)) !important;
-  gap: 4px !important;
-  box-shadow: 0 -4px 16px rgba(0,0,0,.08) !important;
+  border-radius: 16px 16px 0 0 !important;
+  padding: 8px 10px 10px !important;
+  gap: 8px !important;
+  box-shadow: 0 -8px 28px rgba(0,0,0,.12) !important;
   pointer-events: auto !important;
   box-sizing: border-box !important;
   flex-direction: row !important;
   align-items: stretch !important;
   justify-content: space-between !important;
   overflow: visible !important;
-  /* tránh bị kéo theo rubber-band */
-  transform: translateZ(0);
   -webkit-backface-visibility: hidden;
+  will-change: transform;
 }
 /* Chỉ hiện khi body có class (JS bật khi ở trang Lịch trực + mobile) */
 body.show-roster-mtabs #rMobileTabs {
@@ -7045,42 +7044,81 @@ html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
     try { applyRosterReadonlyByDevice(); } catch(e){}
   }
 
-  /** Giữ tab sát mép dưới vùng nhìn thấy (Chrome ẩn/hiện thanh công cụ) */
+  /**
+   * Đặt tab ngay trên mép dưới vùng nhìn thấy (visualViewport).
+   * Chrome Android ẩn/hiện toolbar → vv.height đổi → tab dịch theo, không bị che.
+   */
   function syncMobileTabsToViewport(tabsEl){
     const tabs = tabsEl || document.getElementById('rMobileTabs');
     if (!tabs) return;
-    let bottom = 0;
+    const show = document.body.classList.contains('show-roster-mtabs');
+    if (!show) {
+      tabs.style.transform = '';
+      return;
+    }
+
+    const isNarrow = window.innerWidth <= 900;
+    tabs.style.setProperty('left', isNarrow ? '72px' : '0px', 'important');
+    tabs.style.setProperty('right', '0px', 'important');
+
+    // Đo chiều cao tab (kể cả padding)
+    tabs.style.setProperty('bottom', '0px', 'important');
+    tabs.style.setProperty('top', 'auto', 'important');
+    tabs.style.transform = 'translate3d(0,0,0)';
+
+    let shiftUp = 0;
     try {
-      if (window.visualViewport) {
-        // Phần layout bị che bởi browser chrome phía dưới
-        bottom = Math.max(0, Math.round(
-          window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop
-        ));
+      const vv = window.visualViewport;
+      if (vv) {
+        // Phần layout viewport bị toolbar Chrome chiếm phía dưới
+        // visibleBottom (theo layout coords) = offsetTop + height
+        const visibleBottom = vv.offsetTop + vv.height;
+        shiftUp = Math.max(0, Math.round(window.innerHeight - visibleBottom));
       }
-    } catch(e){}
-    tabs.style.bottom = bottom + 'px';
-    // Padding nội dung = chiều cao tab thật + bottom offset (không để khoảng trống thừa)
+    } catch (e) {}
+
+    // Dịch tab lên bằng transform (không bị CSS bottom:!important nuốt)
+    if (shiftUp > 0) {
+      tabs.style.transform = 'translate3d(0,' + (-shiftUp) + 'px,0)';
+    } else {
+      tabs.style.transform = 'translate3d(0,0,0)';
+    }
+
     try {
-      const h = Math.ceil(tabs.getBoundingClientRect().height) || 52;
-      const pad = h + bottom + 8;
-      document.documentElement.style.setProperty('--roster-mtab-pad', pad + 'px');
-    } catch(e){}
+      const h = Math.ceil(tabs.getBoundingClientRect().height) || 56;
+      // Chỉ pad bằng chiều cao tab — transform đã bù chrome, tránh khoảng trống thừa
+      document.documentElement.style.setProperty('--roster-mtab-pad', (h + 12) + 'px');
+    } catch (e) {}
   }
 
   function bindMobileTabsViewport(){
     if (window.__rosterVvBound) return;
     window.__rosterVvBound = true;
-    const run = ()=>{ try { syncMobileTabsToViewport(); } catch(e){} };
+    let raf = 0;
+    const run = function(){
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(function(){
+        raf = 0;
+        try { syncMobileTabsToViewport(); } catch (e) {}
+      });
+    };
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', run);
       window.visualViewport.addEventListener('scroll', run);
     }
     window.addEventListener('resize', run);
-    window.addEventListener('orientationchange', ()=> setTimeout(run, 120));
-    // scroll trang: Chrome hay đổi toolbar
+    window.addEventListener('orientationchange', function(){ setTimeout(run, 180); });
     window.addEventListener('scroll', run, { passive: true });
     document.addEventListener('scroll', run, { passive: true, capture: true });
+    window.addEventListener('touchstart', run, { passive: true });
+    window.addEventListener('touchend', function(){ setTimeout(run, 80); }, { passive: true });
+    window.addEventListener('touchcancel', function(){ setTimeout(run, 80); }, { passive: true });
+    // Một số máy Chrome chỉ ổn định sau khi address bar animation xong
+    setInterval(function(){
+      if (document.body.classList.contains('show-roster-mtabs')) run();
+    }, 500);
   }
+
 
   function initials(name){
     const p = String(name||'').trim().split(/\s+/);
