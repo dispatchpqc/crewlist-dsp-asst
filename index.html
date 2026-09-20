@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>SUN PhuQuoc · CREWLIST</title>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -5187,27 +5187,31 @@ function exportExcel() {
   const CUSTOM_SHIFTS_EMBED = {};
   const RAW_SHIFTS = [
     // id, name, dept, shifts[31]
-    ["030346","Đàm Xuân Hiến","DM",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["030903","Đào Chí Dũng","DM",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["031930","Phạm Ninh Toàn","DM",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["030322","Nguyễn Thái Uy","DM",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["031845","Nguyễn Ngọc Long","DM",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["042014","Nguyễn Xuân Tuyên","DM",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["030904","Trần Đình Đạt","HDQ",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["030905","Nguyễn T.Hoàng Hưng","HDQ",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["030841","Vũ Hoàng Long","HDQ",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["—","Vũ Huy Hùng","HDQ",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["039278","Nguyễn Kiều Huyền Chi","ASST",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["039280","Đặng Thảo Linh","ASST",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["039276","Bùi Việt Anh","ASST",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["039274","Đỗ Nam Anh","ASST",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["031844","Nguyễn Hoàng Huy","SGN",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["031843","Lương Trung Hiếu","SGN",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["031846","Nguyễn Phúc Thịnh","SGN",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["031847","Hoàng Bảo Ngọc","SGN",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["041863","Lê Ngọc Thành Tài","PQC",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["041865","Nguyễn Đức Lộc","PQC",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]],
-    ["041867","Phan Thành Nghĩa","PQC",["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""]]
+    ['030346','Đàm Xuân Hiến','DM',['HC','M','E','E','','','NL','NL','HC','HC','M','','M','HC','HC','M','','M','HC','M','E','','E','M','M','HC','','','','','']],
+    ['030903','Đào Chí Dũng','DM',['','M','M','','E','E','NL','M','HC','HC','','','M','','HC','M','','M','E','','HC','M','E','E','','E','','M','','HC','']],
+    ['031930','Phạm Ninh Toàn','DM',['','','E','E','E','','M','M','E','','','M','','M','E','','','M','E','E','E','E','','M','E','','','E','E','','']],
+    ['030322','Nguyễn Thái Uy','DM',['E','','M','M','','','NL','NL','M','E','','','M','E','','M','E','','','M','E','','HC','M','','','M','M','E','E','']],
+    ['031845','Nguyễn Ngọc Long','DM',['','E','','M','M','','E','E','','M','E','','M','E','','M','E','E','','','M','E','','M','','M','M','','','M','']],
+    ['042014','Nguyễn Xuân Tuyên','DM',['M','E','','','','M','NL','NL','E','','','E','','M','E','','M','E','','','M','E','','E','','M','E','','M','HC','']],
+    ['030904','Trần Đình Đạt','HDQ',['M','M','','','','M','M','NL','M','E','E','','M','E','','','M','E','','','M','E','','M','E','','','M','E','','']],
+    ['030905','Nguyễn T.Hoàng Hưng','HDQ',['E','E','','','M','E','E','NL','','M','','','E','','','M','M','E','','','M','E','','M','M','','E','','M','E','']],
+    ['030841','Vũ Hoàng Long','HDQ',['','','M','M','P','P','NL','E','','','M','E','E','','M','E','','','M','E','E','','M','E','','M','','M','E','','M']],
+    ['—','Vũ Huy Hùng','HDQ',['HC','HC','HC','HC','','HC','M','NL','E','E','','','M','E','','','M','E','','','M','E','','E','','M','E','','M','','']],
+    ['039278','Nguyễn Kiều Huyền Chi','ASST',['E','','','M','E','','','M','M','E','','','M','M','E','','M','E','E','','','M','','','','E','','','M','E','']],
+    ['039280','Đặng Thảo Linh','ASST',['','','M','E','','E','NL','M','M','E','','M','E','','E','','','M','E','','','M','E','E','','','M','E','E','','']],
+    ['039276','Bùi Việt Anh','ASST',['M','E','','','M','E','E','NL','P','','M','','','E','','M','M','E','','M','M','E','','E','','','M','E','','M','']],
+    ['039274','Đỗ Nam Anh','ASST',['','M','E','','M','M','E','E','','M','E','','M','','','','E','','M','E','','M','E','','M','M','','M','E','','']],
+    ['031844','Nguyễn Hoàng Huy','SGN',['E','','M','','E','E','NL','M','M','','','','M','E','','M','E','E','','','M','','','E','','M','','M','E','','M']],
+    ['031843','Lương Trung Hiếu','SGN',['M','M','','E','','','NL','NL','','E','E','','','M','E','','M','E','','','M','','E','','M','','E','','M','E','']],
+    ['031846','Nguyễn Phúc Thịnh','SGN',['E','E','','M','E','','M','E','','','M','M','E','','M','','','E','','M','E','','E','E','','M','M','','E','','']],
+    ['031847','Hoàng Bảo Ngọc','SGN',['','','E','','M','M','NL','M','E','','','','E','','','M','M','E','','','M','E','','M','M','HC','E','','M','','']],
+    ['','Đinh Minh Trí','OBS',['','','','','','','','','','','','','','','','','E','E','','E','','','E','','','','','','','','']],
+    ['','Huỳnh Tấn Phước','OBS',['','','','','','','','','','','','','','','','','M','','','M','','','M','','M','E','E','','M','E','E']],
+    ['','Vũ Trọng Khánh','OBS',['','','','','','','','','','','','','','','','','','','','','','','E','','','','','','','','M']],
+    ['','Cù Trường Phú','OBS',['','','','','','','','','','','','','','','','','','','','','','','','','','','','M','','','']],
+    ['041863','Lê Ngọc Thành Tài','PQC',['','M','C9','E','','C9','C9','M','E','','C9','','M','C9','','C9','','','C9','','M','C9','E','','C9','','','E','','C9','']],
+    ['041865','Nguyễn Đức Lộc','PQC',['C9','E','','C9','','','M','C9','C9','','','C9','','M','C9','','C9','E','','C9','E','','C9','','C9','','C9','','M','C9','']],
+    ['041867','Phan Thành Nghĩa','PQC',['M','C9','','','C9','E','E','E','','C9','E','','C9','','','M','C9','','M','C9','','M','C9','E','','C9','','C9','E','','']],
   ];
 
   // pad/trim each to 31
@@ -6456,19 +6460,21 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
 #rMobileTabs {
   display: none !important;
   position: fixed !important;
+  /* bottom điều chỉnh bằng JS (visualViewport) để Chrome toolbar không che */
   bottom: 0 !important;
-  left: 72px !important;
+  left: 0 !important;
   right: 0 !important;
   width: auto !important;
   max-width: none !important;
   height: auto !important;
-  z-index: 9999 !important;
+  z-index: 10050 !important;
   margin: 0 !important;
   background: #ffffff !important;
   border: none !important;
   border-top: 1px solid #E5E7EB !important;
   border-radius: 0 !important;
-  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)) !important;
+  /* Không cộng safe-area quá lớn — JS xử lý Chrome UI; chỉ chừa mỏng cho notch */
+  padding: 4px 6px max(4px, env(safe-area-inset-bottom, 0px)) !important;
   gap: 4px !important;
   box-shadow: 0 -4px 16px rgba(0,0,0,.08) !important;
   pointer-events: auto !important;
@@ -6477,6 +6483,9 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
   align-items: stretch !important;
   justify-content: space-between !important;
   overflow: visible !important;
+  /* tránh bị kéo theo rubber-band */
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
 }
 /* Chỉ hiện khi body có class (JS bật khi ở trang Lịch trực + mobile) */
 body.show-roster-mtabs #rMobileTabs {
@@ -6530,7 +6539,7 @@ body.show-roster-mtabs #rMobileTabs {
   box-shadow: none !important;
 }
 #rMobileTabs button.active .ico svg { stroke-width: 2.2 !important; }
-#rosterRoot .m-duty { display: none; padding: 12px 12px 100px; }
+#rosterRoot .m-duty { display: none; padding: 12px 12px var(--roster-mtab-pad, 64px); }
 #rosterRoot .m-duty-clock {
   text-align: center; margin-bottom: 14px;
   padding: 12px; border-radius: 14px;
@@ -6623,7 +6632,7 @@ html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
   #rosterRoot .controls .btn-upload,
   #rosterRoot #rSyncStatus { display: none !important; }
   #rosterRoot .controls .search { flex: 1 1 100%; max-width: none; order: 1; }
-  #rosterRoot main { padding-bottom: 88px; }
+  #rosterRoot main { padding-bottom: var(--roster-mtab-pad, 64px); }
   #rosterRoot .banner,
   #rosterRoot .legend { display: none; }
   /* default mobile: hide grid/cards until tab picks them */
@@ -6637,7 +6646,7 @@ html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
   #rosterRoot[data-mtab="grid"] .controls .chipset { display: flex !important; }
   /* Tổng lịch mobile: tên cố định, chỉ kéo ngang cột ngày */
   #rosterRoot[data-mtab="grid"] main {
-    padding-bottom: 96px;
+    padding-bottom: var(--roster-mtab-pad, 64px);
   }
   #rosterRoot[data-mtab="grid"] .tablewrap{
     max-height: calc(100dvh - 200px);
@@ -6677,7 +6686,7 @@ html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
   #rosterRoot[data-mtab="duty"] .m-duty,
   #rosterRoot[data-mtab="person"] #rCards,
   #rosterRoot[data-mtab="grid"] main {
-    padding-bottom: 88px !important;
+    padding-bottom: var(--roster-mtab-pad, 64px) !important;
   }
 }
 `;
@@ -6888,6 +6897,7 @@ html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
     document.getElementById('rAddShiftBtn')?.addEventListener('click', ()=> openAddShiftModal());
 
     ensureMobileTabsFixed();
+    bindMobileTabsViewport();
     applyRosterReadonlyByDevice();
     if(!window.__rosterTabsResizeBound){
       window.__rosterTabsResizeBound = true;
@@ -7008,10 +7018,17 @@ html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
 
     document.body.classList.toggle('show-roster-mtabs', show);
 
-    const sideW = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-w'), 10);
-    tabs.style.left = (sideW > 0 ? sideW : 72) + 'px';
+    // Mobile full-width tabs (sidebar thu gọn trên điện thoại)
+    const isNarrow = window.innerWidth <= 900;
+    if (isNarrow) {
+      tabs.style.left = '0';
+    } else {
+      const sideW = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-w'), 10) || 72;
+      tabs.style.left = sideW + 'px';
+    }
     tabs.style.right = '0';
-    tabs.style.bottom = '0';
+    // Căn bottom theo visualViewport — tránh Chrome toolbar che tab / khoảng trống thừa
+    try { syncMobileTabsToViewport(tabs); } catch(e){ tabs.style.bottom = '0'; }
 
     if(mobileTab === 'grid') mobileTab = 'duty';
     tabs.querySelectorAll('button[data-mtab]').forEach(b=>{
@@ -7020,6 +7037,43 @@ html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
 
     // Điện thoại: luôn khóa chỉnh sửa
     try { applyRosterReadonlyByDevice(); } catch(e){}
+  }
+
+  /** Giữ tab sát mép dưới vùng nhìn thấy (Chrome ẩn/hiện thanh công cụ) */
+  function syncMobileTabsToViewport(tabsEl){
+    const tabs = tabsEl || document.getElementById('rMobileTabs');
+    if (!tabs) return;
+    let bottom = 0;
+    try {
+      if (window.visualViewport) {
+        // Phần layout bị che bởi browser chrome phía dưới
+        bottom = Math.max(0, Math.round(
+          window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop
+        ));
+      }
+    } catch(e){}
+    tabs.style.bottom = bottom + 'px';
+    // Padding nội dung = chiều cao tab thật + bottom offset (không để khoảng trống thừa)
+    try {
+      const h = Math.ceil(tabs.getBoundingClientRect().height) || 52;
+      const pad = h + bottom + 8;
+      document.documentElement.style.setProperty('--roster-mtab-pad', pad + 'px');
+    } catch(e){}
+  }
+
+  function bindMobileTabsViewport(){
+    if (window.__rosterVvBound) return;
+    window.__rosterVvBound = true;
+    const run = ()=>{ try { syncMobileTabsToViewport(); } catch(e){} };
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', run);
+      window.visualViewport.addEventListener('scroll', run);
+    }
+    window.addEventListener('resize', run);
+    window.addEventListener('orientationchange', ()=> setTimeout(run, 120));
+    // scroll trang: Chrome hay đổi toolbar
+    window.addEventListener('scroll', run, { passive: true });
+    document.addEventListener('scroll', run, { passive: true, capture: true });
   }
 
   function initials(name){
