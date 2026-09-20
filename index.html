@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
   <title>SUN PhuQuoc · CREWLIST</title>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -47,6 +47,7 @@
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
     }
 
@@ -58,8 +59,11 @@
       display: flex;
       flex-direction: column;
       position: fixed;
-      top: 0; left: 0; bottom: 0;
+      top: 0; left: 0;
+      height: 100vh;
+      height: 100dvh;
       z-index: 100;
+      overflow-y: auto;
       transition: width 0.2s;
     }
     body.sidebar-collapsed {
@@ -6480,7 +6484,7 @@ html.dark #rosterRoot .viewtoggle button.active{ background:var(--gold); color:#
   border: none !important;
   border-top: 1px solid #E5E7EB !important;
   border-radius: 16px 16px 0 0 !important;
-  padding: 8px 10px 10px !important;
+  padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
   gap: 8px !important;
   box-shadow: 0 -8px 28px rgba(0,0,0,.12) !important;
   pointer-events: auto !important;
@@ -7045,48 +7049,27 @@ html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
   }
 
   /**
-   * Đặt tab ngay trên mép dưới vùng nhìn thấy (visualViewport).
-   * Chrome Android ẩn/hiện toolbar → vv.height đổi → tab dịch theo, không bị che.
+   * Đặt tab dính mép dưới màn hình. Nhờ meta "interactive-widget=resizes-content"
+   * + CSS 100dvh, layout viewport tự co giãn đúng khi Chrome ẩn/hiện thanh công cụ,
+   * nên bottom:0 (định nghĩa trong CSS) đã luôn nằm trên thanh công cụ — không cần
+   * JS dịch chuyển bằng transform theo từng khung hình cuộn nữa (cách cũ gây giật/
+   * nhảy sidebar & header vì đọc/ghi layout liên tục lúc cuộn).
    */
   function syncMobileTabsToViewport(tabsEl){
     const tabs = tabsEl || document.getElementById('rMobileTabs');
     if (!tabs) return;
     const show = document.body.classList.contains('show-roster-mtabs');
-    if (!show) {
-      tabs.style.transform = '';
-      return;
-    }
+    tabs.style.transform = '';
+    if (!show) return;
 
     const isNarrow = window.innerWidth <= 900;
     tabs.style.setProperty('left', isNarrow ? '72px' : '0px', 'important');
     tabs.style.setProperty('right', '0px', 'important');
-
-    // Đo chiều cao tab (kể cả padding)
     tabs.style.setProperty('bottom', '0px', 'important');
     tabs.style.setProperty('top', 'auto', 'important');
-    tabs.style.transform = 'translate3d(0,0,0)';
-
-    let shiftUp = 0;
-    try {
-      const vv = window.visualViewport;
-      if (vv) {
-        // Phần layout viewport bị toolbar Chrome chiếm phía dưới
-        // visibleBottom (theo layout coords) = offsetTop + height
-        const visibleBottom = vv.offsetTop + vv.height;
-        shiftUp = Math.max(0, Math.round(window.innerHeight - visibleBottom));
-      }
-    } catch (e) {}
-
-    // Dịch tab lên bằng transform (không bị CSS bottom:!important nuốt)
-    if (shiftUp > 0) {
-      tabs.style.transform = 'translate3d(0,' + (-shiftUp) + 'px,0)';
-    } else {
-      tabs.style.transform = 'translate3d(0,0,0)';
-    }
 
     try {
       const h = Math.ceil(tabs.getBoundingClientRect().height) || 56;
-      // Chỉ pad bằng chiều cao tab — transform đã bù chrome, tránh khoảng trống thừa
       document.documentElement.style.setProperty('--roster-mtab-pad', (h + 12) + 'px');
     } catch (e) {}
   }
@@ -7102,21 +7085,13 @@ html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
         try { syncMobileTabsToViewport(); } catch (e) {}
       });
     };
+    // Chỉ đồng bộ lại khi thật sự đổi kích thước/khung hình (bàn phím ảo hiện lên,
+    // xoay màn hình...) — KHÔNG gắn theo sự kiện scroll nữa để tránh giật layout.
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', run);
-      window.visualViewport.addEventListener('scroll', run);
     }
     window.addEventListener('resize', run);
     window.addEventListener('orientationchange', function(){ setTimeout(run, 180); });
-    window.addEventListener('scroll', run, { passive: true });
-    document.addEventListener('scroll', run, { passive: true, capture: true });
-    window.addEventListener('touchstart', run, { passive: true });
-    window.addEventListener('touchend', function(){ setTimeout(run, 80); }, { passive: true });
-    window.addEventListener('touchcancel', function(){ setTimeout(run, 80); }, { passive: true });
-    // Một số máy Chrome chỉ ổn định sau khi address bar animation xong
-    setInterval(function(){
-      if (document.body.classList.contains('show-roster-mtabs')) run();
-    }, 500);
   }
 
 
