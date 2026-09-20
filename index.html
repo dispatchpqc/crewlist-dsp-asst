@@ -1526,22 +1526,28 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
     const themeBtn = document.getElementById('themeToggle');
     const themeIcon = document.getElementById('themeIcon');
     const themeLabel = document.getElementById('themeLabel');
+    const themeBtnTop = document.getElementById('themeToggleTop');
+    const themeIconTop = document.getElementById('themeIconTop');
 
     function applyTheme(dark) {
       if (dark) {
         html.classList.add('dark');
-        themeIcon.textContent = '☀️';
-        themeLabel.textContent = 'Light mode';
+        if (themeIcon) themeIcon.textContent = '☀️';
+        if (themeLabel) themeLabel.textContent = 'Light mode';
+        if (themeIconTop) themeIconTop.textContent = '☀️';
         localStorage.setItem('theme', 'dark');
       } else {
         html.classList.remove('dark');
-        themeIcon.textContent = '🌙';
-        themeLabel.textContent = 'Dark mode';
+        if (themeIcon) themeIcon.textContent = '🌙';
+        if (themeLabel) themeLabel.textContent = 'Dark mode';
+        if (themeIconTop) themeIconTop.textContent = '🌙';
         localStorage.setItem('theme', 'light');
       }
     }
     applyTheme(localStorage.getItem('theme') === 'dark');
-    themeBtn.addEventListener('click', () => applyTheme(!html.classList.contains('dark')));
+    function onThemeClick(){ applyTheme(!html.classList.contains('dark')); }
+    if (themeBtn) themeBtn.addEventListener('click', onThemeClick);
+    if (themeBtnTop) themeBtnTop.addEventListener('click', onThemeClick);
 
     // Sidebar collapse
     (function() {
