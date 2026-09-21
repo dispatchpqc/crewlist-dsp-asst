@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sun PhuQuoc Airways — Lịch trực Tháng 09/2026</title>
+<title>Sun PhuQuoc Airways — Lịch trực</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,500&display=swap" rel="stylesheet">
@@ -144,6 +144,45 @@
     padding:8px 14px; cursor:pointer; color:var(--ink-soft); transition:.15s;
   }
   .viewtoggle button.active{ background:var(--gold); color:#3a2400; }
+
+  .monthpick{
+    display:flex; align-items:center; gap:6px;
+    background:var(--paper); border:1.5px solid var(--line); border-radius:11px;
+    padding:4px 8px;
+  }
+  .monthpick select, .monthpick input{
+    border:none; background:transparent; font-family:inherit; font-size:13px; font-weight:700;
+    color:var(--ink); outline:none; cursor:pointer;
+  }
+  .monthpick label{ font-size:11px; color:var(--ink-soft); font-weight:600; }
+
+  /* ---------- Duty status view ---------- */
+  .dutywrap{ display:grid; grid-template-columns:1fr; gap:18px; }
+  @media(min-width:900px){ .dutywrap{ grid-template-columns:1fr 1fr; } }
+  .dutysec{ background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:16px 18px; }
+  .dutysec h3{ margin:0 0 12px; font-size:14px; font-weight:800; display:flex; align-items:center; gap:8px; }
+  .dutysec h3 .badge{ background:var(--ink); color:#fff; font-size:11px; padding:2px 8px; border-radius:100px; }
+  .dutylist{ display:flex; flex-direction:column; gap:8px; }
+  .dutyitem{
+    display:flex; align-items:center; gap:12px; padding:10px 12px;
+    background:var(--sun); border-radius:12px; border:1px solid var(--line-soft);
+  }
+  .dutyitem .av{
+    width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:12px; color:#fff; flex-shrink:0;
+  }
+  .dutyitem .info{ flex:1; min-width:0; }
+  .dutyitem .info .nm{ font-weight:700; font-size:13.5px; }
+  .dutyitem .info .meta{ font-size:11.5px; color:var(--ink-soft); margin-top:1px; }
+  .dutyitem .tag{
+    font-size:11px; font-weight:800; padding:4px 10px; border-radius:8px; white-space:nowrap;
+  }
+  .dutyitem .tag.HC{ background:#FDE7EA; color:var(--red-deep); }
+  .dutyitem .tag.M{ background:#EAF3FF; color:#245A9C; }
+  .dutyitem .tag.E{ background:#FFEFE0; color:#B25B12; }
+  .dutyitem .tag.C9{ background:#F1E7FA; color:#6A3D96; }
+  .dutyitem .tag.OFF{ background:#E8E8E8; color:#666; }
+  .dutyempty{ text-align:center; color:var(--ink-soft); padding:20px; font-size:13px; }
 
   /* ---------- Main ---------- */
   main{ padding:26px clamp(18px,4vw,56px) 70px; position:relative; z-index:1; }
@@ -352,26 +391,43 @@
     <input id="searchInput" placeholder="Tìm tên hoặc mã NV...">
   </div>
   <div class="chipset" id="deptChips"></div>
+  <div class="monthpick">
+    <label>Tháng</label>
+    <select id="selMonth">
+      <option value="1">01</option><option value="2">02</option><option value="3">03</option>
+      <option value="4">04</option><option value="5">05</option><option value="6">06</option>
+      <option value="7">07</option><option value="8">08</option><option value="9" selected>09</option>
+      <option value="10">10</option><option value="11">11</option><option value="12">12</option>
+    </select>
+    <label>Năm</label>
+    <select id="selYear">
+      <option value="2025">2025</option>
+      <option value="2026" selected>2026</option>
+      <option value="2027">2027</option>
+    </select>
+  </div>
   <div class="spacer"></div>
   <div class="viewtoggle">
     <button id="btnGrid" class="active">Bảng đầy đủ</button>
     <button id="btnCards">Lịch cá nhân</button>
+    <button id="btnDuty">Đang trực</button>
   </div>
 </div>
 
 <main>
   <div class="banner">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3.1l-8-14a2 2 0 0 0-3.4 0Z"/></svg>
-    <div>Dữ liệu ca trực hàng ngày được khôi phục tự động từ ảnh bảng lịch gốc và khớp với tổng ca / tổng giờ công đã đọc được (chính xác). Vì ảnh gốc có độ phân giải hạn chế, vị trí chính xác của một vài ca theo từng ngày có thể lệch — bấm vào ô bất kỳ để sửa lại theo bảng thật.</div>
+    <div>Dữ liệu ca trực được đồng bộ từ SharePoint (folder <b>1. Lịch trực OCD</b> theo năm/tháng). Vì ảnh gốc có độ phân giải hạn chế, vị trí chính xác của một vài ca theo từng ngày có thể lệch — bấm vào ô bất kỳ để sửa lại theo bảng thật. Dùng chọn Tháng/Năm phía trên để chuyển kỳ.</div>
   </div>
 
   <div class="legend" id="legend"></div>
 
   <div id="gridView"></div>
   <div id="cardsView" style="display:none"></div>
+  <div id="dutyView" style="display:none"></div>
 </main>
 
-<footer>Sun PhuQuoc Airways · Bảng theo dõi lịch trực nội bộ — tháng 09/2026</footer>
+<footer>Sun PhuQuoc Airways · Bảng theo dõi lịch trực nội bộ — dữ liệu từ SharePoint OCC</footer>
 
 <div class="overlay" id="overlay">
   <div class="modal" id="modalBody"></div>
@@ -571,37 +627,164 @@ function renderCards(){
   if(!list.length) cardsView.innerHTML = `<p style="color:var(--ink-soft)">Không tìm thấy nhân viên phù hợp.</p>`;
 }
 
+const SHIFT_TIMES = {
+  HC: { start: [8,30], end: [17,30], label: '08:30–17:30' },
+  M:  { start: [7,30], end: [19,30], label: '07:30–19:30' },
+  E:  { start: [19,30], end: [7,30], nextDay: true, label: '19:30–07:30' },
+  C9: { start: [9,0],  end: [21,0],  label: '09:00–21:00' },
+};
+
+function getTodayIndex(){
+  // DAYS array covers 26/8 → 25/9 of the selected period (default 2026-09)
+  const now = new Date();
+  const y = +document.getElementById('selYear').value;
+  const m = +document.getElementById('selMonth').value;
+  // only match when viewing the real current month
+  if(now.getFullYear() !== y || (now.getMonth()+1) !== m) return -1;
+  const d = now.getDate();
+  return DAYS.findIndex(dd => dd[0] === d && dd[2] === m);
+}
+
+function minutesNow(){
+  const n = new Date();
+  return n.getHours()*60 + n.getMinutes();
+}
+
+function remainingText(endH, endM, nextDay){
+  const now = new Date();
+  let end = new Date(now);
+  end.setHours(endH, endM, 0, 0);
+  if(nextDay && minutesNow() > endH*60+endM) {
+    // already past end? shouldn't happen for active
+  }
+  if(nextDay && minutesNow() < endH*60 + endM) {
+    // still in overnight portion? treat end as tomorrow if start was yesterday
+  }
+  // simple remaining from now to end today (or tomorrow for overnight)
+  if(nextDay){
+    end = new Date(now);
+    end.setDate(end.getDate()+1);
+    end.setHours(endH, endM, 0, 0);
+  }
+  const diff = Math.max(0, Math.round((end - now)/60000));
+  const h = Math.floor(diff/60), mi = diff%60;
+  return h > 0 ? `còn ${h}h${mi?mi+'p':''}` : `còn ${mi}p`;
+}
+
+function renderDuty(){
+  const dutyView = document.getElementById('dutyView');
+  const todayIdx = getTodayIndex();
+  const list = filterEmp();
+  const onDuty = [], upcoming = [], off = [];
+  const nowMin = minutesNow();
+
+  list.forEach(e=>{
+    const s = todayIdx >= 0 ? (e.shifts[todayIdx] || '') : '';
+    const initials = e.name.split(' ').slice(-2).map(w=>w[0]).join('').toUpperCase().slice(0,2) || '??';
+    const d = DEPTS[e.dept] || {name:e.dept, color:'#888'};
+    if(!s || s==='NL' || s==='P'){
+      off.push({e, initials, d, s: s||'OFF'});
+      return;
+    }
+    const t = SHIFT_TIMES[s];
+    if(!t){ off.push({e, initials, d, s}); return; }
+    const startM = t.start[0]*60 + t.start[1];
+    const endM = t.end[0]*60 + t.end[1];
+    let active = false;
+    if(t.nextDay){
+      // E: active if now >= 19:30 or now < 07:30
+      active = nowMin >= startM || nowMin < endM;
+    } else {
+      active = nowMin >= startM && nowMin < endM;
+    }
+    if(active){
+      onDuty.push({e, initials, d, s, remain: remainingText(t.end[0], t.end[1], !!t.nextDay), label: t.label});
+    } else if(!t.nextDay && nowMin < startM){
+      // future today
+      upcoming.push({e, initials, d, s, label: t.label + ' · hôm nay'});
+    } else if(t.nextDay && nowMin < startM){
+      // E later today
+      upcoming.push({e, initials, d, s, label: t.label + ' · tối nay'});
+    } else {
+      off.push({e, initials, d, s});
+    }
+  });
+
+  // sort onDuty by remaining? keep order
+  function itemHtml(it, isOff){
+    return `<div class="dutyitem">
+      <div class="av" style="background:${it.d.color}">${it.initials}</div>
+      <div class="info">
+        <div class="nm">${it.e.name}</div>
+        <div class="meta">${it.d.name.replace('DSP ','')} · ${isOff ? 'Không ca hôm nay' : (it.label || '')}${it.remain ? ' · '+it.remain : ''}</div>
+      </div>
+      <div class="tag ${it.s||'OFF'}">${it.s||'OFF'}</div>
+    </div>`;
+  }
+
+  dutyView.innerHTML = `
+    <div class="dutywrap">
+      <div class="dutysec">
+        <h3>🟢 Đang trực <span class="badge">${onDuty.length}</span></h3>
+        <div class="dutylist">${onDuty.length ? onDuty.map(it=>itemHtml(it,false)).join('') : '<div class="dutyempty">Không ai đang trực</div>'}</div>
+      </div>
+      <div class="dutysec">
+        <h3>🕐 Sắp vào ca <span class="badge">${upcoming.length}</span></h3>
+        <div class="dutylist">${upcoming.length ? upcoming.map(it=>itemHtml(it,false)).join('') : '<div class="dutyempty">Không có ca sắp tới hôm nay</div>'}</div>
+      </div>
+      <div class="dutysec" style="grid-column:1/-1">
+        <h3>⚪ Off / nghỉ <span class="badge">${off.length}</span></h3>
+        <div class="dutylist" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px">
+          ${off.length ? off.map(it=>itemHtml(it,true)).join('') : '<div class="dutyempty">—</div>'}
+        </div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--ink-soft);margin-top:14px">* Trạng thái tính theo giờ máy local (${new Date().toLocaleString('vi-VN')}). Chỉ chính xác khi đang xem đúng tháng hiện tại. Ca E được coi là qua đêm.</p>
+  `;
+}
+
 function renderAll(){
   renderGrid();
   renderCards();
+  renderDuty();
   document.getElementById('kpiEmp').textContent = EMP.length;
   const avg = Math.round(EMP.reduce((a,e)=>a+e.total,0)/EMP.length);
   document.getElementById('kpiAvg').textContent = avg+'h';
   document.getElementById('kpiShort').textContent = EMP.filter(e=>e.note).length;
+  // update header title
+  const m = document.getElementById('selMonth').value.padStart(2,'0');
+  const y = document.getElementById('selYear').value;
+  const h1 = document.querySelector('header h1');
+  if(h1) h1.innerHTML = `Lịch trực <span class="accent">Tháng ${m}/${y}</span>`;
 }
 
 /* ---------- interactions ---------- */
 document.getElementById('searchInput').addEventListener('input', e=>{
-  query = e.target.value; renderGrid(); renderCards();
+  query = e.target.value; renderGrid(); renderCards(); renderDuty();
 });
 deptChips.addEventListener('click', e=>{
   const btn = e.target.closest('.chip'); if(!btn) return;
   activeDept = btn.dataset.dept;
   [...deptChips.children].forEach(c=>c.classList.toggle('active', c===btn));
-  renderGrid(); renderCards();
+  renderGrid(); renderCards(); renderDuty();
 });
-document.getElementById('btnGrid').addEventListener('click', ()=>{
-  view='grid';
-  document.getElementById('btnGrid').classList.add('active');
-  document.getElementById('btnCards').classList.remove('active');
-  gridView.style.display='block'; cardsView.style.display='none';
-});
-document.getElementById('btnCards').addEventListener('click', ()=>{
-  view='cards';
-  document.getElementById('btnCards').classList.add('active');
-  document.getElementById('btnGrid').classList.remove('active');
-  gridView.style.display='none'; cardsView.style.display='block';
-});
+function setView(v){
+  view = v;
+  ['btnGrid','btnCards','btnDuty'].forEach(id=>{
+    const b = document.getElementById(id);
+    if(b) b.classList.toggle('active', (id==='btnGrid'&&v==='grid')||(id==='btnCards'&&v==='cards')||(id==='btnDuty'&&v==='duty'));
+  });
+  gridView.style.display = v==='grid' ? 'block' : 'none';
+  cardsView.style.display = v==='cards' ? 'block' : 'none';
+  document.getElementById('dutyView').style.display = v==='duty' ? 'block' : 'none';
+  if(v==='duty') renderDuty();
+}
+document.getElementById('btnGrid').addEventListener('click', ()=>setView('grid'));
+document.getElementById('btnCards').addEventListener('click', ()=>setView('cards'));
+document.getElementById('btnDuty').addEventListener('click', ()=>setView('duty'));
+
+document.getElementById('selMonth').addEventListener('change', ()=>{ renderAll(); });
+document.getElementById('selYear').addEventListener('change', ()=>{ renderAll(); });
 
 function cycleCell(key, i, node){
   const e = EMP.find(x=>x.key===key);
