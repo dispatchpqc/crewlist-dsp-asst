@@ -63,20 +63,61 @@ main{padding:18px clamp(14px,4vw,44px) 50px}
 .dhead .swatch{width:9px;height:9px;border-radius:2px}
 .dhead h2{font-size:14px;font-weight:800;margin:0}
 .dhead .count{font-size:11.5px;color:var(--ink-soft)}
-.tablewrap{background:var(--paper);border:1px solid var(--line);border-radius:12px;overflow:auto}
-table{border-collapse:collapse;width:100%;min-width:1100px}
-thead th{position:sticky;top:0;background:var(--paper);z-index:3;font-size:10.5px;font-weight:700;color:var(--ink-soft);padding:6px 3px;text-align:center;border-bottom:1.5px solid var(--line);white-space:nowrap}
-thead tr.daterow th{font-size:11.5px;font-weight:800;color:var(--ink)}
-thead th.wk-sun{background:#FFF1D6;color:var(--gold-deep)}
-thead th.wk-hol{background:#E9F3E6;color:var(--dm)}
-th.sticky1,td.sticky1{position:sticky;left:0;background:var(--paper);z-index:4;text-align:left;min-width:150px;box-shadow:1px 0 0 var(--line)}
-td{padding:0;text-align:center;border-bottom:1px solid var(--line-soft)}
-td.namecell{padding:7px 11px;cursor:pointer}
-td.namecell:hover{background:var(--sun)}
-.empname{font-weight:700;font-size:12.5px}
+.tablewrap{
+  background:var(--paper);border:1px solid var(--line);border-radius:12px;
+  overflow:auto;-webkit-overflow-scrolling:touch;
+  width:100%;
+}
+.roster-grid{
+  display:grid;
+  width:100%;
+  min-width:max-content;
+  font-size:11px;
+}
+.roster-grid .rg-head, .roster-grid .rg-row{
+  display:contents;
+}
+.roster-grid .rg-cell{
+  box-sizing:border-box;
+  border-bottom:1px solid var(--line-soft);
+  border-right:1px solid var(--line-soft);
+  display:flex;align-items:center;justify-content:center;
+  height:38px;
+  background:var(--paper);
+}
+.roster-grid .rg-head .rg-cell{
+  position:sticky;top:0;z-index:5;
+  font-weight:800;font-size:11px;color:var(--ink);
+  border-bottom:1.5px solid var(--line);
+  background:var(--paper);
+  height:36px;
+}
+.roster-grid .rg-name{
+  position:sticky;left:0;z-index:6;
+  width:168px;min-width:168px;max-width:168px;
+  justify-content:flex-start;padding:0 10px;
+  box-shadow:2px 0 0 var(--line);
+  text-align:left;cursor:pointer;
+  flex-direction:column;align-items:flex-start;
+}
+.roster-grid .rg-head .rg-name{z-index:7;cursor:default}
+.roster-grid .rg-day{
+  min-width:28px;
+  font-weight:800;cursor:pointer;user-select:none;
+  font-size:10.5px;
+}
+.roster-grid .rg-day:hover{box-shadow:inset 0 0 0 1.5px var(--gold-deep);z-index:2}
+.roster-grid .rg-sum{width:72px;min-width:72px;font-weight:800;font-size:11px;flex-direction:column}
+.roster-grid .rg-hrs{width:64px;min-width:64px;font-weight:800;font-size:12.5px;color:var(--red)}
+.roster-grid .rg-note{width:88px;min-width:88px;font-size:10.5px}
+.roster-grid .wk-sun{background:#FFF7E8}
+.roster-grid .rg-head .wk-sun{background:#FFF1D6;color:var(--gold-deep)}
+.roster-grid .wk-hol{background:#F2F8EF}
+.roster-grid .rg-head .wk-hol{background:#E9F3E6;color:var(--dm)}
+.roster-grid .rg-name:hover{background:var(--sun)}
+.empname{font-weight:700;font-size:12.5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:148px}
 .empid{font-size:10.5px;color:var(--ink-soft)}
-.cell{width:30px;height:34px;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;cursor:pointer;user-select:none;border-right:1px solid var(--line-soft)}
-.cell:hover{transform:scale(1.12);box-shadow:0 0 0 1.5px var(--ink) inset;z-index:2;position:relative}
+.cell{/* legacy */}
 .cell.wk-sun{background:#FFF7E8}.cell.wk-hol{background:#F2F8EF}
 .s-M{background:#EAF3FF;color:#245A9C}.s-E{background:#FFEFE0;color:#B25B12}
 .s-HC{background:#FDE7EA;color:var(--red-deep)}.s-C9{background:#F1E7FA;color:#6A3D96}
@@ -90,10 +131,10 @@ td.note{font-size:10.5px;padding:0 9px;white-space:nowrap}
 .peoplegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:11px}
 .personcard{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 13px;cursor:pointer}
 .personcard:hover{border-color:var(--gold);box-shadow:0 5px 14px rgba(42,29,20,.07)}
-.personcard .ptop{display:flex;justify-content:space-between;gap:7px}
-.personcard .pname{font-weight:800;font-size:13.5px}
+.personcard .ptop{display:flex;justify-content:space-between;align-items:flex-start;gap:7px}
+.personcard .pname{font-weight:800;font-size:13.5px;line-height:1.25}
 .personcard .pid{font-size:10.5px;color:var(--ink-soft)}
-.depttag{font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:99px}
+.depttag{font-size:9.5px;font-weight:700;padding:3px 8px;border-radius:99px;white-space:nowrap;flex-shrink:0;align-self:flex-start;line-height:1.2}
 .personcard .phrs{margin-top:10px;display:flex;align-items:baseline;gap:5px}
 .personcard .phrs b{font-size:18px;color:var(--red)}
 .personcard .pmini{display:flex;gap:4px;margin-top:7px;flex-wrap:wrap}
@@ -141,6 +182,15 @@ footer{text-align:center;padding:18px;font-size:11px;color:var(--ink-soft)}
 .calcell .d{font-size:9.5px;font-weight:600;opacity:.65}
 .calcell .s{font-size:11.5px;font-weight:800}
 .hint{font-size:10.5px;color:var(--ink-soft);margin-top:8px}
+.empty-state{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:48px 20px;min-height:280px;
+  background:var(--paper);border:1.5px dashed var(--line);border-radius:16px;margin-top:8px;
+}
+.empty-state .icon{font-size:42px;margin-bottom:12px;opacity:.85}
+.empty-state h2{margin:0 0 8px;font-size:18px;font-weight:800;color:var(--ink)}
+.empty-state p{margin:0 0 18px;font-size:13.5px;color:var(--ink-soft);max-width:360px;line-height:1.5}
+.empty-state .btn-action{font-size:14px;padding:11px 22px;border-radius:11px}
 </style>
 </head>
 <body>
@@ -473,7 +523,7 @@ async function loadFromGitHub(year, month){
     const buf=await res.arrayBuffer();
     const wb=XLSX.read(buf,{type:'array'});
     const parsed=parseRosterWorkbook(wb);
-    EMP=parsed.employees.map((e,i)=>({...e,key:i}));
+    EMP=parsed.employees.map((e,i)=>{ const sh=(e.shifts||[]).slice(0,DAYS.length); while(sh.length<DAYS.length) sh.push(''); return {...e, shifts:sh, key:i}; });
     currentGhFile={ path:best.path, sha:best.sha, name:best.name };
     setBanner('Đã tải <b>'+best.name+'</b> · <b>'+EMP.length+'</b> NV · Tháng '+String(parsed.month).padStart(2,'0')+'/'+parsed.year,'ok');
     document.getElementById('loadStatus').textContent='OK';
@@ -483,7 +533,14 @@ async function loadFromGitHub(year, month){
     console.error(err);
     EMP=[]; currentGhFile=null;
     DAYS=buildDaysForMonth(+year,+month); recomputeSunHol();
-    setBanner('Không tải được: '+(err.message||err),'err');
+    const mm=String(month).padStart(2,'0');
+    const msg = (err.message||'') + '';
+    const notFound = /không có thư mục|404|không có file/i.test(msg);
+    if(notFound){
+      setBanner('Tháng <b>'+mm+'/'+year+'</b> chưa có lịch trên GitHub (chưa sắp xếp hoặc chưa upload).','');
+    } else {
+      setBanner('Không tải được: '+msg,'err');
+    }
     document.getElementById('loadStatus').textContent='';
     renderAll();
   }finally{
@@ -598,23 +655,68 @@ deptChips.innerHTML=`<button class="chip active" data-dept="ALL">Tất cả</but
 let activeDept='ALL', query='', view='duty';
 function filterEmp(){ return EMP.filter(e=>{ if(activeDept!=='ALL'&&e.dept!==activeDept) return false; if(query){ const q=query.toLowerCase(); if(!e.name.toLowerCase().includes(q)&&!String(e.id).toLowerCase().includes(q)) return false; } return true; }); }
 
+function emptyStateHtml(){
+  const m=document.getElementById('selMonth').value.padStart(2,'0');
+  const y=document.getElementById('selYear').value;
+  return `<div class="empty-state">
+    <div class="icon">📅</div>
+    <h2>Lịch tháng ${m}/${y} chưa có</h2>
+    <p>Lịch trực tháng này chưa được sắp xếp hoặc chưa upload lên GitHub.<br>Bạn có thể nạp file Excel để tạo lịch ngay.</p>
+    <button type="button" class="btn-action primary" onclick="document.getElementById('fileExcel').click()">📂 Tải lịch Excel</button>
+  </div>`;
+}
+function padShifts(shifts){
+  const n = DAYS.length;
+  const a = (shifts||[]).slice(0, n);
+  while(a.length < n) a.push('');
+  return a;
+}
 function renderGrid(){
   const list=filterEmp(); const byDept={}; list.forEach(e=>{(byDept[e.dept]||=[]).push(e);});
+  if(!EMP.length){ gridView.innerHTML=emptyStateHtml(); return; }
+  const nDays = DAYS.length;
+  const cols = `minmax(140px,168px) repeat(${nDays}, minmax(28px,1fr)) 72px 64px 88px`;
   let html='';
   Object.entries(DEPTS).forEach(([k,d])=>{
     const rows=byDept[k]; if(!rows||!rows.length) return;
-    html+=`<div class="deptgroup"><div class="dhead"><span class="swatch" style="background:${d.color}"></span><h2>${d.name}</h2><span class="count">${rows.length} người</span></div><div class="tablewrap"><table><thead><tr class="daterow"><th class="sticky1" style="min-width:160px">Họ tên</th>${DAYS.map((dd,i)=>`<th class="${dayClass(i)}">${dd[0]}</th>`).join('')}<th>HC/M/E</th><th>Tổng giờ</th><th>Ghi chú</th></tr></thead><tbody>${rows.map(e=>`<tr><td class="namecell sticky1" onclick="openPerson(${e.key})"><div class="empname">${e.name}</div><div class="empid">${e.id}</div></td>${e.shifts.map((s,i)=>`<td class="${dayClass(i)}"><div class="cell s-${s||''} ${dayClass(i)}" onclick="openShiftPicker(${e.key},${i})">${s||''}</div></td>`).join('')}<td class="tot">${e.counts.HC}·${e.counts.M}·${e.counts.E}${e.counts.C9?('·'+e.counts.C9):''}<div class="sub">HC·M·E</div></td><td class="hours">${e.total}h</td><td class="note">${e.note?`<span class="warn">${e.note}</span>`:`<span class="okmark">Đủ giờ</span>`}</td></tr>`).join('')}</tbody></table></div></div>`;
+    const headDays = DAYS.map((dd,i)=>`<div class="rg-cell rg-day ${dayClass(i)}">${dd[0]}</div>`).join('');
+    const body = rows.map(e=>{
+      const shifts = padShifts(e.shifts);
+      const dayCells = shifts.map((s,i)=>`<div class="rg-cell rg-day s-${s||''} ${dayClass(i)}" onclick="openShiftPicker(${e.key},${i})" title="${DAYS[i]?DAYS[i][0]:''}/${DAYS[i]?DAYS[i][2]:''}">${s||''}</div>`).join('');
+      return `<div class="rg-row">
+        <div class="rg-cell rg-name" onclick="openPerson(${e.key})"><div class="empname" title="${e.name}">${e.name}</div><div class="empid">${e.id}</div></div>
+        ${dayCells}
+        <div class="rg-cell rg-sum">${e.counts.HC}·${e.counts.M}·${e.counts.E}${e.counts.C9?('·'+e.counts.C9):''}<div class="sub" style="font-weight:500;color:var(--ink-soft);font-size:9px">HC·M·E</div></div>
+        <div class="rg-cell rg-hrs">${e.total}h</div>
+        <div class="rg-cell rg-note">${e.note?`<span class="warn">${e.note}</span>`:`<span class="okmark">Đủ giờ</span>`}</div>
+      </div>`;
+    }).join('');
+    html += `<div class="deptgroup">
+      <div class="dhead"><span class="swatch" style="background:${d.color}"></span><h2>${d.name}</h2><span class="count">${rows.length} người</span></div>
+      <div class="tablewrap"><div class="roster-grid" style="grid-template-columns:${cols}">
+        <div class="rg-head">
+          <div class="rg-cell rg-name">Họ tên</div>
+          ${headDays}
+          <div class="rg-cell rg-sum">HC/M/E</div>
+          <div class="rg-cell rg-hrs">Tổng giờ</div>
+          <div class="rg-cell rg-note">Ghi chú</div>
+        </div>
+        ${body}
+      </div></div>
+    </div>`;
   });
-  gridView.innerHTML=html||`<p style="color:var(--ink-soft);padding:16px">Chưa có dữ liệu.</p>`;
+  gridView.innerHTML=html||`<p style="color:var(--ink-soft);padding:16px">Không khớp bộ lọc.</p>`;
 }
 function renderCards(){
   const list=filterEmp();
+  if(!EMP.length){ cardsView.innerHTML=emptyStateHtml(); return; }
   cardsView.innerHTML=`<div class="peoplegrid">`+list.map(e=>{ const d=DEPTS[e.dept]||{name:e.dept,color:'#888',bg:'#eee'}; return `<div class="personcard" onclick="openPerson(${e.key})"><div class="ptop"><div><div class="pname">${e.name}</div><div class="pid">${e.id}</div></div><div class="depttag" style="background:${d.bg};color:${d.color}">${d.name.replace('DSP ','')}</div></div><div class="phrs"><b>${e.total}</b><span>giờ</span></div></div>`; }).join('')+`</div>`;
-  if(!list.length) cardsView.innerHTML=`<p style="color:var(--ink-soft);padding:16px">Không có dữ liệu.</p>`;
+  if(!list.length) cardsView.innerHTML=`<p style="color:var(--ink-soft);padding:16px">Không khớp bộ lọc.</p>`;
 }
 function getTodayIndex(){ const now=new Date(); return DAYS.findIndex(dd=>dd[0]===now.getDate()&&dd[2]===(now.getMonth()+1)); }
 function remainingText(endH,endM,nextDay){ const now=new Date(); let end=new Date(now); if(nextDay){ end.setDate(end.getDate()+1); end.setHours(endH,endM,0,0);} else end.setHours(endH,endM,0,0); const diff=Math.max(0,Math.round((end-now)/60000)); const h=Math.floor(diff/60),mi=diff%60; return h>0?`còn ${h}h${mi?mi+'p':''}`:`còn ${mi}p`; }
 function renderDuty(){
+  if(!EMP.length){ dutyView.innerHTML=emptyStateHtml(); return; }
   const todayIdx=getTodayIndex(), list=filterEmp(), onDuty=[], upcoming=[], off=[], nowMin=new Date().getHours()*60+new Date().getMinutes();
   list.forEach(e=>{
     const s=todayIdx>=0?(e.shifts[todayIdx]||''):'';
