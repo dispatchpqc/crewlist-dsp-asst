@@ -691,25 +691,72 @@ function empKey(e){ return String(e.id||'').replace(/^0+/,'').trim()+'|'+String(
 
 function parseRosterWorkbook(wb){
   const ws=wb.Sheets[wb.SheetNames[0]];
-  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
+  // raw:true để giữ Date/number; vẫn stringify khi so khớp tiêu đề
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true});
   if(!rows.length) throw new Error('File trống');
-  let headerRow=-1;
-  for(let i=0;i<Math.min(25,rows.length);i++){
-    const r=rows[i].map(c=>String(c||'').trim());
-    // Họ tên + cột ngày (số 1-31) HOẶC template có "Họ tên" + "Mã"
-    if(r.some(x=>/họ\s*tên/i.test(x)) && (r.some(x=>/^\d{1,2}$/.test(x)) || r.some(x=>/mã/i.test(x)))){
-      headerRow=i; break;
+
+  /** Nhận diện ô tiêu đề cột ngày: 26 | 26/09 | Date | serial Excel */
+  function isDayHeaderCell(v){
+    if(v==null || v==='') return false;
+    if(v instanceof Date && !isNaN(v.getTime())) return true;
+    if(typeof v==='number' && v>0){
+      // serial Excel ngày (~40000–60000) hoặc số ngày 1–31
+      if(v>=1 && v<=31) return true;
+      if(v>=30000 && v<=60000) return true;
+      return false;
     }
+    const s=String(v).trim();
+    if(/^\d{1,2}$/.test(s)) return true;                     // "26"
+    if(/^\d{1,2}[\/\-.]\d{1,2}([\/\-.]\d{2,4})?$/.test(s)) return true; // "26/09" "26-09-2026"
+    if(/^\d{1,2}\s*\/\s*\d{1,2}$/.test(s)) return true;
+    return false;
+  }
+  function dayNumFromHeader(v){
+    if(v instanceof Date && !isNaN(v.getTime())) return v.getDate();
+    if(typeof v==='number'){
+      if(v>=1 && v<=31) return Math.floor(v);
+      // Excel serial → JS date (epoch 1899-12-30)
+      const d=new Date(Math.round((v-25569)*86400*1000));
+      return d.getUTCDate();
+    }
+    const s=String(v).trim();
+    const m=s.match(/^(\d{1,2})/);
+    return m ? parseInt(m[1],10) : 0;
+  }
+
+  let headerRow=-1;
+  for(let i=0;i<Math.min(30,rows.length);i++){
+    const r=rows[i];
+    const labels=r.map(c=>String(c==null?'':c).trim());
+    const hasName=labels.some(x=>/họ\s*tên|ho\s*ten/i.test(x));
+    const hasMa=labels.some(x=>/mã|ma\s*nv|nhân\s*viên/i.test(x));
+    const dayHits=r.filter(isDayHeaderCell).length;
+    if(hasName && (dayHits>=3 || hasMa)){ headerRow=i; break; }
   }
   if(headerRow<0) throw new Error('Không tìm thấy dòng tiêu đề Họ tên / ngày. Hãy dùng nút «Mẫu Excel» để tải file đúng định dạng.');
-  const header=rows[headerRow].map(c=>String(c||'').trim());
-  let nameCol=header.findIndex(h=>/họ\s*tên/i.test(h));
-  let idCol=header.findIndex(h=>/mã/i.test(h));
-  let posCol=header.findIndex(h=>/vị\s*trí/i.test(h));
+  const headerRaw=rows[headerRow];
+  const header=headerRaw.map(c=>String(c==null?'':c).trim());
+  let nameCol=header.findIndex(h=>/họ\s*tên|ho\s*ten/i.test(h));
+  let idCol=header.findIndex(h=>/mã|ma\s*nv/i.test(h));
+  let posCol=header.findIndex(h=>/vị\s*trí|vi\s*tri/i.test(h));
   if(nameCol<0) nameCol=2; if(idCol<0) idCol=1; if(posCol<0) posCol=0;
-  const dayCols=[]; for(let c=0;c<header.length;c++) if(/^\d{1,2}$/.test(header[c])) dayCols.push(c);
+
+  // Ưu tiên: cột ngày liên tiếp ngay SAU "Họ tên" (layout mẫu chuẩn)
+  const dayCols=[];
+  let start=nameCol+1;
+  for(let c=start;c<headerRaw.length;c++){
+    if(isDayHeaderCell(headerRaw[c])) dayCols.push(c);
+    else if(dayCols.length) break; // đã bắt đầu dải ngày → dừng khi hết
+  }
+  // Fallback: quét toàn hàng theo regex số ngày
+  if(dayCols.length<7){
+    dayCols.length=0;
+    for(let c=0;c<headerRaw.length;c++){
+      if(isDayHeaderCell(headerRaw[c])) dayCols.push(c);
+    }
+  }
   // Template / file ngắn: cho phép ít hơn 15 cột ngày (pad sau)
-  if(dayCols.length<7) throw new Error('Không đủ cột ngày (cần ≥7). Hãy dùng nút «Mẫu Excel».');
+  if(dayCols.length<7) throw new Error('Không đủ cột ngày (cần ≥7, hiện '+dayCols.length+'). Hãy dùng nút «Mẫu Excel» (không đổi dòng tiêu đề cột ngày).');
 
   let year=+document.getElementById('selYear').value;
   let month=+document.getElementById('selMonth').value;
@@ -733,9 +780,9 @@ function parseRosterWorkbook(wb){
   if(dayCols.length!==DAYS.length){
     const wdRow=rows[headerRow+1]||[];
     DAYS=dayCols.map(c=>{
-      const d=parseInt(header[c],10);
+      const d=dayNumFromHeader(headerRaw[c]);
       let mon=month, yr=year; if(d>=26){ mon=month===1?12:month-1; yr=month===1?year-1:year; }
-      const wd=String(wdRow[c]||'').replace(/T\./g,'T').replace('C.Nhật','CN');
+      const wd=String(wdRow[c]==null?'':wdRow[c]).replace(/T\./g,'T').replace('C.Nhật','CN');
       return [d,wd||'?',mon,yr];
     });
   }
