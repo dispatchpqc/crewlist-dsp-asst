@@ -1243,28 +1243,89 @@ function getTodayIndex(){ const now=new Date(); return DAYS.findIndex(dd=>dd[0]=
 function remainingText(endH,endM,nextDay){ const now=new Date(); let end=new Date(now); if(nextDay){ end.setDate(end.getDate()+1); end.setHours(endH,endM,0,0);} else end.setHours(endH,endM,0,0); const diff=Math.max(0,Math.round((end-now)/60000)); const h=Math.floor(diff/60),mi=diff%60; return h>0?`còn ${h}h${mi?mi+'p':''}`:`còn ${mi}p`; }
 function renderDuty(){
   if(!EMP.length){ dutyView.innerHTML=emptyStateHtml(); return; }
-  const todayIdx=getTodayIndex(), list=filterEmp(), onDuty=[], upcoming=[], off=[], nowMin=new Date().getHours()*60+new Date().getMinutes();
-  list.forEach(e=>{
-    const s=todayIdx>=0?(e.shifts[todayIdx]||''):'';
-    const initials=e.name.split(/\s+/).slice(-2).map(w=>w[0]).join('').toUpperCase().slice(0,2)||'??';
-    const d=DEPTS[e.dept]||{name:e.dept,color:'#888'};
-    if(!s||s==='NL'||s==='P'||s==='SN'||s==='T'||s==='B'){ off.push({e,initials,d,s:s||'OFF'}); return; }
-    const t=SHIFT_TIMES[s]; if(!t){ off.push({e,initials,d,s}); return; }
-    const startM=t.start[0]*60+t.start[1], endM=t.end[0]*60+t.end[1];
-    let active=t.nextDay?(nowMin>=startM||nowMin<endM):(nowMin>=startM&&nowMin<endM);
-    if(active) onDuty.push({e,initials,d,s,remain:remainingText(t.end[0],t.end[1],!!t.nextDay),label:t.label});
-    else if(!t.nextDay&&nowMin<startM) upcoming.push({e,initials,d,s,label:t.label+' · hôm nay'});
-    else if(t.nextDay&&nowMin<startM) upcoming.push({e,initials,d,s,label:t.label+' · tối nay'});
-    else off.push({e,initials,d,s});
+  const todayIdx = getTodayIndex();
+  const list = filterEmp();
+  const onDuty = [], upcoming = [], off = [];
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+
+  // Ca tiếp theo để giao/nhận ca:
+  // - Nếu sau 19:30 tối: Ca sắp tới chính là các ca sáng ngày hôm sau (todayIdx + 1)
+  // - Nếu trước 07:30 sáng: Ca sắp tới chính là các ca sáng ngày hôm nay (todayIdx)
+  const nextShiftIdx = (nowMin >= 19 * 60 + 30) ? todayIdx + 1 : todayIdx;
+
+  list.forEach(e => {
+    const sToday = todayIdx >= 0 ? (e.shifts[todayIdx] || '') : '';
+    const sNext = (nextShiftIdx >= 0 && nextShiftIdx < DAYS.length) ? (e.shifts[nextShiftIdx] || '') : '';
+
+    const initials = e.name.split(/\s+/).slice(-2).map(w => w[0]).join('').toUpperCase().slice(0, 2) || '??';
+    const d = DEPTS[e.dept] || { name: e.dept, color: '#888' };
+
+    // 1. Kiểm tra ĐANG TRỰC (On Duty)
+    let isOnDuty = false;
+    if (sToday && SHIFT_TIMES[sToday]) {
+      const t = SHIFT_TIMES[sToday];
+      const startM = t.start[0] * 60 + t.start[1];
+      const endM = t.end[0] * 60 + t.end[1];
+
+      if (t.nextDay) {
+        // Ca đêm (E): 19:30 tối -> 07:30 sáng hôm sau
+        isOnDuty = (nowMin >= startM || nowMin < endM);
+      } else {
+        // Ca ngày (HC, M, C9)
+        isOnDuty = (nowMin >= startM && nowMin < endM);
+      }
+
+      if (isOnDuty) {
+        onDuty.push({
+          e, initials, d, s: sToday,
+          remain: remainingText(t.end[0], t.end[1], !!t.nextDay),
+          label: t.label
+        });
+        return; // Đang trực thì không tính vào Sắp vào ca
+      }
+    }
+
+    // 2. Kiểm tra SẮP VÀO CA (Upcoming)
+    // Sau 19:30 tối: chỉ lấy các ca ngày (HC, M, C9) ngày hôm sau, BỎ QUA ca đêm E ngày hôm sau
+    if (nowMin >= 19 * 60 + 30) {
+      if (sNext && SHIFT_TIMES[sNext] && !SHIFT_TIMES[sNext].nextDay) {
+        upcoming.push({ e, initials, d, s: sNext, label: SHIFT_TIMES[sNext].label + ' · sáng mai' });
+        return;
+      }
+    } 
+    // Trước 07:30 sáng: lấy các ca ngày (HC, M, C9) sáng hôm nay
+    else if (nowMin < 7 * 60 + 30) {
+      if (sToday && SHIFT_TIMES[sToday] && !SHIFT_TIMES[sToday].nextDay) {
+        upcoming.push({ e, initials, d, s: sToday, label: SHIFT_TIMES[sToday].label + ' · sáng nay' });
+        return;
+      }
+    }
+    // Ban ngày (07:30 - 19:30): lấy các ca chưa tới giờ làm trong ngày
+    else {
+      if (sToday && SHIFT_TIMES[sToday]) {
+        const t = SHIFT_TIMES[sToday];
+        const startM = t.start[0] * 60 + t.start[1];
+        if (nowMin < startM) {
+          upcoming.push({ e, initials, d, s: sToday, label: t.label });
+          return;
+        }
+      }
+    }
+
+    // 3. Còn lại xếp vào OFF
+    off.push({ e, initials, d, s: sToday || 'OFF' });
   });
-  const item=(it,isOff)=>`<div class="dutyitem"><div class="av" style="background:${it.d.color}">${it.initials}</div><div class="info"><div class="nm">${it.e.name}</div><div class="meta">${(it.d.name||'').replace('DSP ','')} · ${isOff?'Không ca hôm nay':(it.label||'')}${it.remain?' · '+it.remain:''}</div></div><div class="tag ${it.s||'OFF'}">${it.s||'OFF'}</div></div>`;
-  const icoOn=`<span style="display:inline-flex;width:10px;height:10px;border-radius:50%;background:#3CB371;box-shadow:0 0 0 3px rgba(60,179,113,.25);margin-right:2px"></span>`;
-  const icoUp=`<span style="display:inline-flex;width:10px;height:10px;border-radius:50%;background:#F5A300;box-shadow:0 0 0 3px rgba(245,163,0,.25);margin-right:2px"></span>`;
-  const icoOff=`<span style="display:inline-flex;width:10px;height:10px;border-radius:50%;background:#B0A090;margin-right:2px"></span>`;
-  dutyView.innerHTML=`<div class="dutywrap">
-    <div class="dutysec anim-in"><h3>${icoOn} Đang trực <span class="badge">${onDuty.length}</span></h3><div class="dutylist">${onDuty.length?onDuty.map((it,i)=>item(it,false).replace('class="dutyitem"',`class="dutyitem" style="animation-delay:${i*0.04}s"`)).join(''):'<div class="dutyempty">Không ai đang trực</div>'}</div></div>
-    <div class="dutysec anim-in-d1"><h3>${icoUp} Sắp vào ca <span class="badge">${upcoming.length}</span></h3><div class="dutylist">${upcoming.length?upcoming.map((it,i)=>item(it,false).replace('class="dutyitem"',`class="dutyitem" style="animation-delay:${i*0.04}s"`)).join(''):'<div class="dutyempty">Không có ca sắp tới</div>'}</div></div>
-    <div class="dutysec anim-in-d2" style="grid-column:1/-1"><h3>${icoOff} Off / nghỉ <span class="badge">${off.length}</span></h3><div class="dutylist" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px">${off.length?off.map((it,i)=>item(it,true).replace('class="dutyitem"',`class="dutyitem" style="animation-delay:${Math.min(i,12)*0.03}s"`)).join(''):'—'}</div></div>
+
+  const item = (it, isOff) => `<div class="dutyitem"><div class="av" style="background:${it.d.color}">${it.initials}</div><div class="info"><div class="nm">${it.e.name}</div><div class="meta">${(it.d.name||'').replace('DSP ','')} · ${isOff ? 'Không ca hôm nay' : (it.label||'')}${it.remain ? ' · ' + it.remain : ''}</div></div><div class="tag ${it.s||'OFF'}">${it.s||'OFF'}</div></div>`;
+  const icoOn = `<span style="display:inline-flex;width:10px;height:10px;border-radius:50%;background:#3CB371;box-shadow:0 0 0 3px rgba(60,179,113,.25);margin-right:2px"></span>`;
+  const icoUp = `<span style="display:inline-flex;width:10px;height:10px;border-radius:50%;background:#F5A300;box-shadow:0 0 0 3px rgba(245,163,0,.25);margin-right:2px"></span>`;
+  const icoOff = `<span style="display:inline-flex;width:10px;height:10px;border-radius:50%;background:#B0A090;margin-right:2px"></span>`;
+
+  dutyView.innerHTML = `<div class="dutywrap">
+    <div class="dutysec anim-in"><h3>${icoOn} Đang trực <span class="badge">${onDuty.length}</span></h3><div class="dutylist">${onDuty.length ? onDuty.map((it,i) => item(it,false).replace('class="dutyitem"', `class="dutyitem" style="animation-delay:${i*0.04}s"`)).join('') : '<div class="dutyempty">Không ai đang trực</div>'}</div></div>
+    <div class="dutysec anim-in-d1"><h3>${icoUp} Sắp vào ca <span class="badge">${upcoming.length}</span></h3><div class="dutylist">${upcoming.length ? upcoming.map((it,i) => item(it,false).replace('class="dutyitem"', `class="dutyitem" style="animation-delay:${i*0.04}s"`)).join('') : '<div class="dutyempty">Không có ca sắp tới</div>'}</div></div>
+    <div class="dutysec anim-in-d2" style="grid-column:1/-1"><h3>${icoOff} Off / nghỉ <span class="badge">${off.length}</span></h3><div class="dutylist" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px">${off.length ? off.map((it,i) => item(it,true).replace('class="dutyitem"', `class="dutyitem" style="animation-delay:${Math.min(i,12)*0.03}s"`)).join('') : '—'}</div></div>
   </div>
   <p style="font-size:11.5px;color:var(--ink-soft);margin-top:10px">* ${new Date().toLocaleString('vi-VN')} · Đăng nhập để sửa ca và lưu GitHub</p>`;
 }
