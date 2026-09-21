@@ -121,6 +121,10 @@ main{padding:18px clamp(14px,4vw,44px) 50px}
 .roster-grid .rg-head .wk-sun{background:#FFF1D6;color:var(--gold-deep)}
 .roster-grid .wk-hol{background:#F2F8EF}
 .roster-grid .rg-head .wk-hol{background:#E9F3E6;color:var(--dm)}
+.roster-grid .rg-cell.today{box-shadow:inset 0 0 0 2px var(--red-deep);position:relative;z-index:1}
+.roster-grid .rg-head .rg-cell.today{background:var(--red);color:#fff;box-shadow:none}
+.roster-grid .rg-name.today{box-shadow:2px 0 0 var(--line),inset 3px 0 0 var(--red-deep)}
+.legend .item.today-item .swatch{background:var(--red);color:#fff}
 .roster-grid .rg-name:hover{background:var(--sun)}
 .empname{font-weight:700;font-size:12.5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:148px}
 .empid{font-size:10.5px;color:var(--ink-soft)}
@@ -209,6 +213,8 @@ footer{text-align:center;padding:18px;font-size:11px;color:var(--ink-soft)}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px}
 .calcell{aspect-ratio:1/.86;border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;border:1.5px solid transparent}
 .calcell:hover{border-color:var(--ink)}
+.calcell.today{border-color:var(--red-deep);box-shadow:0 0 0 2px rgba(210,32,43,.18)}
+.calcell.today .d{color:var(--red-deep);opacity:1;font-weight:800}
 .calcell .d{font-size:9.5px;font-weight:600;opacity:.65}
 .calcell .s{font-size:11.5px;font-weight:800}
 .hint{font-size:10.5px;color:var(--ink-soft);margin-top:8px}
@@ -577,6 +583,7 @@ function openLoginModal(msg){
     setAuth({username:u, role:acc.role, at:Date.now()});
     closeModal();
     refreshAuthUI();
+    if(!EMP.length) renderAll();
     setBanner('Đã đăng nhập: <b>'+u+'</b> — có thể chỉnh sửa và lưu.','ok');
   };
   document.getElementById('loginSubmit').onclick=doLogin;
@@ -645,12 +652,39 @@ function normalizeShift(v){
 }
 function buildDaysForMonth(year,month){
   const days=[]; const prev=month===1?{y:year-1,m:12}:{y:year,m:month-1};
-  for(let d=26;d<=31;d++){ const dt=new Date(prev.y,prev.m-1,d); if(dt.getMonth()!==prev.m-1) break; days.push([d,['CN','T2','T3','T4','T5','T6','T7'][dt.getDay()],prev.m]); }
-  for(let d=1;d<=25;d++){ const dt=new Date(year,month-1,d); days.push([d,['CN','T2','T3','T4','T5','T6','T7'][dt.getDay()],month]); }
+  for(let d=26;d<=31;d++){ const dt=new Date(prev.y,prev.m-1,d); if(dt.getMonth()!==prev.m-1) break; days.push([d,['CN','T2','T3','T4','T5','T6','T7'][dt.getDay()],prev.m,prev.y]); }
+  for(let d=1;d<=25;d++){ const dt=new Date(year,month-1,d); days.push([d,['CN','T2','T3','T4','T5','T6','T7'][dt.getDay()],month,year]); }
   return days;
 }
-function recomputeSunHol(){ SUN_IDX=[]; HOL_IDX=[]; DAYS.forEach((dd,i)=>{ if(dd[1]==='CN') SUN_IDX.push(i); if(dd[2]===9&&(dd[0]===1||dd[0]===2)) HOL_IDX.push(i); }); }
-function dayClass(i){ if(SUN_IDX.includes(i)) return 'wk-sun'; if(HOL_IDX.includes(i)) return 'wk-hol'; return ''; }
+/* ===== Ngày lễ Việt Nam (dương lịch, đã xác nhận theo lịch nghỉ chính thức) ===== */
+const HOLIDAYS_BY_YEAR = {
+  2025:[[1,1],[1,25],[1,26],[1,27],[1,28],[1,29],[1,30],[1,31],[2,1],[2,2],[4,7],[4,30],[5,1],[9,1],[9,2]],
+  2026:[[1,1],[2,14],[2,15],[2,16],[2,17],[2,18],[2,19],[2,20],[2,21],[2,22],[4,26],[4,27],[4,30],[5,1],[9,1],[9,2],[11,24]]
+};
+/* Năm chưa có lịch âm chính thức (vd 2027): chỉ áp dụng các ngày lễ dương lịch cố định */
+const FIXED_HOLIDAYS = [[1,1],[4,30],[5,1],[9,2],[11,24]];
+function holidaysForYear(y){ return HOLIDAYS_BY_YEAR[y]||FIXED_HOLIDAYS; }
+function recomputeSunHol(){
+  SUN_IDX=[]; HOL_IDX=[];
+  const fallbackYear=+document.getElementById('selYear').value;
+  DAYS.forEach((dd,i)=>{
+    if(dd[1]==='CN') SUN_IDX.push(i);
+    const yr=dd[3]!=null?dd[3]:fallbackYear;
+    if(holidaysForYear(yr).some(h=>h[0]===dd[2]&&h[1]===dd[0])) HOL_IDX.push(i);
+  });
+}
+function isToday(dd){
+  if(!dd) return false;
+  const now=new Date();
+  const yr=dd[3]!=null?dd[3]:+document.getElementById('selYear').value;
+  return dd[0]===now.getDate() && dd[2]===(now.getMonth()+1) && yr===now.getFullYear();
+}
+function dayClass(i){
+  const dd=DAYS[i]; const cls=[];
+  if(SUN_IDX.includes(i)) cls.push('wk-sun'); else if(HOL_IDX.includes(i)) cls.push('wk-hol');
+  if(isToday(dd)) cls.push('today');
+  return cls.join(' ');
+}
 function countShifts(shifts){ const c={HC:0,M:0,E:0,C9:0,NL:0,P:0,SN:0}; (shifts||[]).forEach(s=>{ if(s&&c[s]!==undefined) c[s]++; }); return c; }
 function calcTotal(shifts){ let t=0; (shifts||[]).forEach(s=>{ if(!s) return; if(s==='NL'||s==='P') t+=8; else if(s==='C9') t+=9; else if(s==='HC'||s==='M'||s==='E') t+=8; }); return t; }
 function applyNotes(list){ list.forEach(e=>{ e.counts=countShifts(e.shifts); if(e.total==null) e.total=calcTotal(e.shifts); const short=TARGET_HOURS-e.total; e.note=short>0?('thiếu '+short+'h'):''; }); }
@@ -697,9 +731,9 @@ function parseRosterWorkbook(wb){
     const wdRow=rows[headerRow+1]||[];
     DAYS=dayCols.map(c=>{
       const d=parseInt(header[c],10);
-      let mon=month; if(d>=26) mon=month===1?12:month-1;
+      let mon=month, yr=year; if(d>=26){ mon=month===1?12:month-1; yr=month===1?year-1:year; }
       const wd=String(wdRow[c]||'').replace(/T\./g,'T').replace('C.Nhật','CN');
-      return [d,wd||'?',mon];
+      return [d,wd||'?',mon,yr];
     });
   }
   recomputeSunHol();
@@ -973,7 +1007,9 @@ async function saveToGitHub(){
 /* ========== RENDER ========== */
 const gridView=document.getElementById('gridView'), cardsView=document.getElementById('cardsView'), dutyView=document.getElementById('dutyView');
 const legend=document.getElementById('legend'), deptChips=document.getElementById('deptChips');
-legend.innerHTML=Object.entries(SHIFT_INFO).filter(([k])=>['HC','M','E','C9','NL','P','SN',''].includes(k)).map(([code,info])=>`<div class="item"><div class="swatch ${info.cls}">${code||'—'}</div>${info.label.replace(/\s*\(.*/,'')}</div>`).join('');
+legend.innerHTML=Object.entries(SHIFT_INFO).filter(([k])=>['HC','M','E','C9','NL','P','SN',''].includes(k)).map(([code,info])=>`<div class="item"><div class="swatch ${info.cls}">${code||'—'}</div>${info.label.replace(/\s*\(.*/,'')}</div>`).join('')
+  +`<div class="item"><div class="swatch" style="box-shadow:inset 0 0 0 2px var(--red-deep);background:var(--paper)"></div>Hôm nay</div>`
+  +`<div class="item"><div class="swatch" style="background:#F2F8EF;color:var(--dm)">·</div>Ngày lễ VN</div>`;
 deptChips.innerHTML=`<button class="chip active" data-dept="ALL">Tất cả</button>`+Object.entries(DEPTS).map(([k,d])=>`<button class="chip" data-dept="${k}"><span class="dot" style="background:${d.color}"></span>${d.name}</button>`).join('');
 let activeDept='ALL', query='', view='duty';
 function filterEmp(){ return EMP.filter(e=>{ if(activeDept!=='ALL'&&e.dept!==activeDept) return false; if(query){ const q=query.toLowerCase(); if(!e.name.toLowerCase().includes(q)&&!String(e.id).toLowerCase().includes(q)) return false; } return true; }); }
@@ -981,11 +1017,17 @@ function filterEmp(){ return EMP.filter(e=>{ if(activeDept!=='ALL'&&e.dept!==act
 function emptyStateHtml(){
   const m=document.getElementById('selMonth').value.padStart(2,'0');
   const y=document.getElementById('selYear').value;
+  const action = isLoggedIn()
+    ? `<button type="button" class="btn-action primary" onclick="document.getElementById('fileExcel').click()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3-3 3 3"/></svg> Tải lịch Excel</button>`
+    : `<button type="button" class="btn-action primary" onclick="openLoginModal('Đăng nhập để nạp lịch Excel.')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg> Đăng nhập để nạp lịch</button>`;
+  const desc = isLoggedIn()
+    ? 'Lịch trực tháng này chưa được sắp xếp hoặc chưa upload lên GitHub.<br>Bạn có thể nạp file Excel để tạo lịch ngay.'
+    : 'Lịch trực tháng này chưa được sắp xếp hoặc chưa upload lên GitHub.<br>Bạn đang ở chế độ chỉ xem — đăng nhập để nạp file Excel tạo lịch.';
   return `<div class="empty-state">
     <div class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg></div>
     <h2>Lịch tháng ${m}/${y} chưa có</h2>
-    <p>Lịch trực tháng này chưa được sắp xếp hoặc chưa upload lên GitHub.<br>Bạn có thể nạp file Excel để tạo lịch ngay.</p>
-    <button type="button" class="btn-action primary" onclick="document.getElementById('fileExcel').click()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3-3 3 3"/></svg> Tải lịch Excel</button>
+    <p>${desc}</p>
+    ${action}
   </div>`;
 }
 function padShifts(shifts){
@@ -1214,6 +1256,7 @@ document.getElementById('btnLogin').onclick=()=>openLoginModal();
 document.getElementById('btnLogout').onclick=()=>{
   setAuth(null);
   refreshAuthUI();
+  if(!EMP.length) renderAll();
   setBanner('Đã đăng xuất — chế độ chỉ xem.','');
 };
 (function init(){
