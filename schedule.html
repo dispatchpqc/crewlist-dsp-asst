@@ -475,6 +475,7 @@ html[data-theme="dark"] .login-form input{
   <button type="button" class="btn-action primary" id="btnLoadGh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 19h16"/></svg> Tải GitHub</button>
   <button type="button" class="btn-action" id="btnSaveGh" title="Cần Personal Access Token"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg> Lưu GitHub</button>
   <input type="file" id="fileExcel" accept=".xlsx,.xls" hidden>
+  <button type="button" class="btn-action" id="btnTemplate" title="Tải file Excel mẫu (ca trống) để điền rồi nạp lại"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 15v-6"/><path d="M9 12l3 3 3-3"/></svg> Mẫu Excel</button>
   <button type="button" class="btn-action" id="btnUpload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3-3 3 3"/></svg> Nạp Excel</button>
   <button type="button" class="btn-action" id="btnToken" title="Cài token ghi GitHub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.6 7.6a5 5 0 1 1-2.8-2.8L15 4h3v3l-4.4 4.4z"/></svg> Token</button>
   <span id="loadStatus" style="font-size:11.5px;color:var(--ink-soft);max-width:180px"></span>
@@ -545,7 +546,7 @@ function refreshAuthUI(){
   if(btnIn) btnIn.style.display = auth ? 'none' : '';
   if(btnOut) btnOut.style.display = auth ? '' : 'none';
   if(hint) hint.style.display = auth ? 'none' : '';
-  ['btnSaveGh','btnUpload','btnToken'].forEach(id=>{
+  ['btnSaveGh','btnUpload','btnToken','btnTemplate'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.style.display = canEdit ? '' : 'none';
   });
@@ -695,16 +696,20 @@ function parseRosterWorkbook(wb){
   let headerRow=-1;
   for(let i=0;i<Math.min(25,rows.length);i++){
     const r=rows[i].map(c=>String(c||'').trim());
-    if(r.some(x=>/họ\s*tên/i.test(x))&&r.some(x=>/^\d{1,2}$/.test(x))){ headerRow=i; break; }
+    // Họ tên + cột ngày (số 1-31) HOẶC template có "Họ tên" + "Mã"
+    if(r.some(x=>/họ\s*tên/i.test(x)) && (r.some(x=>/^\d{1,2}$/.test(x)) || r.some(x=>/mã/i.test(x)))){
+      headerRow=i; break;
+    }
   }
-  if(headerRow<0) throw new Error('Không tìm thấy dòng tiêu đề Họ tên / ngày');
+  if(headerRow<0) throw new Error('Không tìm thấy dòng tiêu đề Họ tên / ngày. Hãy dùng nút «Mẫu Excel» để tải file đúng định dạng.');
   const header=rows[headerRow].map(c=>String(c||'').trim());
   let nameCol=header.findIndex(h=>/họ\s*tên/i.test(h));
   let idCol=header.findIndex(h=>/mã/i.test(h));
   let posCol=header.findIndex(h=>/vị\s*trí/i.test(h));
   if(nameCol<0) nameCol=2; if(idCol<0) idCol=1; if(posCol<0) posCol=0;
   const dayCols=[]; for(let c=0;c<header.length;c++) if(/^\d{1,2}$/.test(header[c])) dayCols.push(c);
-  if(dayCols.length<15) throw new Error('Không đủ cột ngày');
+  // Template / file ngắn: cho phép ít hơn 15 cột ngày (pad sau)
+  if(dayCols.length<7) throw new Error('Không đủ cột ngày (cần ≥7). Hãy dùng nút «Mẫu Excel».');
 
   let year=+document.getElementById('selYear').value;
   let month=+document.getElementById('selMonth').value;
@@ -751,9 +756,14 @@ function parseRosterWorkbook(wb){
     if(/^từ\s/i.test(name)) continue;
     if(/total|tổng|check/i.test(name)) continue;
     if(/nhân viên|tổng ca/i.test(name)) continue;
-    if(!idRaw||!/^0*\d{4,8}$/.test(idRaw)) continue;
-    if(!/\s/.test(name)&&name.length<6) continue;
-    const shifts=dayCols.map(c=>normalizeShift(r[c]));
+    // Mã NV: 3–10 chữ số (cho phép leading zero); hoặc trống nếu có họ tên đầy đủ
+    const idOk = !idRaw || /^0*\d{3,10}$/.test(idRaw);
+    if(!idOk) continue;
+    if(!name || name.length<2) continue;
+    // Pad shifts đúng số ngày tháng đang xem
+    let shifts=dayCols.map(c=>normalizeShift(r[c]));
+    while(shifts.length < DAYS.length) shifts.push('');
+    shifts = shifts.slice(0, DAYS.length);
     let total=null;
     for(let c=r.length-1;c>=0;c--){
       const v=String(r[c]||'').trim();
@@ -925,6 +935,112 @@ function mergeEmployees(incoming){
   EMP=Array.from(map.values()).map((e,i)=>({...e,key:i}));
   applyNotes(EMP);
   return {added, updated, total:EMP.length};
+}
+
+/** Ảnh chụp nhanh danh sách ca để so sánh trước/sau */
+function snapshotEmp(list){
+  return (list||[]).map(e=>({
+    k: empKey(e),
+    name: String(e.name||'').trim(),
+    id: String(e.id||'').trim(),
+    dept: e.dept||'',
+    shifts: (e.shifts||[]).map(s=>s||'')
+  })).sort((a,b)=>a.k.localeCompare(b.k));
+}
+function empSnapshotsEqual(a,b){
+  if(!a||!b||a.length!==b.length) return false;
+  for(let i=0;i<a.length;i++){
+    if(a[i].k!==b[i].k) return false;
+    if(a[i].dept!==b[i].dept) return false;
+    const sa=a[i].shifts, sb=b[i].shifts;
+    if(sa.length!==sb.length) return false;
+    for(let j=0;j<sa.length;j++) if((sa[j]||'')!==(sb[j]||'')) return false;
+  }
+  return true;
+}
+function countShiftDiffs(before, after){
+  const bm=new Map(before.map(x=>[x.k,x]));
+  let changed=0, added=0;
+  after.forEach(x=>{
+    const p=bm.get(x.k);
+    if(!p){ added++; return; }
+    const sa=p.shifts||[], sb=x.shifts||[];
+    const n=Math.max(sa.length,sb.length);
+    for(let i=0;i<n;i++) if((sa[i]||'')!==(sb[i]||'')){ changed++; break; }
+  });
+  return {changed, added};
+}
+
+/** File Excel mẫu: đúng layout parser, CA TRỐNG (điền tay rồi Nạp Excel) */
+function buildTemplateWorkbook(){
+  const year=+document.getElementById('selYear').value;
+  const month=+document.getElementById('selMonth').value;
+  const mm=String(month).padStart(2,'0');
+  // Dùng DAYS hiện tại; nếu chưa có thì build theo tháng chọn
+  let days = (DAYS && DAYS.length) ? DAYS : buildDaysForMonth(year, month);
+  const aoa=[];
+  aoa.push(['OCD - IOCC','BẢNG PHÂN CÔNG LỊCH LÀM VIỆC — MẪU']);
+  aoa.push(['Hướng dẫn: điền Mã NV + Họ tên + ca (HC/M/E/C9/NL/P hoặc để trống). Không đổi dòng tiêu đề cột ngày.']);
+  aoa.push([]);
+  aoa.push([]);
+  aoa.push([]);
+  aoa.push([]);
+  aoa.push(['Công kế hoạch', PLAN_DAYS||27]);
+  aoa.push(['Tháng '+mm+'/'+year, TARGET_HOURS||216]);
+  aoa.push([]);
+  const head=['Vị trí trực','Mã nhân viên','Họ tên', ...days.map(d=>String(d[0])), 'Ca HC','Ca M','Ca E','Ca 9h-21h','NL','Tổng giờ công'];
+  aoa.push(head);
+  aoa.push(['','', '', ...days.map(d=>d[1]), '','','','','','']);
+  // Nếu đã có EMP trên web → xuất danh sách NV, ca để trống (dễ điền lại)
+  // Nếu chưa có → vài dòng mẫu trống
+  const sampleDepts=['DM','HDQ','ASST','SGN','PQC'];
+  if(EMP && EMP.length){
+    let lastDept='';
+    const order=sampleDepts;
+    const by={}; EMP.forEach(e=>{(by[e.dept]||=[]).push(e);});
+    order.forEach(dk=>{
+      (by[dk]||[]).forEach(e=>{
+        const pos = (e.dept!==lastDept) ? (DEPTS[e.dept]?DEPTS[e.dept].name:e.dept) : '';
+        lastDept=e.dept;
+        const empty = days.map(()=>'');
+        aoa.push([pos, e.id, e.name, ...empty, 0,0,0,0,0, 0]);
+      });
+    });
+    Object.keys(by).filter(k=>!order.includes(k)).forEach(dk=>{
+      by[dk].forEach(e=>{
+        const empty = days.map(()=>'');
+        aoa.push([DEPTS[dk]?DEPTS[dk].name:dk, e.id, e.name, ...empty, 0,0,0,0,0, 0]);
+      });
+    });
+  } else {
+    // Dòng mẫu trống để user biết format
+    const empty = days.map(()=>'');
+    aoa.push(['Duty Manager','1001','NGUYEN VAN A', ...empty, 0,0,0,0,0, 0]);
+    aoa.push(['','1002','TRAN THI B', ...empty, 0,0,0,0,0, 0]);
+    aoa.push(['DSP HDQ','2001','LE VAN C', ...empty, 0,0,0,0,0, 0]);
+    aoa.push(['DSP SGN','3001','PHAM VAN D', ...empty, 0,0,0,0,0, 0]);
+    aoa.push(['DSP PQC','4001','HOANG THI E', ...empty, 0,0,0,0,0, 0]);
+  }
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+  return wb;
+}
+function downloadTemplateExcel(){
+  if(!requireLogin('Đăng nhập để tải mẫu Excel.')) return;
+  const year=+document.getElementById('selYear').value;
+  const month=+document.getElementById('selMonth').value;
+  const mm=String(month).padStart(2,'0');
+  if(!DAYS.length){ DAYS=buildDaysForMonth(year,month); recomputeSunHol(); }
+  const wb=buildTemplateWorkbook();
+  const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+  const blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`Mau_lich_truc_${mm}-${year}_ca_trong.xlsx`;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  setBanner('Đã tải <b>mẫu Excel</b> (ca trống). Điền ca rồi bấm <b>Nạp Excel</b>. Hệ thống sẽ gộp với lịch hiện có và chỉ đẩy GitHub khi có thay đổi.','ok');
 }
 
 async function saveToGitHub(){
@@ -1208,19 +1324,41 @@ function openTokenModal(msg){
 }
 document.getElementById('btnToken').onclick=()=>{ if(!requireLogin('Đăng nhập để cấu hình token.')) return; openTokenModal(); };
 
-/* Upload merge */
+/* Template + Upload merge (so sánh GitHub / dữ liệu hiện có) */
+document.getElementById('btnTemplate').onclick=()=>downloadTemplateExcel();
 document.getElementById('btnUpload').onclick=()=>{ if(!requireLogin('Đăng nhập để nạp Excel.')) return; document.getElementById('fileExcel').click(); };
 document.getElementById('fileExcel').onchange=async ev=>{
   const file=ev.target.files&&ev.target.files[0]; ev.target.value=''; if(!file) return;
   try{
     setBanner('Đang đọc & gộp <b>'+file.name+'</b>…','');
     const buf=await file.arrayBuffer();
-    const wb=XLSX.read(buf,{type:'array'});
+    const wb=XLSX.read(buf,{type:'array', cellDates:true});
     const parsed=parseRosterWorkbook(wb);
-    const before=EMP.length;
-    const {added,updated,total}=mergeEmployees(parsed.employees);
-    setBanner(`Đã gộp file <b>${file.name}</b>: +${added} mới, cập nhật ${updated}, tổng <b>${total}</b> NV. Bấm <b>💾 Lưu GitHub</b> để đẩy lên thư mục tháng đang xem.`,'ok');
+    if(!parsed.employees || !parsed.employees.length){
+      throw new Error('Không đọc được nhân viên nào. Dùng «Mẫu Excel» (đúng cột Họ tên / Mã / ngày).');
+    }
+    const beforeSnap = snapshotEmp(EMP);
+    const {added, updated, total}=mergeEmployees(parsed.employees);
+    const afterSnap = snapshotEmp(EMP);
     renderAll();
+
+    // Trùng tên + trùng hết ca → bỏ qua, không upload GitHub
+    if(empSnapshotsEqual(beforeSnap, afterSnap)){
+      setBanner('File <b>'+file.name+'</b> trùng hoàn toàn với lịch đang có (tên + ca). <b>Không upload</b> lên GitHub.','');
+      return;
+    }
+    const diff = countShiftDiffs(beforeSnap, afterSnap);
+    // Có thay đổi ca hoặc tên mới → cập nhật file Excel tổng (từ EMP) và đẩy GitHub
+    // (không upload nguyên file user nạp)
+    setBanner(
+      'Đã gộp <b>'+file.name+'</b>: +'+added+' NV mới, cập nhật ca '+updated
+      +' · đổi ca '+diff.changed+' người, thêm '+diff.added
+      +' · tổng <b>'+total+'</b> NV. Đang cập nhật file Excel tổng lên GitHub…','');
+    try{
+      await saveToGitHub();
+    }catch(e){
+      setBanner('Đã gộp trên web nhưng lưu GitHub lỗi: '+(e.message||e)+'. Bấm <b>Lưu GitHub</b> thủ công.','err');
+    }
   }catch(err){ console.error(err); setBanner('Lỗi Excel: '+(err.message||err),'err'); }
 };
 
