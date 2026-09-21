@@ -19,7 +19,12 @@
 body{font-family:'Be Vietnam Pro',sans-serif;background:var(--cream);color:var(--ink);-webkit-font-smoothing:antialiased}
 .sun-field{background:radial-gradient(circle at 88% -10%,#FFF3D6 0%,rgba(255,243,214,0) 46%),var(--cream)}
 header{padding:24px clamp(14px,4vw,44px) 16px}
-.brandrow{display:flex;align-items:center;gap:12px}
+.brandrow{display:flex;align-items:center;gap:12px;justify-content:space-between}
+.brand-left{display:flex;align-items:center;gap:12px}
+.header-auth{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.header-auth .btn-action{font-size:12px;padding:7px 14px}
+.header-auth .auth-user{font-size:12.5px;font-weight:700;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);padding:6px 12px;border-radius:9px}
+.header-auth .view-tag{font-size:11px;color:var(--ink-soft);background:var(--sun);border:1px solid var(--line);padding:5px 10px;border-radius:8px}
 .brandname .sun{font-weight:900;font-size:18px;color:var(--red)}
 .brandname .sun em{font-style:normal;color:var(--gold-deep)}
 .brandname .sub{font-size:10px;font-weight:600;letter-spacing:.18em;color:var(--ink-soft)}
@@ -165,13 +170,36 @@ td.note{font-size:10.5px;padding:0 9px;white-space:nowrap}
 .mtop h3{margin:0 0 3px;font-size:16px;font-weight:800}
 .mtop .mid{font-size:11.5px;color:var(--ink-soft)}
 .closeb{border:none;background:var(--sun);width:30px;height:30px;border-radius:50%;cursor:pointer;flex-shrink:0}
-.shift-list{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:12px}
-.shift-list button{border:1.5px solid var(--line);background:var(--paper);border-radius:10px;padding:10px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px}
-.shift-list button:hover{border-color:var(--ink)}
-.shift-list button .code{font-size:12px;font-weight:800;padding:3px 7px;border-radius:6px;min-width:32px;text-align:center}
+.shift-list{
+  display:flex;flex-direction:column;gap:0;margin-top:10px;
+  border:1.5px solid var(--line);border-radius:12px;overflow:hidden;background:var(--paper);
+  max-height:min(360px,55vh);overflow-y:auto;
+}
+.shift-list button{
+  border:none;border-bottom:1px solid var(--line-soft);background:var(--paper);
+  border-radius:0;padding:11px 14px;font:inherit;font-size:13.5px;font-weight:600;
+  cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;width:100%;
+}
+.shift-list button:last-child{border-bottom:none}
+.shift-list button:hover{background:var(--sun)}
+.shift-list button.active{background:var(--gold-pale)}
+.shift-list button .code{font-size:12px;font-weight:800;padding:3px 8px;border-radius:6px;min-width:36px;text-align:center;flex-shrink:0}
+.shift-list button .lbl{flex:1}
+.shift-list button .check{color:var(--ok);font-weight:800;font-size:14px;width:18px;text-align:center}
 .token-box{background:var(--sun);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px;font-size:12px;color:var(--ink-soft);line-height:1.45}
 .token-box input{width:100%;margin-top:6px;border:1.5px solid var(--line);border-radius:8px;padding:7px 9px;font:inherit;font-size:12px}
 .token-box .row{display:flex;gap:7px;margin-top:8px;flex-wrap:wrap}
+.auth-bar{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft)}
+.auth-bar .user{font-weight:700;color:var(--ink)}
+.auth-bar .guest{color:var(--ink-soft)}
+.login-form{margin-top:12px}
+.login-form label{display:block;font-size:11.5px;font-weight:600;color:var(--ink-soft);margin:8px 0 4px}
+.login-form input{width:100%;border:1.5px solid var(--line);border-radius:9px;padding:9px 11px;font:inherit;font-size:13.5px;box-sizing:border-box}
+.login-form input:focus{outline:none;border-color:var(--gold)}
+.login-form .err{color:var(--danger);font-size:12px;margin-top:8px;min-height:16px}
+.login-form .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.view-only-hint{font-size:11.5px;color:var(--ink-soft);padding:4px 8px;background:var(--sun);border-radius:8px;border:1px solid var(--line)}
+
 footer{text-align:center;padding:18px;font-size:11px;color:var(--ink-soft)}
 .mstats{display:flex;gap:7px;margin:12px 0;flex-wrap:wrap}
 .mstat{background:var(--sun);border-radius:9px;padding:7px 11px}
@@ -197,8 +225,16 @@ footer{text-align:center;padding:18px;font-size:11px;color:var(--ink-soft)}
 <div class="sun-field">
 <header>
   <div class="brandrow">
-    <svg width="42" height="42" viewBox="0 0 200 200"><circle cx="100" cy="100" r="22" fill="var(--gold-deep)"/><path d="M100 44 C110 44 118 58 100 82 C82 58 90 44 100 44 Z" fill="var(--gold)"/></svg>
-    <div class="brandname"><div class="sun">SUN <em>PhuQuoc</em></div><div class="sub">AIRWAYS · DUTY ROSTER</div></div>
+    <div class="brand-left">
+      <svg width="42" height="42" viewBox="0 0 200 200"><circle cx="100" cy="100" r="22" fill="var(--gold-deep)"/><path d="M100 44 C110 44 118 58 100 82 C82 58 90 44 100 44 Z" fill="var(--gold)"/></svg>
+      <div class="brandname"><div class="sun">SUN <em>PhuQuoc</em></div><div class="sub">AIRWAYS · DUTY ROSTER</div></div>
+    </div>
+    <div class="header-auth" id="headerAuth">
+      <span class="view-tag" id="viewOnlyHint">Chỉ xem</span>
+      <button type="button" class="btn-action primary" id="btnLogin">🔐 Đăng nhập</button>
+      <span class="auth-user" id="authBar" style="display:none"></span>
+      <button type="button" class="btn-action" id="btnLogout" style="display:none">Đăng xuất</button>
+    </div>
   </div>
   <h1>Lịch trực <span class="accent" id="titleMonth">Tháng 09/2026</span></h1>
   <p class="lede">Chọn tháng/năm để tải từ GitHub. Sửa ca → bấm <b>💾 Lưu GitHub</b> để cập nhật file Excel trên repo. Tab mặc định: <b>Đang trực</b>.</p>
@@ -263,6 +299,93 @@ const GH = {
   rawBase: 'https://raw.githubusercontent.com/dispatchpqc/crewlist-dsp-asst/main'
 };
 const TOKEN_KEY = 'sunpq_gh_token';
+
+/* ========== AUTH ========== */
+const AUTH_ACCOUNTS = {
+  admin:  { password: 'admin',  role: 'admin' },
+  admin1: { password: 'admin1', role: 'admin1' },
+  lich:   { password: 'lich',   role: 'lich' }
+};
+const AUTH_KEY = 'sunpq_sched_auth';
+function getAuth(){
+  try{
+    const raw = sessionStorage.getItem(AUTH_KEY) || localStorage.getItem(AUTH_KEY);
+    if(!raw) return null;
+    const o = JSON.parse(raw);
+    if(!o || !o.username || !AUTH_ACCOUNTS[o.username]) return null;
+    return o;
+  }catch(e){ return null; }
+}
+function setAuth(user){
+  try{
+    if(user) sessionStorage.setItem(AUTH_KEY, JSON.stringify(user));
+    else { sessionStorage.removeItem(AUTH_KEY); localStorage.removeItem(AUTH_KEY); }
+  }catch(e){}
+}
+function isLoggedIn(){ return !!getAuth(); }
+function requireLogin(action){
+  if(isLoggedIn()) return true;
+  openLoginModal(action || 'Thao tác này cần đăng nhập.');
+  return false;
+}
+function refreshAuthUI(){
+  const auth = getAuth();
+  const bar = document.getElementById('authBar');
+  const btnIn = document.getElementById('btnLogin');
+  const btnOut = document.getElementById('btnLogout');
+  const hint = document.getElementById('viewOnlyHint');
+  const canEdit = !!auth;
+  if(bar){
+    if(auth){ bar.style.display=''; bar.textContent='👤 '+auth.username; }
+    else { bar.style.display='none'; bar.textContent=''; }
+  }
+  if(btnIn) btnIn.style.display = auth ? 'none' : '';
+  if(btnOut) btnOut.style.display = auth ? '' : 'none';
+  if(hint) hint.style.display = auth ? 'none' : '';
+  ['btnSaveGh','btnUpload','btnToken'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display = canEdit ? '' : 'none';
+  });
+}
+function openLoginModal(msg){
+  modalBody.className='modal';
+  modalBody.innerHTML=`
+    <div class="mtop">
+      <div><h3>Đăng nhập</h3><div class="mid">${msg||'Đăng nhập để chỉnh sửa lịch và lưu GitHub'}</div></div>
+      <button class="closeb" onclick="closeModal()">✕</button>
+    </div>
+    <div class="login-form">
+      <label>Tài khoản</label>
+      <input id="loginUser" autocomplete="username" placeholder="Tên đăng nhập" value="">
+      <label>Mật khẩu</label>
+      <input id="loginPass" type="password" autocomplete="current-password" placeholder="Mật khẩu">
+      <div class="err" id="loginErr"></div>
+      <div class="actions">
+        <button type="button" class="btn-action primary" id="loginSubmit">Đăng nhập</button>
+        <button type="button" class="btn-action" onclick="closeModal()">Hủy</button>
+      </div>
+      <p class="hint" style="margin-top:12px">Chưa đăng nhập: chỉ <b>xem</b> lịch. Đăng nhập mới được sửa ca, nạp Excel, lưu GitHub.</p>
+    </div>`;
+  overlay.classList.add('show');
+  const doLogin=()=>{
+    const u=(document.getElementById('loginUser').value||'').trim().toLowerCase();
+    const pw=document.getElementById('loginPass').value||'';
+    const acc=AUTH_ACCOUNTS[u];
+    if(!acc || acc.password!==pw){
+      document.getElementById('loginErr').textContent='Sai tài khoản hoặc mật khẩu.';
+      return;
+    }
+    setAuth({username:u, role:acc.role, at:Date.now()});
+    closeModal();
+    refreshAuthUI();
+    setBanner('Đã đăng nhập: <b>'+u+'</b> — có thể chỉnh sửa và lưu.','ok');
+  };
+  document.getElementById('loginSubmit').onclick=doLogin;
+  document.getElementById('loginPass').onkeydown=e=>{ if(e.key==='Enter') doLogin(); };
+  document.getElementById('loginUser').onkeydown=e=>{ if(e.key==='Enter') document.getElementById('loginPass').focus(); };
+  setTimeout(()=>{ const el=document.getElementById('loginUser'); if(el) el.focus(); },50);
+}
+
 
 let DAYS=[], SUN_IDX=[], HOL_IDX=[], EMP=[];
 let TARGET_HOURS=216, PLAN_DAYS=27, loading=false;
@@ -574,6 +697,7 @@ function mergeEmployees(incoming){
 }
 
 async function saveToGitHub(){
+  if(!requireLogin('Đăng nhập để lưu lên GitHub.')) return;
   const tok=getToken();
   if(!tok){
     openTokenModal('Cần Personal Access Token (scope <b>repo</b>) để ghi file lên GitHub.');
@@ -770,6 +894,7 @@ document.getElementById('btnSaveGh').onclick=()=>saveToGitHub();
 /* Shift picker */
 const overlay=document.getElementById('overlay'), modalBody=document.getElementById('modalBody');
 function openShiftPicker(key, dayIdx){
+  if(!requireLogin('Đăng nhập để chọn / sửa ca.')) return;
   const e=EMP.find(x=>x.key===key); if(!e) return;
   const dd=DAYS[dayIdx]||['?','?',''];
   const cur=e.shifts[dayIdx]||'';
@@ -777,17 +902,20 @@ function openShiftPicker(key, dayIdx){
   modalBody.innerHTML=`
     <div class="mtop">
       <div><h3>Chọn ca</h3>
-      <div class="mid">${e.name} · Ngày ${dd[0]}/${dd[2]} (${dd[1]}) · hiện: <b>${cur||'trống'}</b></div></div>
+      <div class="mid">${e.name} · Ngày ${dd[0]}/${dd[2]} (${dd[1]})</div></div>
       <button class="closeb" onclick="closeModal()">✕</button>
     </div>
     <div class="shift-list">
-      ${SHIFT_PICK.map(s=>`
-        <button type="button" onclick="applyShift(${key},${dayIdx},'${s.code}')">
+      ${SHIFT_PICK.map(s=>{
+        const on = (s.code===cur);
+        return `<button type="button" class="${on?'active':''}" onclick="applyShift(${key},${dayIdx},'${s.code}')">
           <span class="code ${s.cls}">${s.code||'—'}</span>
-          <span>${s.label}</span>
-        </button>`).join('')}
+          <span class="lbl">${s.label}</span>
+          <span class="check">${on?'✓':''}</span>
+        </button>`;
+      }).join('')}
     </div>
-    <p class="hint">Sau khi sửa nhiều ô, bấm <b>💾 Lưu GitHub</b> để ghi file Excel lên repo.</p>`;
+    <p class="hint">Sau khi sửa, bấm <b>💾 Lưu GitHub</b> để ghi file Excel lên repo.</p>`;
   overlay.classList.add('show');
 }
 function applyShift(key, dayIdx, code){
@@ -831,10 +959,10 @@ function openTokenModal(msg){
   document.getElementById('tokSave').onclick=()=>{ setToken(document.getElementById('tokInput').value.trim()); closeModal(); setBanner('Đã lưu token trên trình duyệt này.','ok'); };
   document.getElementById('tokClear').onclick=()=>{ setToken(''); document.getElementById('tokInput').value=''; setBanner('Đã xóa token.','ok'); };
 }
-document.getElementById('btnToken').onclick=()=>openTokenModal();
+document.getElementById('btnToken').onclick=()=>{ if(!requireLogin('Đăng nhập để cấu hình token.')) return; openTokenModal(); };
 
 /* Upload merge */
-document.getElementById('btnUpload').onclick=()=>document.getElementById('fileExcel').click();
+document.getElementById('btnUpload').onclick=()=>{ if(!requireLogin('Đăng nhập để nạp Excel.')) return; document.getElementById('fileExcel').click(); };
 document.getElementById('fileExcel').onchange=async ev=>{
   const file=ev.target.files&&ev.target.files[0]; ev.target.value=''; if(!file) return;
   try{
@@ -850,7 +978,14 @@ document.getElementById('fileExcel').onchange=async ev=>{
 };
 
 /* INIT — mặc định tab Đang trực */
+document.getElementById('btnLogin').onclick=()=>openLoginModal();
+document.getElementById('btnLogout').onclick=()=>{
+  setAuth(null);
+  refreshAuthUI();
+  setBanner('Đã đăng xuất — chế độ chỉ xem.','');
+};
 (function init(){
+  refreshAuthUI();
   setView('duty');
   const y=+document.getElementById('selYear').value;
   const m=+document.getElementById('selMonth').value;
