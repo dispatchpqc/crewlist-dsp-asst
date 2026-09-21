@@ -609,6 +609,74 @@ const DEPT_FROM_LABEL = {
   'dsp asst hdq':'ASST','asst':'ASST','asst hdq':'ASST',
   'dsp sgn':'SGN','sgn':'SGN','dsp pqc':'PQC','pqc':'PQC'
 };
+/** Màu cho vị trí trực mới (tự phát hiện từ Excel) */
+const DYNAMIC_DEPT_PALETTE = [
+  {color:'#B8860B',bg:'#FBF3E0'},
+  {color:'#6B5B95',bg:'#F0ECF6'},
+  {color:'#C45C26',bg:'#FBF0E8'},
+  {color:'#2E8B57',bg:'#E8F5EE'},
+  {color:'#8B4513',bg:'#F5EDE6'},
+  {color:'#4A708B',bg:'#EAF1F5'},
+  {color:'#8B008B',bg:'#F6EAF6'},
+  {color:'#556B2F',bg:'#EEF2E6'}
+];
+let _dynDeptColorIdx = 0;
+function slugifyDept(label){
+  const s = String(label||'').trim().toUpperCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/Đ/g,'D').replace(/đ/g,'d')
+    .replace(/[^A-Z0-9]+/g,'_')
+    .replace(/^_+|_+$/g,'').replace(/_+/g,'_');
+  return s || 'OTHER';
+}
+/** Đăng ký vị trí trực mới nếu chưa có trong DEPTS */
+function ensureDept(label){
+  const raw = String(label||'').trim();
+  if(!raw) return null;
+  const low = raw.toLowerCase();
+  if(DEPT_FROM_LABEL[low]) return DEPT_FROM_LABEL[low];
+  for(const [k,d] of Object.entries(DEPTS)){
+    if(String(d.name).toLowerCase()===low){
+      DEPT_FROM_LABEL[low]=k;
+      return k;
+    }
+  }
+  let code = slugifyDept(raw);
+  if(DEPTS[code]){
+    let n=2;
+    while(DEPTS[code+'_'+n]) n++;
+    code = code+'_'+n;
+  }
+  const pal = DYNAMIC_DEPT_PALETTE[_dynDeptColorIdx % DYNAMIC_DEPT_PALETTE.length];
+  _dynDeptColorIdx++;
+  DEPTS[code] = {name: raw, color: pal.color, bg: pal.bg, dynamic: true};
+  DEPT_FROM_LABEL[low] = code;
+  return code;
+}
+function rebuildDeptChips(){
+  const el = document.getElementById('deptChips');
+  if(!el) return;
+  const present = new Set(EMP.map(e=>e.dept).filter(Boolean));
+  const knownOrder = ['DM','HDQ','ASST','SGN','PQC'];
+  const codes = [];
+  knownOrder.forEach(k=>{ if(DEPTS[k] && (present.has(k) || !EMP.length)) codes.push(k); });
+  Object.keys(DEPTS).forEach(k=>{
+    if(!codes.includes(k) && present.has(k)) codes.push(k);
+  });
+  if(!EMP.length){
+    knownOrder.forEach(k=>{ if(DEPTS[k] && !codes.includes(k)) codes.push(k); });
+  }
+  let cur = typeof activeDept!=='undefined' ? activeDept : 'ALL';
+  if(cur!=='ALL' && !codes.includes(cur)){
+    cur='ALL';
+    if(typeof activeDept!=='undefined') activeDept='ALL';
+  }
+  el.innerHTML = `<button class="chip ${cur==='ALL'?'active':''}" data-dept="ALL">Tất cả</button>`
+    + codes.map(k=>{
+        const d=DEPTS[k];
+        return `<button class="chip ${cur===k?'active':''}" data-dept="${k}"><span class="dot" style="background:${d.color}"></span>${d.name}</button>`;
+      }).join('');
+}
 const SHIFT_INFO = {
   HC:{label:'Ca hành chính (HC)',cls:'s-HC'},
   M:{label:'Ca sáng (M)',cls:'s-M'},
@@ -797,7 +865,11 @@ function parseRosterWorkbook(wb){
     const idRaw=String(r[idCol]||'').replace(/\s+/g,'').trim();
     const name=String(r[nameCol]||'').trim();
     if(STOP_SECTION.test(pos)||STOP_SECTION.test(name)||STOP_SECTION.test(idRaw)) break;
-    if(pos&&DEPT_FROM_LABEL[pos.toLowerCase()]) currentDept=DEPT_FROM_LABEL[pos.toLowerCase()];
+    // Vị trí trực: known → map sẵn; vị trí mới (vd Briefing PQC) → tự tách nhóm
+    if(pos){
+      const mapped = ensureDept(pos);
+      if(mapped) currentDept = mapped;
+    }
     if(!name) continue;
     if(SHIFT_ONLY.test(name)) continue;
     if(/^từ\s/i.test(name)) continue;
@@ -847,22 +919,14 @@ function buildWorkbookFromEmp(){
   aoa.push(head);
   aoa.push(['','', '', ...DAYS.map(d=>d[1]), '','','','','','']);
   let lastDept='';
-  const order=['DM','HDQ','ASST','SGN','PQC'];
   const by={}; EMP.forEach(e=>{(by[e.dept]||=[]).push(e);});
-  order.forEach(dk=>{
+  orderedDeptCodes(by).forEach(dk=>{
     (by[dk]||[]).forEach(e=>{
       const c=countShifts(e.shifts);
       const pos = (e.dept!==lastDept) ? (DEPTS[e.dept]?DEPTS[e.dept].name:e.dept) : '';
       lastDept=e.dept;
       const row=[pos, e.id, e.name, ...(e.shifts||[]).map(s=>s||''), c.HC||0, c.M||0, c.E||0, c.C9||0, c.NL||0, e.total||calcTotal(e.shifts)];
       aoa.push(row);
-    });
-  });
-  // leftover depts
-  Object.keys(by).filter(k=>!order.includes(k)).forEach(dk=>{
-    by[dk].forEach(e=>{
-      const c=countShifts(e.shifts);
-      aoa.push([DEPTS[dk]?DEPTS[dk].name:dk, e.id, e.name, ...(e.shifts||[]).map(s=>s||''), c.HC||0,c.M||0,c.E||0,c.C9||0,c.NL||0, e.total||calcTotal(e.shifts)]);
     });
   });
   const ws=XLSX.utils.aoa_to_sheet(aoa);
@@ -1040,23 +1104,15 @@ function buildTemplateWorkbook(){
   aoa.push(['','', '', ...days.map(d=>d[1]), '','','','','','']);
   // Nếu đã có EMP trên web → xuất danh sách NV, ca để trống (dễ điền lại)
   // Nếu chưa có → vài dòng mẫu trống
-  const sampleDepts=['DM','HDQ','ASST','SGN','PQC'];
   if(EMP && EMP.length){
     let lastDept='';
-    const order=sampleDepts;
     const by={}; EMP.forEach(e=>{(by[e.dept]||=[]).push(e);});
-    order.forEach(dk=>{
+    orderedDeptCodes(by).forEach(dk=>{
       (by[dk]||[]).forEach(e=>{
         const pos = (e.dept!==lastDept) ? (DEPTS[e.dept]?DEPTS[e.dept].name:e.dept) : '';
         lastDept=e.dept;
         const empty = days.map(()=>'');
         aoa.push([pos, e.id, e.name, ...empty, 0,0,0,0,0, 0]);
-      });
-    });
-    Object.keys(by).filter(k=>!order.includes(k)).forEach(dk=>{
-      by[dk].forEach(e=>{
-        const empty = days.map(()=>'');
-        aoa.push([DEPTS[dk]?DEPTS[dk].name:dk, e.id, e.name, ...empty, 0,0,0,0,0, 0]);
       });
     });
   } else {
@@ -1197,13 +1253,21 @@ function padShifts(shifts){
   while(a.length < n) a.push('');
   return a;
 }
+function orderedDeptCodes(byDept){
+  const knownOrder=['DM','HDQ','ASST','SGN','PQC'];
+  const codes=[];
+  knownOrder.forEach(k=>{ if(byDept[k]&&byDept[k].length) codes.push(k); });
+  Object.keys(byDept).forEach(k=>{ if(!codes.includes(k)&&byDept[k]&&byDept[k].length) codes.push(k); });
+  return codes;
+}
 function renderGrid(){
   const list=filterEmp(); const byDept={}; list.forEach(e=>{(byDept[e.dept]||=[]).push(e);});
   if(!EMP.length){ gridView.innerHTML=emptyStateHtml(); return; }
   const nDays = DAYS.length;
   const cols = `minmax(140px,168px) repeat(${nDays}, minmax(28px,1fr)) 72px 64px 88px`;
   let html='';
-  Object.entries(DEPTS).forEach(([k,d])=>{
+  orderedDeptCodes(byDept).forEach(k=>{
+    const d=DEPTS[k]||{name:k,color:'#888',bg:'#eee'};
     const rows=byDept[k]; if(!rows||!rows.length) return;
     const headDays = DAYS.map((dd,i)=>`<div class="rg-cell rg-day ${dayClass(i)}">${dd[0]}</div>`).join('');
     const body = rows.map(e=>{
@@ -1331,6 +1395,7 @@ function renderDuty(){
 }
 function setBanner(html,type){ const el=document.getElementById('statusBanner'); el.className='banner'+(type==='ok'?' ok':type==='err'?' err':''); el.innerHTML=`<div>${html}</div>`; }
 function renderAll(){
+  rebuildDeptChips();
   renderGrid(); renderCards(); renderDuty();
   document.getElementById('kpiEmp').textContent=EMP.length||'–';
   document.getElementById('kpiPlan').textContent=PLAN_DAYS;
@@ -1402,12 +1467,36 @@ function applyShift(key, dayIdx, code){
 function openPerson(key){
   const e=EMP.find(x=>x.key===key); if(!e) return;
   const d=DEPTS[e.dept]||{name:e.dept,color:'#888'};
+  const canEdit = typeof isLoggedIn==='function' && isLoggedIn();
   modalBody.className='modal wide';
   modalBody.innerHTML=`<div class="mtop"><div><h3>${e.name}</h3><div class="mid">${e.id} · <span style="color:${d.color}">${d.name}</span></div></div><button class="closeb" onclick="closeModal()">✕</button></div>
     <div class="mstats"><div class="mstat"><b>${e.total}h</b><span>Tổng giờ</span></div><div class="mstat"><b>${e.counts.M||0}</b><span>Ca sáng</span></div><div class="mstat"><b>${e.counts.E||0}</b><span>Ca chiều</span></div></div>
     <div class="cal">${DAYS.map((dd,i)=>{ const s=e.shifts[i]||''; const info=SHIFT_INFO[s]||SHIFT_INFO['']; return `<div class="calcell ${info.cls} ${dayClass(i)}" onclick="openShiftPicker(${key},${i});"><div class="d">${dd[1]} ${dd[0]}</div><div class="s">${s||'–'}</div></div>`; }).join('')}</div>
-    <p class="hint">Bấm một ngày để chọn ca từ danh sách.</p>`;
+    <p class="hint">Bấm một ngày để chọn ca từ danh sách.</p>
+    ${canEdit?`<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap">
+      <button type="button" class="btn-action" style="border-color:var(--danger);color:var(--danger)" onclick="deleteEmployee(${key})">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        Xóa nhân viên
+      </button>
+    </div>`:''}`;
   overlay.classList.add('show');
+}
+async function deleteEmployee(key){
+  if(!requireLogin('Đăng nhập để xóa nhân viên.')) return;
+  const e=EMP.find(x=>x.key===key);
+  if(!e) return;
+  const ok=confirm('Xóa nhân viên «'+e.name+'» ('+(e.id||'—')+') khỏi lịch tháng này?\n\nFile Excel trên GitHub sẽ được cập nhật ngay.');
+  if(!ok) return;
+  EMP=EMP.filter(x=>x.key!==key).map((x,i)=>({...x,key:i}));
+  applyNotes(EMP);
+  closeModal();
+  renderAll();
+  setBanner('Đã xóa <b>'+e.name+'</b>. Đang cập nhật Excel trên GitHub…','');
+  try{
+    await saveToGitHub();
+  }catch(err){
+    setBanner('Đã xóa trên web nhưng lưu GitHub lỗi: '+(err.message||err)+'. Bấm <b>Lưu GitHub</b> thủ công.','err');
+  }
 }
 function closeModal(){ overlay.classList.remove('show'); }
 overlay.onclick=e=>{ if(e.target===overlay) closeModal(); };
