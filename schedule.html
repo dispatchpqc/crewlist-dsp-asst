@@ -219,21 +219,128 @@ footer{text-align:center;padding:18px;font-size:11px;color:var(--ink-soft)}
 .empty-state h2{margin:0 0 8px;font-size:18px;font-weight:800;color:var(--ink)}
 .empty-state p{margin:0 0 18px;font-size:13.5px;color:var(--ink-soft);max-width:360px;line-height:1.5}
 .empty-state .btn-action{font-size:14px;padding:11px 22px;border-radius:11px}
+
+/* —— motion & polish —— */
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes pop{0%{transform:scale(.92);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes pulseSoft{0%,100%{box-shadow:0 0 0 0 rgba(210,32,43,.25)}50%{box-shadow:0 0 0 6px rgba(210,32,43,0)}}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.anim-in{animation:fadeUp .45s ease both}
+.anim-in-d1{animation:fadeUp .45s .06s ease both}
+.anim-in-d2{animation:fadeUp .45s .12s ease both}
+.anim-in-d3{animation:fadeUp .45s .18s ease both}
+
+header .brandrow{animation:fadeIn .5s ease}
+header h1{animation:fadeUp .5s .05s ease both}
+header .lede{animation:fadeUp .5s .1s ease both}
+.kpirow{animation:fadeUp .5s .15s ease both}
+.kpi{transition:transform .2s ease,box-shadow .2s ease}
+.kpi:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(42,29,20,.07)}
+
+.btn-action{
+  transition:transform .15s ease,box-shadow .15s ease,background .15s ease,border-color .15s ease;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.btn-action:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(42,29,20,.08)}
+.btn-action:active{transform:translateY(0)}
+.btn-action.primary{animation:none}
+.btn-action svg{width:14px;height:14px;flex-shrink:0}
+
+.chip{transition:background .15s,border-color .15s,transform .15s}
+.chip:hover{transform:translateY(-1px)}
+.viewtoggle button{transition:background .2s,color .2s}
+
+.personcard{
+  transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;
+  animation:fadeUp .4s ease both;
+}
+.personcard:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(42,29,20,.1)}
+.dutyitem{
+  transition:transform .15s ease,box-shadow .15s ease,background .15s;
+  animation:fadeUp .35s ease both;
+}
+.dutyitem:hover{transform:translateX(3px);box-shadow:0 4px 12px rgba(42,29,20,.06)}
+.dutyitem .av{transition:transform .2s}
+.dutyitem:hover .av{transform:scale(1.06)}
+
+.overlay{transition:opacity .22s ease,backdrop-filter .22s}
+.overlay.show{backdrop-filter:blur(4px)}
+.modal{animation:pop .28s cubic-bezier(.2,.9,.3,1)}
+.shift-list button{transition:background .15s,padding-left .15s}
+.shift-list button:hover{padding-left:18px}
+
+.empty-state{animation:fadeUp .5s ease}
+.empty-state .icon-wrap{
+  width:64px;height:64px;border-radius:18px;
+  background:linear-gradient(145deg,var(--gold-pale),#fff);
+  border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 14px;
+  animation:floaty 3s ease-in-out infinite;
+}
+.empty-state .icon-wrap svg{width:28px;height:28px;color:var(--gold-deep)}
+
+.banner{animation:fadeIn .35s ease;transition:background .2s,border-color .2s}
+.header-auth .btn-action.primary{box-shadow:0 2px 0 rgba(161,24,34,.2)}
+.header-auth .btn-action.primary:hover{animation:pulseSoft 1.2s ease infinite}
+
+.rg-cell.rg-day{transition:box-shadow .15s,background .15s}
+.loading-shimmer{
+  background:linear-gradient(90deg,var(--sun) 25%,#fff 50%,var(--sun) 75%);
+  background-size:200% 100%;
+  animation:shimmer 1.2s linear infinite;
+  border-radius:10px;height:12px;margin:8px 0;
+}
+
+.depttag{transition:transform .15s}
+.personcard:hover .depttag{transform:scale(1.04)}
+.legend{animation:fadeIn .4s .1s ease both}
+.controls{animation:fadeIn .35s ease}
+
+.ico{display:inline-flex;vertical-align:middle}
+
+
+.sun-field{position:relative;overflow:hidden}
+.sun-rays{
+  position:absolute;top:-140px;right:-140px;
+  width:420px;height:420px;pointer-events:none;opacity:.5;
+  animation:spinSun 90s linear infinite;z-index:0;
+}
+@keyframes spinSun{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.sun-rays{animation:none}}
+.sun-field > header{position:relative;z-index:2}
+
 </style>
 </head>
 <body>
 <div class="sun-field">
+  <svg class="sun-rays" viewBox="0 0 200 200" aria-hidden="true">
+    <g fill="var(--gold)">
+      <path id="petal" d="M100 30 C112 30 122 48 100 78 C78 48 88 30 100 30 Z"/>
+      <use href="#petal" transform="rotate(45 100 100)"/>
+      <use href="#petal" transform="rotate(90 100 100)"/>
+      <use href="#petal" transform="rotate(135 100 100)"/>
+      <use href="#petal" transform="rotate(180 100 100)"/>
+      <use href="#petal" transform="rotate(225 100 100)"/>
+      <use href="#petal" transform="rotate(270 100 100)"/>
+      <use href="#petal" transform="rotate(315 100 100)"/>
+    </g>
+    <circle cx="100" cy="100" r="22" fill="var(--gold-deep)"/>
+  </svg>
+
 <header>
   <div class="brandrow">
     <div class="brand-left">
-      <svg width="42" height="42" viewBox="0 0 200 200"><circle cx="100" cy="100" r="22" fill="var(--gold-deep)"/><path d="M100 44 C110 44 118 58 100 82 C82 58 90 44 100 44 Z" fill="var(--gold)"/></svg>
+      <svg width="42" height="42" viewBox="0 0 200 200" style="animation:floaty 4s ease-in-out infinite"><circle cx="100" cy="100" r="22" fill="var(--gold-deep)"/><path d="M100 44 C110 44 118 58 100 82 C82 58 90 44 100 44 Z" fill="var(--gold)"/></svg>
       <div class="brandname"><div class="sun">SUN <em>PhuQuoc</em></div><div class="sub">AIRWAYS · DUTY ROSTER</div></div>
     </div>
     <div class="header-auth" id="headerAuth">
       <span class="view-tag" id="viewOnlyHint">Chỉ xem</span>
-      <button type="button" class="btn-action primary" id="btnLogin">🔐 Đăng nhập</button>
+      <button type="button" class="btn-action primary" id="btnLogin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg> Đăng nhập</button>
       <span class="auth-user" id="authBar" style="display:none"></span>
-      <button type="button" class="btn-action" id="btnLogout" style="display:none">Đăng xuất</button>
+      <button type="button" class="btn-action" id="btnLogout" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg> Đăng xuất</button>
     </div>
   </div>
   <h1>Lịch trực <span class="accent" id="titleMonth">Tháng 09/2026</span></h1>
@@ -268,11 +375,11 @@ footer{text-align:center;padding:18px;font-size:11px;color:var(--ink-soft)}
       <option value="2027">2027</option>
     </select>
   </div>
-  <button type="button" class="btn-action primary" id="btnLoadGh">⬇ Tải GitHub</button>
-  <button type="button" class="btn-action" id="btnSaveGh" title="Cần Personal Access Token">💾 Lưu GitHub</button>
+  <button type="button" class="btn-action primary" id="btnLoadGh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 19h16"/></svg> Tải GitHub</button>
+  <button type="button" class="btn-action" id="btnSaveGh" title="Cần Personal Access Token"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg> Lưu GitHub</button>
   <input type="file" id="fileExcel" accept=".xlsx,.xls" hidden>
-  <button type="button" class="btn-action" id="btnUpload">📂 Nạp Excel (gộp)</button>
-  <button type="button" class="btn-action" id="btnToken" title="Cài token ghi GitHub">🔑 Token</button>
+  <button type="button" class="btn-action" id="btnUpload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3-3 3 3"/></svg> Nạp Excel</button>
+  <button type="button" class="btn-action" id="btnToken" title="Cài token ghi GitHub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.6 7.6a5 5 0 1 1-2.8-2.8L15 4h3v3l-4.4 4.4z"/></svg> Token</button>
   <span id="loadStatus" style="font-size:11.5px;color:var(--ink-soft);max-width:180px"></span>
   <div class="spacer"></div>
   <div class="viewtoggle">
@@ -783,10 +890,10 @@ function emptyStateHtml(){
   const m=document.getElementById('selMonth').value.padStart(2,'0');
   const y=document.getElementById('selYear').value;
   return `<div class="empty-state">
-    <div class="icon">📅</div>
+    <div class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg></div>
     <h2>Lịch tháng ${m}/${y} chưa có</h2>
     <p>Lịch trực tháng này chưa được sắp xếp hoặc chưa upload lên GitHub.<br>Bạn có thể nạp file Excel để tạo lịch ngay.</p>
-    <button type="button" class="btn-action primary" onclick="document.getElementById('fileExcel').click()">📂 Tải lịch Excel</button>
+    <button type="button" class="btn-action primary" onclick="document.getElementById('fileExcel').click()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3-3 3 3"/></svg> Tải lịch Excel</button>
   </div>`;
 }
 function padShifts(shifts){
@@ -834,7 +941,7 @@ function renderGrid(){
 function renderCards(){
   const list=filterEmp();
   if(!EMP.length){ cardsView.innerHTML=emptyStateHtml(); return; }
-  cardsView.innerHTML=`<div class="peoplegrid">`+list.map(e=>{ const d=DEPTS[e.dept]||{name:e.dept,color:'#888',bg:'#eee'}; return `<div class="personcard" onclick="openPerson(${e.key})"><div class="ptop"><div><div class="pname">${e.name}</div><div class="pid">${e.id}</div></div><div class="depttag" style="background:${d.bg};color:${d.color}">${d.name.replace('DSP ','')}</div></div><div class="phrs"><b>${e.total}</b><span>giờ</span></div></div>`; }).join('')+`</div>`;
+  cardsView.innerHTML=`<div class="peoplegrid">`+list.map((e,i)=>{ const d=DEPTS[e.dept]||{name:e.dept,color:'#888',bg:'#eee'}; return `<div class="personcard" style="animation-delay:${Math.min(i,20)*0.03}s" onclick="openPerson(${e.key})"><div class="ptop"><div><div class="pname">${e.name}</div><div class="pid">${e.id}</div></div><div class="depttag" style="background:${d.bg};color:${d.color}">${d.name.replace('DSP ','')}</div></div><div class="phrs"><b>${e.total}</b><span>giờ</span></div></div>`; }).join('')+`</div>`;
   if(!list.length) cardsView.innerHTML=`<p style="color:var(--ink-soft);padding:16px">Không khớp bộ lọc.</p>`;
 }
 function getTodayIndex(){ const now=new Date(); return DAYS.findIndex(dd=>dd[0]===now.getDate()&&dd[2]===(now.getMonth()+1)); }
@@ -856,7 +963,15 @@ function renderDuty(){
     else off.push({e,initials,d,s});
   });
   const item=(it,isOff)=>`<div class="dutyitem"><div class="av" style="background:${it.d.color}">${it.initials}</div><div class="info"><div class="nm">${it.e.name}</div><div class="meta">${(it.d.name||'').replace('DSP ','')} · ${isOff?'Không ca hôm nay':(it.label||'')}${it.remain?' · '+it.remain:''}</div></div><div class="tag ${it.s||'OFF'}">${it.s||'OFF'}</div></div>`;
-  dutyView.innerHTML=`<div class="dutywrap"><div class="dutysec"><h3>🟢 Đang trực <span class="badge">${onDuty.length}</span></h3><div class="dutylist">${onDuty.length?onDuty.map(it=>item(it,false)).join(''):'<div class="dutyempty">Không ai đang trực</div>'}</div></div><div class="dutysec"><h3>🕐 Sắp vào ca <span class="badge">${upcoming.length}</span></h3><div class="dutylist">${upcoming.length?upcoming.map(it=>item(it,false)).join(''):'<div class="dutyempty">Không có ca sắp tới</div>'}</div></div><div class="dutysec" style="grid-column:1/-1"><h3>⚪ Off / nghỉ <span class="badge">${off.length}</span></h3><div class="dutylist" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px">${off.length?off.map(it=>item(it,true)).join(''):'—'}</div></div></div><p style="font-size:11.5px;color:var(--ink-soft);margin-top:10px">* ${new Date().toLocaleString('vi-VN')} · Sửa ca ở tab Bảng đầy đủ → 💾 Lưu GitHub</p>`;
+  const icoOn=`<span style="display:inline-flex;width:10px;height:10px;border-radius:50%;background:#3CB371;box-shadow:0 0 0 3px rgba(60,179,113,.25);margin-right:2px"></span>`;
+  const icoUp=`<span style="display:inline-flex;width:10px;height:10px;border-radius:50%;background:#F5A300;box-shadow:0 0 0 3px rgba(245,163,0,.25);margin-right:2px"></span>`;
+  const icoOff=`<span style="display:inline-flex;width:10px;height:10px;border-radius:50%;background:#B0A090;margin-right:2px"></span>`;
+  dutyView.innerHTML=`<div class="dutywrap">
+    <div class="dutysec anim-in"><h3>${icoOn} Đang trực <span class="badge">${onDuty.length}</span></h3><div class="dutylist">${onDuty.length?onDuty.map((it,i)=>item(it,false).replace('class="dutyitem"',`class="dutyitem" style="animation-delay:${i*0.04}s"`)).join(''):'<div class="dutyempty">Không ai đang trực</div>'}</div></div>
+    <div class="dutysec anim-in-d1"><h3>${icoUp} Sắp vào ca <span class="badge">${upcoming.length}</span></h3><div class="dutylist">${upcoming.length?upcoming.map((it,i)=>item(it,false).replace('class="dutyitem"',`class="dutyitem" style="animation-delay:${i*0.04}s"`)).join(''):'<div class="dutyempty">Không có ca sắp tới</div>'}</div></div>
+    <div class="dutysec anim-in-d2" style="grid-column:1/-1"><h3>${icoOff} Off / nghỉ <span class="badge">${off.length}</span></h3><div class="dutylist" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px">${off.length?off.map((it,i)=>item(it,true).replace('class="dutyitem"',`class="dutyitem" style="animation-delay:${Math.min(i,12)*0.03}s"`)).join(''):'—'}</div></div>
+  </div>
+  <p style="font-size:11.5px;color:var(--ink-soft);margin-top:10px">* ${new Date().toLocaleString('vi-VN')} · Đăng nhập để sửa ca và lưu GitHub</p>`;
 }
 function setBanner(html,type){ const el=document.getElementById('statusBanner'); el.className='banner'+(type==='ok'?' ok':type==='err'?' err':''); el.innerHTML=`<div>${html}</div>`; }
 function renderAll(){
