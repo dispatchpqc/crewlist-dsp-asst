@@ -1130,10 +1130,6 @@
         <span class="icon">🌤</span>
         <span>Check PIB &amp; MET</span>
       </button>
-      <button class="nav-item guest-hidden" data-page="roster">
-        <span class="icon">📅</span>
-        <span>Lịch trực</span>
-      </button>
     </nav>
 
     <div class="sidebar-footer" style="flex-direction:column;gap:8px;align-items:stretch;">
@@ -1387,10 +1383,6 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
         </div>
       </div>
 
-      <!-- PAGE: Lịch trực -->
-      <div class="page" id="page-roster">
-        <div id="rosterRoot"></div>
-      </div>
     </div>
   </div>
 
@@ -1401,27 +1393,28 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       const AUTH_KEY = 'sunpq_auth_v2';
 
       // Tài khoản hiện có:
-      // ADMIN:  admin  / admin  -> toàn quyền
-      // ADMIN1: admin1 / admin1 -> Lọc chuyến bay + Lịch trực (được chỉnh sửa)
-      // GUEST:  guest  / guest  -> chỉ xem Lịch trực (không chỉnh sửa, ẩn hết nút)
+      // ADMIN:  admin  / admin  -> toàn quyền (filter, print, ofp, pib)
+      // ADMIN1: admin1 / admin1 -> Lọc chuyến bay
+      // LICH:   lich   / lich   -> chuyển hướng sang web lịch riêng (schedule.html)
       const ACCOUNTS = {
         admin: {
           password: 'admin',
           role: 'admin',
-          permissions: ['filter', 'print', 'ofp', 'pib', 'roster'],
-          canEditRoster: true
+          permissions: ['filter', 'print', 'ofp', 'pib'],
+          canEditRoster: false
         },
         admin1: {
           password: 'admin1',
           role: 'admin1',
-          permissions: ['filter', 'roster'],
-          canEditRoster: true
-        },
-        guest: {
-          password: 'guest',
-          role: 'guest',
-          permissions: ['roster'],
+          permissions: ['filter'],
           canEditRoster: false
+        },
+        lich: {
+          password: 'lich',
+          role: 'lich',
+          permissions: [],
+          canEditRoster: false,
+          redirectTo: 'schedule.html'
         }
       };
 
@@ -1488,41 +1481,17 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
           btn.classList.toggle('guest-hidden', !allowed);
         });
 
-        // Guest: chỉ xem Lịch trực (không chỉnh sửa).
-        // Admin1: Lọc chuyến bay + Lịch trực.
-        if (session && (session.role === 'guest' || session.role === 'admin1')) {
-          const prefer = session.role === 'guest' ? 'roster' : 'filter';
+        // Admin1: ưu tiên trang Lọc chuyến bay
+        if (session && session.role === 'admin1') {
           document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-          const preferBtn = document.querySelector('.nav-item[data-page="' + prefer + '"]');
+          const preferBtn = document.querySelector('.nav-item[data-page="filter"]');
           if (preferBtn) preferBtn.classList.add('active');
-
           document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-          const preferPage = document.getElementById('page-' + prefer);
+          const preferPage = document.getElementById('page-filter');
           if (preferPage) preferPage.classList.add('active');
-
           const title = document.getElementById('pageTitle');
-          if (title) {
-            if (prefer === 'roster') title.innerHTML = '<span>Lịch trực</span> · DSP Roster';
-            else title.innerHTML = '<span>Lọc chuyến bay</span> · PQC Duty Sequences';
-          }
-          if (prefer === 'roster') {
-            setTimeout(function(){
-              try {
-                const root = document.getElementById('rosterRoot');
-                if (root && !root.dataset.mounted) {
-                  // mountUI nằm trong IIFE roster — kích hoạt bằng click nav
-                  document.querySelector('.nav-item[data-page="roster"]')?.click();
-                }
-              } catch(e){}
-            }, 60);
-          }
+          if (title) title.innerHTML = '<span>Lọc chuyến bay</span> · PQC Duty Sequences';
         }
-
-        // Báo hiệu cho module roster: guest = view-only
-        try {
-          document.body.classList.toggle('roster-readonly', !!(session && session.role === 'guest'));
-          window.DSP_AUTH_CAN_EDIT_ROSTER = !!(session && ACCOUNTS[session.username] && ACCOUNTS[session.username].canEditRoster);
-        } catch (e) {}
       }
 
       function showApp() {
@@ -1550,16 +1519,20 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
         const account = ACCOUNTS[u];
 
         if (account && p === account.password) {
+          // Tài khoản lich → chuyển hướng sang web lịch riêng
+          if (account.role === 'lich' && account.redirectTo) {
+            if (err) err.textContent = '';
+            window.location.href = account.redirectTo;
+            return;
+          }
           saveSession(u);
           if (err) err.textContent = '';
           showApp();
           if (typeof showToast === 'function') {
             showToast(
-              account.role === 'guest'
-                ? 'Đăng nhập Guest · chỉ xem Lịch trực (không chỉnh sửa)'
-                : (account.role === 'admin1'
-                  ? 'Đăng nhập Admin1 · Lọc chuyến bay + Lịch trực'
-                  : 'Đăng nhập Admin thành công'),
+              account.role === 'admin1'
+                ? 'Đăng nhập Admin1 · Lọc chuyến bay'
+                : 'Đăng nhập Admin thành công',
               'success'
             );
           }
