@@ -415,6 +415,86 @@
       .logout-btn { padding: 7px 9px; }
     }
 
+
+    /* ===== Mobile: Lọc chuyến bay ===== */
+    @media (max-width: 900px) {
+      #page-filter .card {
+        padding: 14px;
+        border-radius: 12px;
+        margin-bottom: 14px;
+      }
+      #page-filter .mode-switch {
+        display: flex;
+        width: 100%;
+        margin-bottom: 12px;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      #page-filter .mode-btn {
+        flex: 1;
+        min-height: 44px;
+        font-size: 0.85rem;
+        padding: 10px 8px;
+      }
+      #page-filter .upload-area {
+        padding: 22px 14px;
+        border-radius: 12px;
+      }
+      #page-filter .upload-area p {
+        font-size: 0.95rem !important;
+      }
+      #page-filter .upload-area .btn,
+      #page-filter .btn {
+        min-height: 44px;
+        width: 100%;
+        justify-content: center;
+        font-size: 0.95rem;
+      }
+      #page-filter #exportBar {
+        display: flex !important;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+      }
+      #page-filter #exportBar .btn {
+        width: 100%;
+      }
+      #page-filter #resultCard {
+        padding: 10px;
+      }
+      #page-filter #resultTable {
+        font-size: 0.75rem;
+      }
+      #page-filter #resultTable th,
+      #page-filter #resultTable td {
+        padding: 8px 6px;
+        white-space: nowrap;
+      }
+      #page-filter #resultTable th:first-child,
+      #page-filter #resultTable td:first-child {
+        position: sticky;
+        left: 0;
+        background: var(--card);
+        z-index: 1;
+        box-shadow: 2px 0 6px rgba(0,0,0,.06);
+      }
+      #page-filter #resultTable thead th:first-child {
+        background: linear-gradient(90deg, var(--red), var(--red-dark));
+        color: #fff;
+        z-index: 2;
+      }
+      #page-filter .group-header td {
+        white-space: normal;
+        font-size: 0.8rem;
+        line-height: 1.35;
+      }
+      #page-filter #fileInfo {
+        font-size: 0.82rem;
+        line-height: 1.4;
+        word-break: break-word;
+      }
+    }
+
     /* ===== Animations & polish ===== */
     @keyframes fadeInUp {
       from { opacity: 0; transform: translateY(16px); }
@@ -1094,9 +1174,9 @@
           </div>
           <div class="upload-area" id="dropZone">
             <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
-            <p style="font-size:1.1rem; margin-bottom:8px; font-weight:600;">📂 Chọn file Excel CREWLIST</p>
-            <p style="color:var(--muted); font-size:0.9rem;">Kéo thả hoặc click để chọn · Daily Flight Schedule Report</p>
-            <button class="btn" style="margin-top:16px;" onclick="document.getElementById('fileInput').click()">Chọn file</button>
+            <p style="font-size:1.05rem; margin-bottom:6px; font-weight:700;">📂 Chọn file CREWLIST</p>
+            <p style="color:var(--muted); font-size:0.85rem; line-height:1.4;">Daily Flight Schedule · kéo thả hoặc bấm bên dưới</p>
+            <button class="btn" style="margin-top:14px;" onclick="document.getElementById('fileInput').click()">Chọn file Excel</button>
           </div>
           <div id="fileInfo"></div>
           <div id="exportBar" style="display:none; margin-top:14px; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
@@ -6737,7 +6817,7 @@ html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
     <input id="rSearch" placeholder="Tìm tên hoặc mã NV...">
   </div>
   <div class="chipset" id="rChips"></div>
-  <button type="button" class="btn-upload roster-edit-only" id="rLoadExcel">📂 Nạp Excel lịch</button>
+  <button type="button" class="btn-upload roster-edit-only" id="rLoadExcel">📂 Nạp Excel (SharePoint/OCD)</button>
   <button type="button" class="btn-upload roster-edit-only" id="rLoadImage" style="border-color:#8B7355;background:#F5F0E8;color:#6B5638;">🖼 Nạp từ ảnh</button>
   <input type="file" id="rImageInput" accept="image/*" style="display:none">
   <button type="button" class="btn-upload roster-edit-only" id="rExportXlsx" style="border-color:#3E6FA8;background:#E8EFF7;color:#245A9C;">⬇ Xuất Excel</button>
@@ -7384,9 +7464,203 @@ html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
     }
     if(!parsed.length) throw new Error('Không đọc được dòng nhân viên nào');
     parsed.forEach(e=>{ e.note=(e.total<getTargetHours() && e.dept!=='OBS')?('thiếu '+(getTargetHours()-e.total)+'h'):''; });
-    EMP = parsed;
+
+    // MERGE thông minh (file SharePoint / Excel OCD):
+    // - NV có trên file → cập nhật ca + dept
+    // - NV chỉ có trên web (tự thêm) → GIỮ NGUYÊN, không xóa
+    // - NV mới trên file chưa có trên web → thêm
+    const beforeCount = EMP.length;
+    const webOnly = [];
+    const byId = new Map();
+    const byName = new Map();
+    EMP.forEach(e=>{
+      const id = String(e.id||'').trim();
+      const nm = String(e.name||'').trim().toLowerCase();
+      if(id) byId.set(id, e);
+      if(nm) byName.set(nm, e);
+    });
+    const matchedKeys = new Set();
+    const merged = parsed.map((p,i)=>{
+      const id = String(p.id||'').trim();
+      const nm = String(p.name||'').trim().toLowerCase();
+      let prev = (id && byId.get(id)) || (nm && byName.get(nm)) || null;
+      if(prev){
+        matchedKeys.add(prev.key);
+        return {
+          ...p,
+          key: prev.key,
+          // giữ note sau applyNotes
+        };
+      }
+      return { ...p, key: 'imp-'+i+'-'+Date.now() };
+    });
+    // NV chỉ có trên web
+    EMP.forEach(e=>{
+      if(!matchedKeys.has(e.key)) webOnly.push(e);
+    });
+    // Gán key số liên tục
+    let nextKey = 0;
+    const finalList = merged.concat(webOnly).map(e=>{
+      e.key = nextKey++;
+      e.counts = countShifts(e.shifts||[]);
+      e.total = calcTotal(e.shifts||[]);
+      return e;
+    });
+    applyNotes(finalList);
+    EMP = finalList;
+
     saveRoster();
+    // Lan danh sách NV (tên/mã/dept, ca trống nếu tháng chưa có) sang các tháng sau trong năm
+    let nLocal = 0;
+    try { nLocal = propagateEmployeesToFutureMonths(EMP, currentYear, currentMonth) || 0; } catch(err){ console.warn('propagate', err); }
+    // GitHub (nếu đã login token): tạo/cập nhật JSON các tháng sau
+    try {
+      if(typeof propagateEmployeesToFutureGithub === 'function'){
+        propagateEmployeesToFutureGithub(EMP, currentYear, currentMonth).then(n=>{
+          if(n && typeof showToast==='function') showToast('Đã cập nhật '+n+' file roster tháng sau trên GitHub', 'info');
+        }).catch(()=>{});
+      }
+    } catch(err){}
     renderAll();
+    if(typeof showToast==='function'){
+      const added = Math.max(0, EMP.length - beforeCount);
+      const kept = webOnly.length;
+      showToast(
+        'Đã nạp Excel: '+parsed.length+' NV từ file'
+        + (kept ? (', giữ '+kept+' NV chỉ có trên web') : '')
+        + (added>0 && !kept ? (', thêm mới') : '')
+        + ' · đã lan danh sách tới các tháng sau',
+        'success'
+      );
+    }
+  }
+
+  /**
+   * Lan danh sách NV sang các tháng SAU tới hết năm (+1 năm).
+   * - Tháng đã có: chỉ THÊM NV còn thiếu (ca trống), không xóa NV web-only, không đụng ca cũ.
+   * - Tháng chưa có: tạo JSON mới (NV + ca trống).
+   * Xóa NV: deleteEmployee → bỏ ở tháng hiện tại + các tháng sau; tháng trước giữ nguyên.
+   */
+  function propagateEmployeesToFutureMonths(sourceList, fromY, fromM){
+    if(!Array.isArray(sourceList) || !sourceList.length) return 0;
+    const roster = sourceList.map(e=>({ id:e.id||'', name:e.name||'', dept:e.dept||'DM' }));
+    const targets = [];
+    let y = fromY, m = fromM + 1;
+    for(let n=0; n<18; n++){
+      if(m > 12){ m = 1; y++; }
+      if(y > fromY + 1) break;
+      targets.push([y, m]);
+      m++;
+    }
+    let touched = 0;
+    targets.forEach(([y,m])=>{
+      try {
+        // Dù ROSTER_LOCAL_DISABLED: vẫn ghi shell tháng sau để đổi tháng không mất NV
+        // (đây là dữ liệu cấu trúc NV, không phải cache ca tạm)
+        const raw = localStorage.getItem(storageKey(y, m));
+        let data = null;
+        try { data = raw ? JSON.parse(raw) : null; } catch(e){ data = null; }
+        const existing = (data && Array.isArray(data.employees)) ? data.employees : null;
+
+        if(existing && existing.length){
+          const have = new Set(existing.map(e=>String(e.id||'').trim()+'|'+String(e.name||'').trim().toLowerCase()));
+          let changed = false;
+          const next = existing.map((e,i)=>({
+            id:e.id, name:e.name, dept:e.dept||'DM',
+            shifts:(e.shifts||[]).slice(0,31).concat(Array(31).fill('')).slice(0,31),
+            key: typeof e.key==='number'?e.key:i
+          }));
+          roster.forEach(r=>{
+            const k = String(r.id||'').trim()+'|'+String(r.name||'').trim().toLowerCase();
+            if(!have.has(k)){
+              next.push({ id:r.id, name:r.name, dept:r.dept, shifts:Array(31).fill(''), key:next.length });
+              changed = true;
+            }
+          });
+          if(changed){
+            localStorage.setItem(storageKey(y,m), JSON.stringify({
+              year:y, month:m,
+              targetHours: (data && data.targetHours) || 208,
+              savedAt: new Date().toISOString(),
+              employees: next
+            }));
+            touched++;
+          }
+        } else {
+          const employees = roster.map((r,i)=>({
+            id:r.id, name:r.name, dept:r.dept, shifts:Array(31).fill(''), key:i
+          }));
+          localStorage.setItem(storageKey(y,m), JSON.stringify({
+            year:y, month:m, targetHours:208, savedAt:new Date().toISOString(), employees
+          }));
+          touched++;
+        }
+      } catch(e){}
+    });
+    return touched;
+  }
+
+  /** Đồng bộ danh sách NV lên GitHub data/roster-YYYY-MM.json các tháng sau (nếu có token) */
+  async function propagateEmployeesToFutureGithub(sourceList, fromY, fromM){
+    if(typeof putGithubFile !== 'function' || typeof getGithubToken !== 'function') return 0;
+    const token = getGithubToken();
+    if(!token) return 0;
+    if(!Array.isArray(sourceList) || !sourceList.length) return 0;
+    const roster = sourceList.map(e=>({ id:e.id||'', name:e.name||'', dept:e.dept||'DM' }));
+    const targets = [];
+    let y = fromY, m = fromM + 1;
+    for(let n=0; n<12; n++){
+      if(m > 12){ m = 1; y++; }
+      if(y > fromY + 1) break;
+      targets.push([y, m]);
+      m++;
+    }
+    let touched = 0;
+    for(const [yy, mm] of targets){
+      try {
+        const pathFile = 'data/roster-' + yy + '-' + String(mm).padStart(2,'0') + '.json';
+        let data = null;
+        try {
+          const existing = await githubApi('/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + pathFile);
+          if(existing && existing.content){
+            data = JSON.parse(base64ToUtf8(existing.content));
+          }
+        } catch(e){ data = null; }
+
+        let employees;
+        if(data && Array.isArray(data.employees) && data.employees.length){
+          const have = new Set(data.employees.map(e=>String(e.id||'').trim()+'|'+String(e.name||'').trim().toLowerCase()));
+          employees = data.employees.map((e,i)=>({
+            id:e.id, name:e.name, dept:e.dept||'DM',
+            shifts:(e.shifts||[]).slice(0,31).concat(Array(31).fill('')).slice(0,31),
+            key: typeof e.key==='number'?e.key:i
+          }));
+          let changed = false;
+          roster.forEach(r=>{
+            const k = String(r.id||'').trim()+'|'+String(r.name||'').trim().toLowerCase();
+            if(!have.has(k)){
+              employees.push({ id:r.id, name:r.name, dept:r.dept, shifts:Array(31).fill(''), key:employees.length });
+              changed = true;
+            }
+          });
+          if(!changed) continue;
+        } else {
+          employees = roster.map((r,i)=>({
+            id:r.id, name:r.name, dept:r.dept, shifts:Array(31).fill(''), key:i
+          }));
+        }
+        const payload = {
+          app: 'sunpq-roster', version: 1, year: yy, month: mm,
+          targetHours: (data && data.targetHours) || 208,
+          exportedAt: new Date().toISOString(),
+          employees
+        };
+        await putGithubFile(pathFile, JSON.stringify(payload, null, 2),
+          'Propagate staff list to ' + pathFile + ' from ' + fromY + '-' + String(fromM).padStart(2,'0'));
+        touched++;
+      } catch(e){ console.warn('propagate gh', yy, mm, e); }
+    }
+    return touched;
   }
 
   /** Nạp lịch từ ẢNH (thử nghiệm) — OCR bằng Tesseract.js đã có sẵn trong app.
