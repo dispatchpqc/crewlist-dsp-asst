@@ -688,20 +688,23 @@
         word-break: break-word; white-space: normal;
         overflow: visible; max-height: none;
       }
+      /* Thu gọn: chỉ ~2 dòng — !important để thắng rule desktop */
       #page-filter #resultTable .c-crew .crew-text.is-collapsed {
         display: -webkit-box !important;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
+        -webkit-box-orient: vertical !important;
+        -webkit-line-clamp: 2 !important;
         overflow: hidden !important;
-        max-height: 2.9em;
-        white-space: normal;
+        max-height: 2.7em !important;
+        white-space: normal !important;
+        text-overflow: ellipsis;
       }
       #page-filter #resultTable .c-crew .crew-text.is-expanded {
         display: block !important;
         -webkit-line-clamp: unset !important;
+        -webkit-box-orient: unset !important;
         overflow: visible !important;
         max-height: none !important;
-        white-space: pre-line;
+        white-space: pre-line !important;
       }
       #page-filter #resultTable .c-crew .crew-toggle {
         display: inline-flex !important;
@@ -2609,7 +2612,7 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       return parts.join(sep);
     }
 
-    // Nút thu gọn / xem đầy đủ danh sách tổ bay (lọc CM)
+    // Nút thu gọn / xem đầy đủ danh sách tổ bay (lọc CM — chỉ mobile)
     document.getElementById('resultTable')?.addEventListener('click', (e) => {
       const btn = e.target.closest('.crew-toggle');
       if (!btn) return;
@@ -2618,16 +2621,20 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       const block = btn.closest('.crew-block');
       const text = block && block.querySelector('.crew-text');
       if (!text) return;
+      const full = text.dataset.full || text.textContent || '';
+      const preview = text.dataset.preview || '';
       const expanded = btn.dataset.expanded === '1';
       if (expanded) {
         text.classList.add('is-collapsed');
         text.classList.remove('is-expanded');
+        text.textContent = preview || full;
         btn.dataset.expanded = '0';
         btn.textContent = 'Xem đầy đủ';
         btn.title = 'Xem đầy đủ tổ bay';
       } else {
         text.classList.remove('is-collapsed');
         text.classList.add('is-expanded');
+        text.textContent = full;
         btn.dataset.expanded = '1';
         btn.textContent = 'Thu gọn';
         btn.title = 'Thu gọn tổ bay';
@@ -2812,18 +2819,27 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
               ? formatCrewList(f, { multiline: true })
               : (isFirst ? ((r.cp || '') + (r.cpId ? ' (' + r.cpId + ')' : '')) : '');
             const crewLabel = filterMode === 'CM' ? 'Tổ bay' : 'Cơ trưởng (CP+)';
-            // CM: danh sách tổ dài → mặc định thu gọn 2 dòng + nút xem đầy đủ
-            const memberCount = (f.crewMembers && f.crewMembers.length) || (crewText ? crewText.split('\n').length : 0);
+            // CM: mobile thu gọn ~2 dòng; desktop CSS luôn hiện đủ
+            const memberLines = crewText ? crewText.split('\n').filter(Boolean) : [];
+            const memberCount = (f.crewMembers && f.crewMembers.length) || memberLines.length;
             const needCollapse = filterMode === 'CM' && crewText && (crewText.length > 36 || memberCount > 2);
+            const isMobileView = typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 680px)').matches;
             let crewCell = '';
             if (crewText) {
-              if (needCollapse) {
+              if (needCollapse && isMobileView) {
+                // Preview ngắn (2 người) — bấm nút mới hiện full
+                const preview = memberLines.slice(0, 2).join(' · ') + (memberLines.length > 2 ? '…' : '');
                 crewCell =
                   '<div class="crew-block">'
                   + '<div class="crew-head"><button type="button" class="crew-toggle" data-expanded="0" title="Xem đầy đủ tổ bay">Xem đầy đủ</button></div>'
-                  + '<span class="crew-text is-collapsed">' + escapeHtml(crewText) + '</span>'
+                  + '<span class="crew-text is-collapsed"'
+                  + ' data-full="' + escapeHtml(crewText).replace(/"/g, '&quot;') + '"'
+                  + ' data-preview="' + escapeHtml(preview).replace(/"/g, '&quot;') + '">'
+                  + escapeHtml(preview)
+                  + '</span>'
                   + '</div>';
               } else {
+                // Desktop hoặc danh sách ngắn: hiện đủ
                 crewCell = '<span class="crew-text is-expanded">' + escapeHtml(crewText) + '</span>';
               }
             }
