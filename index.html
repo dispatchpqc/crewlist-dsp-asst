@@ -338,7 +338,27 @@
       top: 0;
       white-space: nowrap;
     }
-    tr:hover td { background: var(--red-soft); }
+    tr:hover td { background: var(--hover); }
+    /* Mobile card: không tô đỏ cả thẻ khi bấm/hover */
+    #page-filter #resultTable tr.flight-row:hover td,
+    #page-filter #resultTable tr.flight-row:active td,
+    #page-filter #resultTable tr.flight-row:focus td,
+    #page-filter #resultTable tr.flight-row td:hover,
+    #page-filter #resultTable tr.flight-row td:active {
+      background: transparent !important;
+    }
+    #page-filter #resultTable tr.flight-row:hover,
+    #page-filter #resultTable tr.flight-row:active,
+    #page-filter #resultTable tr.flight-row:focus {
+      background: var(--card) !important;
+      outline: none;
+      box-shadow: var(--shadow);
+    }
+    #page-filter #resultTable tr.flight-row,
+    #page-filter #resultTable tr.flight-row td {
+      -webkit-tap-highlight-color: transparent;
+      user-select: text;
+    }
     .group-header {
       background: linear-gradient(90deg, var(--gold-soft), transparent);
       font-weight: 600;
@@ -402,6 +422,22 @@
     .c-dep .dep-only { display: inline; }
     .c-crew .marquee-track { display: contents; }
     .c-crew .marquee-inner { display: inline; animation: none !important; white-space: normal; padding-right: 0; }
+    .c-crew .crew-block { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+    /* Desktop: ẩn nút, luôn hiện đủ tổ bay */
+    .c-crew .crew-head,
+    .c-crew .crew-toggle { display: none !important; }
+    .c-crew .crew-text {
+      display: block; width: 100%; line-height: 1.45; word-break: break-word;
+      white-space: pre-line; overflow: visible; max-height: none;
+    }
+    .c-crew .crew-text.is-collapsed,
+    .c-crew .crew-text.is-expanded {
+      display: block !important;
+      -webkit-line-clamp: unset !important;
+      overflow: visible !important;
+      max-height: none !important;
+      white-space: pre-line;
+    }
 
     #fileInfo { color: var(--muted); font-size: 0.9rem; margin-top: 12px; }
 
@@ -568,9 +604,21 @@
         display: flex; flex-wrap: wrap; align-items: baseline;
         background: var(--card); border: 1px solid var(--border); border-radius: 14px;
         padding: 12px 14px; margin-bottom: 8px; box-shadow: var(--shadow);
+        -webkit-tap-highlight-color: transparent;
+      }
+      #page-filter #resultTable tr.flight-row:hover,
+      #page-filter #resultTable tr.flight-row:active,
+      #page-filter #resultTable tr.flight-row:focus {
+        background: var(--card) !important;
+        box-shadow: var(--shadow);
+      }
+      #page-filter #resultTable tr.flight-row td,
+      #page-filter #resultTable tr.flight-row:hover td,
+      #page-filter #resultTable tr.flight-row:active td {
+        background: transparent !important;
       }
       #page-filter #resultTable tr.flight-row.first {
-        border-color: var(--red); border-left: 4px solid var(--red);
+        border-color: rgba(227, 6, 19, 0.45); border-left: 3px solid var(--red);
       }
       #page-filter #resultTable tr.flight-row.cont {
         margin-left: 16px; width: calc(100% - 16px); border-style: dashed; opacity: 0.94;
@@ -621,29 +669,57 @@
         border-top: 1px dashed var(--border);
         font-size: 0.78rem !important; color: var(--text);
         max-width: none !important;
-        overflow: hidden;
+        overflow: visible !important;
       }
       #page-filter #resultTable .c-crew::before {
         content: attr(data-label); display: block; font-size: 0.65rem; font-weight: 700;
         color: var(--muted); letter-spacing: 0.04em; margin-bottom: 3px;
       }
       #page-filter #resultTable .c-crew:empty { display: none; }
-      #page-filter #resultTable .c-crew .marquee-track {
-        display: block; overflow: hidden; width: 100%;
-        mask-image: linear-gradient(90deg, transparent 0, #000 8px, #000 calc(100% - 8px), transparent 100%);
-        -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 8px, #000 calc(100% - 8px), transparent 100%);
+      #page-filter #resultTable .c-crew .crew-block {
+        display: flex; flex-direction: column; gap: 6px; width: 100%;
       }
-      #page-filter #resultTable .c-crew .marquee-inner {
-        display: inline-block; white-space: nowrap; padding-right: 2.5em;
-        animation: crewMarquee 14s linear infinite;
-        font-weight: 700; color: var(--text);
+      #page-filter #resultTable .c-crew .crew-head {
+        display: flex !important; justify-content: flex-end;
       }
-      #page-filter #resultTable .c-crew .marquee-inner.no-scroll {
-        animation: none; padding-right: 0;
+      #page-filter #resultTable .c-crew .crew-text {
+        display: block; width: 100%;
+        font-weight: 700; color: var(--text); line-height: 1.45;
+        word-break: break-word; white-space: normal;
+        overflow: visible; max-height: none;
       }
-      @keyframes crewMarquee {
-        0% { transform: translateX(0); }
-        100% { transform: translateX(-50%); }
+      #page-filter #resultTable .c-crew .crew-text.is-collapsed {
+        display: -webkit-box !important;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden !important;
+        max-height: 2.9em;
+        white-space: normal;
+      }
+      #page-filter #resultTable .c-crew .crew-text.is-expanded {
+        display: block !important;
+        -webkit-line-clamp: unset !important;
+        overflow: visible !important;
+        max-height: none !important;
+        white-space: pre-line;
+      }
+      #page-filter #resultTable .c-crew .crew-toggle {
+        display: inline-flex !important;
+        flex: 0 0 auto;
+        border: 1px solid var(--border);
+        background: var(--hover);
+        color: var(--red);
+        font-size: 0.68rem;
+        font-weight: 700;
+        padding: 4px 8px;
+        border-radius: 99px;
+        cursor: pointer;
+        white-space: nowrap;
+        line-height: 1.2;
+      }
+      #page-filter #resultTable .c-crew .crew-toggle:hover {
+        border-color: var(--red);
+        background: var(--red-soft);
       }
       #page-filter #exportBar { position: sticky; bottom: 10px; z-index: 30; }
     }
@@ -1448,7 +1524,12 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
             <button class="btn" id="ofpPrintBtn">🖨 In tất cả</button>
             <button class="btn export-btn" id="ofpClearBtn" style="background:linear-gradient(135deg,#6B7280,#4B5563);color:#fff;">Xóa danh sách</button>
           </div>
-          <p id="bridgeStatus" style="margin-top:14px;font-weight:700;font-size:0.95rem;"></p>
+          <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+            <p id="bridgeStatus" style="margin:0;font-weight:700;font-size:0.95rem;flex:1 1 auto;"></p>
+            <button type="button" class="btn" id="printBridgeStartBtn" style="background:linear-gradient(135deg,#059669,#047857);">▶ Bật Print Bridge</button>
+            <button type="button" class="btn" id="printBridgeStopBtn" style="background:linear-gradient(135deg,#6B7280,#4B5563);">⏹ Tắt Bridge</button>
+          </div>
+          <p style="margin-top:8px;font-size:0.8rem;color:var(--muted);line-height:1.4;">Print Bridge (cổng 9173) — cần để in OFP/GD im lặng. Nếu chưa đăng ký protocol <code>sunpq://</code>, chạy <code>print_bridge.py</code> trong CMD.</p>
         </div>
       </div>
 
@@ -1465,7 +1546,11 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
             </div>
           </div>
           <div id="pibCrewInfo" style="margin-top:12px;color:var(--muted);font-size:0.9rem;"></div>
-          <div id="pibBridgeStatusTop" style="margin-top:10px;font-weight:700;font-size:0.9rem;"></div>
+          <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+            <div id="pibBridgeStatusTop" style="font-weight:700;font-size:0.9rem;flex:1 1 auto;"></div>
+            <button type="button" class="btn" id="pibStartBridgeBtnTop" style="background:linear-gradient(135deg,#059669,#047857);">▶ Bật SharePoint Bridge</button>
+          </div>
+          <p style="margin-top:8px;font-size:0.8rem;color:var(--muted);line-height:1.4;">SharePoint Bridge (cổng 8765) — cần để kiểm tra OFP/GD/PIB/MET. Nếu protocol chưa đăng ký, chạy <code>py sharepoint_bridge.py</code>.</p>
         </div>
 
         <div class="card" id="pibMainCard" style="display:none;">
@@ -1474,7 +1559,7 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
               <button class="btn" type="button" id="pibCheckSpBtn">🔄 Kiểm tra SharePoint</button>
               <button class="btn export-btn" type="button" id="pibExportBtn">⬇ Xuất Excel</button>
               <button class="btn" type="button" id="pibRefreshBtn" style="background:linear-gradient(135deg,#6B7280,#4B5563);">↻ Làm mới</button>
-              <button class="btn" type="button" id="pibStartBridgeBtn" style="background:linear-gradient(135deg,#059669,#047857);display:none;">▶ Chạy Bridge</button>
+              <button class="btn" type="button" id="pibStartBridgeBtn" style="background:linear-gradient(135deg,#059669,#047857);">▶ Bật Bridge</button>
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
               <div id="pibBridgeStatus" style="font-weight:700;font-size:0.9rem;">
@@ -2125,22 +2210,36 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
 
     async function refreshBridgeStatus() {
       const el = document.getElementById('bridgeStatus');
+      const startBtn = document.getElementById('printBridgeStartBtn');
+      const stopBtn = document.getElementById('printBridgeStopBtn');
       const st = await checkBridge();
       if (st && st.ok) {
         bridgeStartAttempted = false;
         if (el) {
-          el.innerHTML = '<span style="color:#059669;">● Có thể in</span>'
+          el.innerHTML = '<span style="color:#059669;">● Print Bridge online · có thể in</span>'
             + (st.demo ? ' <span style="color:var(--muted);font-weight:500;">(DEMO)</span>' : '')
             + (!st.sumatra || !st.qpdf || !st.pdftotext ? ' <span style="color:#E30613;">· thiếu tool</span>' : '');
         }
+        if (startBtn) {
+          startBtn.textContent = '✓ Bridge đang chạy';
+          startBtn.style.background = 'linear-gradient(135deg,#6B7280,#4B5563)';
+          startBtn.disabled = true;
+        }
+        if (stopBtn) stopBtn.disabled = false;
       } else {
         if (el) {
-          el.innerHTML = '<span style="color:#E30613;">● Không thể in</span>';
+          el.innerHTML = '<span style="color:#E30613;">● Print Bridge offline</span>'
+            + ' <span style="color:var(--muted);font-weight:500;font-size:0.85rem;">— bấm «Bật Print Bridge»</span>';
         }
+        if (startBtn) {
+          startBtn.textContent = '▶ Bật Print Bridge';
+          startBtn.style.background = 'linear-gradient(135deg,#059669,#047857)';
+          startBtn.disabled = false;
+        }
+        if (stopBtn) stopBtn.disabled = true;
         if (!bridgeStartAttempted) {
           bridgeStartAttempted = true;
           triggerBridgeStart();
-          // thử lại status sau 2s
           setTimeout(refreshBridgeStatus, 2000);
         }
       }
@@ -2148,15 +2247,37 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
     setInterval(refreshBridgeStatus, 4000);
     setTimeout(refreshBridgeStatus, 400);
 
+    document.getElementById('printBridgeStartBtn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('printBridgeStartBtn');
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ Đang bật…'; }
+      bridgeStartAttempted = false;
+      showToast('Đang khởi động Print Bridge (sunpq://start)…', 'info');
+      triggerBridgeStart();
+      for (let i = 0; i < 6; i++) {
+        await new Promise(r => setTimeout(r, 1000));
+        const st = await checkBridge();
+        if (st && st.ok) {
+          showToast('Print Bridge đã sẵn sàng', 'success');
+          refreshBridgeStatus();
+          return;
+        }
+      }
+      showToast('Chưa thấy bridge. Chạy print_bridge.py trong CMD hoặc kiểm tra protocol sunpq://', 'info');
+      refreshBridgeStatus();
+    });
+    document.getElementById('printBridgeStopBtn')?.addEventListener('click', () => {
+      triggerBridgeStop();
+      showToast('Đã gửi lệnh tắt Print Bridge', 'info');
+      setTimeout(refreshBridgeStatus, 1200);
+    });
+
     // Mở trang → start bridge; đóng tab/trình duyệt → stop
     window.addEventListener('load', () => {
       setTimeout(triggerBridgeStart, 300);
     });
     window.addEventListener('beforeunload', () => {
       triggerBridgeStop();
-      // beacon không gọi được protocol; iframe ở trên là chính
     });
-    // Khi user rời tab lâu vẫn giữ bridge; chỉ stop khi unload
 
     /* ========== CREWLIST LOGIC ========== */
     let rawFlights = [];
@@ -2461,7 +2582,9 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
     }
 
 
-    function formatCrewList(f) {
+    function formatCrewList(f, opts) {
+      const multiline = !!(opts && opts.multiline);
+      const sep = multiline ? '\n' : ' · ';
       const list = (f && f.crewMembers) ? f.crewMembers : [];
       if (!list.length) {
         // fallback từ các field đã parse
@@ -2471,13 +2594,45 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
         if (f.cmId) parts.push('CM ' + (f.cmName || '') + ' (' + f.cmId + ')');
         if (f.caId) parts.push('CA ' + (f.caName || '') + ' (' + f.caId + ')');
         if (f.bmId) parts.push('BM ' + (f.bmName || '') + ' (' + f.bmId + ')');
-        return parts.join(' · ');
+        return parts.join(sep);
       }
-      return list.map(c => {
+      // Tránh trùng id
+      const seen = new Set();
+      const parts = [];
+      list.forEach(c => {
+        const key = String(c.id || '') + '|' + String(c.roleBase || '');
+        if (seen.has(key)) return;
+        seen.add(key);
         const tag = c.dhc ? (c.roleBase + ',DHC') : c.roleBase;
-        return tag + ' ' + (c.name || '') + ' (' + c.id + ')';
-      }).join(' · ');
+        parts.push(tag + ' ' + (c.name || '') + ' (' + c.id + ')');
+      });
+      return parts.join(sep);
     }
+
+    // Nút thu gọn / xem đầy đủ danh sách tổ bay (lọc CM)
+    document.getElementById('resultTable')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.crew-toggle');
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const block = btn.closest('.crew-block');
+      const text = block && block.querySelector('.crew-text');
+      if (!text) return;
+      const expanded = btn.dataset.expanded === '1';
+      if (expanded) {
+        text.classList.add('is-collapsed');
+        text.classList.remove('is-expanded');
+        btn.dataset.expanded = '0';
+        btn.textContent = 'Xem đầy đủ';
+        btn.title = 'Xem đầy đủ tổ bay';
+      } else {
+        text.classList.remove('is-collapsed');
+        text.classList.add('is-expanded');
+        btn.dataset.expanded = '1';
+        btn.textContent = 'Thu gọn';
+        btn.title = 'Thu gọn tổ bay';
+      }
+    });
 
     let filterMode = 'CP'; // 'CP' = lọc theo CP+ (cơ trưởng), 'CM' = lọc theo CM (tiếp viên trưởng)
 
@@ -2633,8 +2788,9 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
           hr.className = 'group-header';
           {
             const ghText = '✈ ' + (r.cp || '') + (r.cpId ? ' (' + r.cpId + ')' : '') + ' · ' + roleLabel + ' · ' + r.seq.length + ' chuyến · bắt đầu PQC FLT ' + (r.seq[0] && r.seq[0].flt ? r.seq[0].flt : '');
-            // Chữ dài → marquee chạy phải → trái để thấy hết (mobile card header)
-            const needScroll = ghText.length > 36;
+            // Chỉ nhân đôi nội dung khi mobile (marquee); desktop hiện 1 lần, không lặp
+            const isMobileView = typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 680px)').matches;
+            const needScroll = isMobileView && ghText.length > 36;
             const inner = needScroll
               ? ('<span class="gh-marquee-track"><span class="gh-marquee-inner">' + ghText + '   ·   ' + ghText + '</span></span>')
               : ('<span class="gh-marquee-track"><span class="gh-marquee-inner no-scroll">' + ghText + '</span></span>');
@@ -2650,17 +2806,27 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
               brf = formatTime(brfDt);
             }
             const isFirst = idx === 0;
+            // CP+: chỉ hiện tên ở chuyến đầu chuỗi (tránh lặp mọi dòng)
+            // CM: tổ bay theo từng chuyến
             const crewText = (filterMode === 'CM')
-              ? formatCrewList(f)
-              : ((r.cp || '') + (r.cpId ? ' (' + r.cpId + ')' : ''));
+              ? formatCrewList(f, { multiline: true })
+              : (isFirst ? ((r.cp || '') + (r.cpId ? ' (' + r.cpId + ')' : '')) : '');
             const crewLabel = filterMode === 'CM' ? 'Tổ bay' : 'Cơ trưởng (CP+)';
-            // Chữ chạy khi tên dài; nhân đôi nội dung để loop mượt
-            const needScroll = crewText && crewText.length > 28;
-            const crewCell = crewText
-              ? ('<span class="marquee-track"><span class="marquee-inner' + (needScroll ? '' : ' no-scroll') + '">'
-                  + (needScroll ? (crewText + '   ·   ' + crewText) : crewText)
-                  + '</span></span>')
-              : '';
+            // CM: danh sách tổ dài → mặc định thu gọn 2 dòng + nút xem đầy đủ
+            const memberCount = (f.crewMembers && f.crewMembers.length) || (crewText ? crewText.split('\n').length : 0);
+            const needCollapse = filterMode === 'CM' && crewText && (crewText.length > 36 || memberCount > 2);
+            let crewCell = '';
+            if (crewText) {
+              if (needCollapse) {
+                crewCell =
+                  '<div class="crew-block">'
+                  + '<div class="crew-head"><button type="button" class="crew-toggle" data-expanded="0" title="Xem đầy đủ tổ bay">Xem đầy đủ</button></div>'
+                  + '<span class="crew-text is-collapsed">' + escapeHtml(crewText) + '</span>'
+                  + '</div>';
+              } else {
+                crewCell = '<span class="crew-text is-expanded">' + escapeHtml(crewText) + '</span>';
+              }
+            }
             tr.className = 'flight-row ' + (isFirst ? 'first' : 'cont');
             tr.innerHTML = `
               <td class="c-date" data-label="Ngày">${formatDate(local.date)}</td>
@@ -3616,17 +3782,30 @@ function exportExcel() {
       const htmlOnline = '<span style="color:#059669;">● Bridge SharePoint đang hoạt động</span>'
         + (detail ? ' <span style="color:var(--muted);font-weight:500;font-size:0.8rem;">' + detail + '</span>' : '');
       const htmlOffline = '<span style="color:#E30613;">● Bridge offline</span>'
-        + ' <span style="color:var(--muted);font-weight:500;font-size:0.8rem;">— chạy: py sharepoint_bridge.py</span>';
+        + ' <span style="color:var(--muted);font-weight:500;font-size:0.8rem;">— bấm «Bật SharePoint Bridge»</span>';
       const html = online ? htmlOnline : htmlOffline;
       const el1 = document.getElementById('pibBridgeStatus');
       const el2 = document.getElementById('pibBridgeStatusTop');
       if (el1) el1.innerHTML = html;
       if (el2) el2.innerHTML = html;
-      const startBtn = document.getElementById('pibStartBridgeBtn');
-      if (startBtn) startBtn.style.display = online ? 'none' : 'inline-flex';
+      // Nút luôn hiện — đổi nhãn theo trạng thái
+      ['pibStartBridgeBtn', 'pibStartBridgeBtnTop'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.style.display = 'inline-flex';
+        if (online) {
+          btn.textContent = id === 'pibStartBridgeBtnTop' ? '✓ Bridge đang chạy' : '✓ Đang chạy';
+          btn.style.background = 'linear-gradient(135deg,#6B7280,#4B5563)';
+          btn.disabled = true;
+        } else {
+          btn.textContent = id === 'pibStartBridgeBtnTop' ? '▶ Bật SharePoint Bridge' : '▶ Bật Bridge';
+          btn.style.background = 'linear-gradient(135deg,#059669,#047857)';
+          btn.disabled = false;
+        }
+      });
       const checkBtn = document.getElementById('pibCheckSpBtn');
       if (checkBtn) {
-        checkBtn.disabled = false; // vẫn cho bấm; sẽ báo offline nếu cần
+        checkBtn.disabled = false;
         checkBtn.title = online ? 'Gọi SharePoint qua bridge' : 'Bridge offline — kết quả có thể không lấy được';
       }
     }
@@ -3711,14 +3890,21 @@ function exportExcel() {
     setInterval(checkPibBridgeHealth, 4000);
     setTimeout(checkPibBridgeHealth, 400);
 
-    document.getElementById('pibStartBridgeBtn')?.addEventListener('click', async () => {
+    async function onPibStartBridgeClick() {
       pibBridgeStartTried = false;
-      showToast('Đang khởi động bridge...', 'info');
+      ['pibStartBridgeBtn', 'pibStartBridgeBtnTop'].forEach(id => {
+        const b = document.getElementById(id);
+        if (b) { b.disabled = true; b.textContent = '⏳ Đang bật…'; }
+      });
+      showToast('Đang khởi động SharePoint Bridge…', 'info');
       const ok = await ensurePibBridge();
       if (!ok) {
-        showToast('Chưa thấy bridge. Chạy trong CMD: py sharepoint_bridge.py', 'info');
+        showToast('Chưa thấy bridge. Chạy trong CMD: py sharepoint_bridge.py (hoặc đăng ký protocol sunpq://)', 'info');
       }
-    });
+      await checkPibBridgeHealth();
+    }
+    document.getElementById('pibStartBridgeBtn')?.addEventListener('click', onPibStartBridgeClick);
+    document.getElementById('pibStartBridgeBtnTop')?.addEventListener('click', onPibStartBridgeClick);
 
     // Khi chuyển sang tab PIB → ensure bridge
     document.querySelectorAll('.nav-item').forEach(btn => {
@@ -3844,8 +4030,211 @@ function exportExcel() {
           { tag: 'pib-complete-' + Date.now(), renotify: true, requireInteraction: true }
         );
       }
+
+      // Khi duty #1 (hoặc #2 cùng giờ) vừa có OFP/GD → hỏi in tài liệu
+      try { offerDuty1PrintIfNeeded(newlyFile); } catch (e) { console.warn('offerDuty1Print', e); }
+
       return { changed, newlyOk, newlyFile };
     }
+
+    /** Tránh hỏi in lặp lại cùng chuyến trong phiên */
+    const _pibDuty1Offered = new Set();
+    let _pibDuty1Ctx = null; // { flights: [...] }
+
+    function pibSameStdKey(f) {
+      const t = f.localTime || '';
+      const d = f.ngayVN ? formatDate(f.ngayVN) : '';
+      return d + '|' + t;
+    }
+
+    /**
+     * Khi phát hiện OFP/GD mới trên chuyến duty #1:
+     * - Popup hỏi in tài liệu tất cả #1
+     * - Nếu có #2 cùng giờ STD → gộp cả #2
+     * - Có GD → in OFP+GD; chưa GD → báo và chỉ OFP
+     */
+    function offerDuty1PrintIfNeeded(newlyFile) {
+      if (!newlyFile || !newlyFile.length || !pibFlights.length) return;
+
+      // Chuyến vừa nhận OFP hoặc GD
+      const triggered = [];
+      newlyFile.forEach(item => {
+        if (!item.gains || !item.gains.some(g => g === 'OFP' || g === 'GD')) return;
+        const f = pibFlights.find(x => String(x.flt) === String(item.flt));
+        if (!f) return;
+        const duty = dutyNoForPibFlight(f);
+        if (duty !== 1 && duty !== 2) return;
+        triggered.push(f);
+      });
+      if (!triggered.length) return;
+
+      // Tập chuyến cần in: mọi #1 liên quan + #2 cùng giờ với #1
+      const bundle = new Map(); // key -> flight
+      function addFlight(f) {
+        if (!f || !f.key) return;
+        bundle.set(f.key, f);
+      }
+
+      triggered.forEach(f => {
+        const duty = dutyNoForPibFlight(f);
+        if (duty === 1) {
+          addFlight(f);
+          // #2 (và #1 khác) cùng giờ STD
+          const sk = pibSameStdKey(f);
+          pibFlights.forEach(other => {
+            if (pibSameStdKey(other) !== sk) return;
+            const d = dutyNoForPibFlight(other);
+            if (d === 1 || d === 2) addFlight(other);
+          });
+        } else if (duty === 2) {
+          // #2 vừa có file: chỉ gộp nếu có #1 cùng giờ
+          const sk = pibSameStdKey(f);
+          const peers = pibFlights.filter(o => pibSameStdKey(o) === sk);
+          const has1 = peers.some(o => dutyNoForPibFlight(o) === 1);
+          if (has1) {
+            peers.forEach(o => {
+              const d = dutyNoForPibFlight(o);
+              if (d === 1 || d === 2) addFlight(o);
+            });
+          }
+        }
+      });
+
+      const flights = [...bundle.values()].sort((a, b) => {
+        const da = dutyNoForPibFlight(a) || 99;
+        const db = dutyNoForPibFlight(b) || 99;
+        if (da !== db) return da - db;
+        return String(a.flt).localeCompare(String(b.flt));
+      });
+      if (!flights.length) return;
+
+      // Phải có ít nhất một #1 trong bundle
+      if (!flights.some(f => dutyNoForPibFlight(f) === 1)) return;
+
+      // Signature theo trạng thái OFP/GD — hỏi lại khi GD mới về sau OFP
+      const sig = flights.map(f =>
+        f.key + ':' + (f.ofp === true ? 'O' : '') + (f.gd === true ? 'G' : '')
+      ).sort().join('|');
+      if (_pibDuty1Offered.has(sig)) return;
+      _pibDuty1Offered.add(sig);
+
+      openDuty1PrintModal(flights);
+    }
+
+    function openDuty1PrintModal(flights) {
+      _pibDuty1Ctx = { flights: flights.slice() };
+      const modal = document.getElementById('pibDuty1PrintModal');
+      const title = document.getElementById('pibDuty1Title');
+      const sub = document.getElementById('pibDuty1Sub');
+      const list = document.getElementById('pibDuty1List');
+      const warn = document.getElementById('pibDuty1Warn');
+      const printBtn = document.getElementById('pibDuty1PrintBtn');
+      const ofpBtn = document.getElementById('pibDuty1OfpOnlyBtn');
+      if (!modal || !list) return;
+
+      const has2 = flights.some(f => dutyNoForPibFlight(f) === 2);
+      title.textContent = has2
+        ? '🖨 In tài liệu duty #1 + #2 (cùng giờ)'
+        : '🖨 In tài liệu duty #1';
+
+      const missingGd = flights.filter(f => f.gd !== true);
+      const hasAnyOfp = flights.some(f => f.ofp === true);
+      const hasAnyGd = flights.some(f => f.gd === true);
+
+      sub.textContent = has2
+        ? 'Phát hiện OFP/GD trên chuyến đầu (#1). Có thêm chuyến #2 cùng giờ STD — sẽ kiểm tra & in cả hai.'
+        : 'Phát hiện OFP/GD trên chuyến duty #1. In tài liệu cho các chuyến #1 dưới đây?';
+
+      list.innerHTML = flights.map(f => {
+        const d = dutyNoForPibFlight(f);
+        const ofpOk = f.ofp === true;
+        const gdOk = f.gd === true;
+        return `<div style="display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:8px 10px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;background:var(--hover);">
+          <span style="font-weight:800;color:var(--red);">#${d || '?'}</span>
+          <strong>FLT ${escapeHtml(f.flt)}</strong>
+          <span style="color:var(--muted);">${escapeHtml(f.dep || '')}→${escapeHtml(f.arr || '')}</span>
+          <span style="color:var(--muted);">STD ${escapeHtml(f.localTime || '')}</span>
+          <span class="status-pill ${ofpOk ? 'ok' : 'missing'}" style="font-size:0.72rem;padding:2px 7px;border-radius:99px;">OFP ${ofpOk ? '✓' : '✗'}</span>
+          <span class="status-pill ${gdOk ? 'ok' : 'missing'}" style="font-size:0.72rem;padding:2px 7px;border-radius:99px;">GD ${gdOk ? '✓' : '✗'}</span>
+        </div>`;
+      }).join('');
+
+      if (missingGd.length) {
+        warn.style.display = 'block';
+        warn.innerHTML = '⚠ <b>Chưa có GD</b> cho: '
+          + missingGd.map(f => 'FLT ' + escapeHtml(f.flt)).join(', ')
+          + '.<br>Có thể <b>chỉ tải/in OFP</b> cho các chuyến này. Khi có GD, hệ thống sẽ hỏi lại.';
+      } else {
+        warn.style.display = 'none';
+        warn.innerHTML = '';
+      }
+
+      // Nút In: chỉ bật mạnh nếu có ít nhất 1 file; nếu thiếu GD vẫn cho in OFP+GD phần có
+      if (printBtn) {
+        printBtn.disabled = !hasAnyOfp && !hasAnyGd;
+        printBtn.textContent = hasAnyGd ? '🖨 In OFP + GD' : '🖨 In OFP (chưa GD)';
+      }
+      if (ofpBtn) {
+        ofpBtn.style.display = hasAnyOfp ? '' : 'none';
+      }
+
+      modal.style.display = 'flex';
+      pushPibNotification(
+        has2 ? 'In tài liệu #1 + #2?' : 'In tài liệu duty #1?',
+        flights.map(f => 'FLT ' + f.flt + (f.ofp ? ' OFP' : '') + (f.gd ? ' GD' : '')).join(', '),
+        { tag: 'pib-duty1-print', renotify: true, requireInteraction: true }
+      );
+    }
+
+    function closeDuty1PrintModal() {
+      const modal = document.getElementById('pibDuty1PrintModal');
+      if (modal) modal.style.display = 'none';
+      _pibDuty1Ctx = null;
+    }
+
+    async function runDuty1Print(mode) {
+      // mode: 'all' = OFP+GD nếu có; 'ofp' = chỉ OFP
+      if (!_pibDuty1Ctx || !_pibDuty1Ctx.flights.length) {
+        closeDuty1PrintModal();
+        return;
+      }
+      const flights = _pibDuty1Ctx.flights.slice();
+      closeDuty1PrintModal();
+
+      for (const f of flights) {
+        const docs = [];
+        if (mode === 'ofp') {
+          if (f.ofp === true) docs.push('ofp');
+        } else {
+          if (f.ofp === true) docs.push('ofp');
+          if (f.gd === true) docs.push('gd');
+        }
+        if (!docs.length) {
+          addPibActivity('FLT ' + f.flt + ' · chưa có file để in', 'info');
+          continue;
+        }
+        try {
+          if (docs.includes('ofp') && docs.includes('gd')) {
+            await printSpDocs([f], ['ofp']);
+            await printSpDocs([f], ['gd']);
+          } else if (docs.includes('ofp')) {
+            await printSpDocs([f], ['ofp']);
+          } else if (docs.includes('gd')) {
+            await printSpDocs([f], ['gd']);
+          }
+        } catch (e) {
+          addPibActivity('Lỗi in FLT ' + f.flt + ': ' + (e.message || e), 'error');
+        }
+      }
+      showToast('Đã gửi lệnh in duty #1' + (flights.some(f => dutyNoForPibFlight(f) === 2) ? ' + #2' : ''), 'success');
+    }
+
+    document.getElementById('pibDuty1PrintBtn')?.addEventListener('click', () => runDuty1Print('all'));
+    document.getElementById('pibDuty1OfpOnlyBtn')?.addEventListener('click', () => runDuty1Print('ofp'));
+    document.getElementById('pibDuty1CancelBtn')?.addEventListener('click', () => closeDuty1PrintModal());
+    document.getElementById('pibDuty1PrintModal')?.addEventListener('click', (e) => {
+      if (e.target && e.target.id === 'pibDuty1PrintModal') closeDuty1PrintModal();
+    });
 
     async function runSharePointCheck({ onlyMissing = false, silent = false } = {}) {
       if (!pibFlights.length) return { ok: false };
@@ -5214,6 +5603,21 @@ function exportExcel() {
         <button type="button" class="btn" id="pibActionDownload" style="background:linear-gradient(135deg,#0EA5E9,#0284C7);">⬇ Tải</button>
         <button type="button" class="btn" id="pibActionPrint" style="background:linear-gradient(135deg,#D97706,#B45309);">🖨 In</button>
         <button type="button" class="btn" id="pibActionCancel" style="background:linear-gradient(135deg,#6B7280,#4B5563);">Hủy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: in tài liệu duty #1 (và #2 cùng giờ nếu có) -->
+  <div id="pibDuty1PrintModal" class="pib-modal-overlay" style="display:none;" role="dialog" aria-modal="true">
+    <div class="pib-modal" style="max-width:440px;width:100%;">
+      <div class="pib-modal-title" id="pibDuty1Title">🖨 In tài liệu duty #1</div>
+      <div class="pib-modal-sub" id="pibDuty1Sub" style="margin-bottom:10px;"></div>
+      <div id="pibDuty1List" style="font-size:0.88rem;line-height:1.5;margin-bottom:14px;max-height:240px;overflow:auto;"></div>
+      <div id="pibDuty1Warn" style="display:none;background:#FFF6E4;border:1px solid #F3D48A;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:0.84rem;color:#6B5100;line-height:1.45;"></div>
+      <div class="pib-modal-actions">
+        <button type="button" class="btn" id="pibDuty1PrintBtn" style="background:linear-gradient(135deg,#D97706,#B45309);">🖨 In</button>
+        <button type="button" class="btn" id="pibDuty1OfpOnlyBtn" style="background:linear-gradient(135deg,#0EA5E9,#0284C7);">⬇ Chỉ OFP</button>
+        <button type="button" class="btn" id="pibDuty1CancelBtn" style="background:linear-gradient(135deg,#6B7280,#4B5563);">Hủy</button>
       </div>
     </div>
   </div>
