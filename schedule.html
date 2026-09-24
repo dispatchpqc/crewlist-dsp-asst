@@ -112,8 +112,22 @@ main{padding:18px clamp(14px,4vw,44px) 50px}
   min-width:28px;
   font-weight:800;cursor:pointer;user-select:none;
   font-size:10.5px;
+  position:relative;
 }
 .roster-grid .rg-day:hover{box-shadow:inset 0 0 0 1.5px var(--gold-deep);z-index:2}
+.roster-grid .rg-day.editing{z-index:10;overflow:visible}
+.roster-grid .rg-day select.shift-dd{
+  position:absolute;inset:0;width:100%;height:100%;
+  margin:0;padding:0 1px;border:none;border-radius:0;
+  font:inherit;font-size:10px;font-weight:800;text-align:center;
+  background:var(--paper);color:var(--ink);cursor:pointer;
+  appearance:auto;-webkit-appearance:menulist;
+  z-index:11;box-shadow:0 2px 10px rgba(0,0,0,.18);
+}
+.roster-grid .rg-day select.shift-dd:focus{outline:2px solid var(--gold);outline-offset:-1px}
+html[data-theme="dark"] .roster-grid .rg-day select.shift-dd{
+  background:#2a211c;color:#f0e6d8;
+}
 .roster-grid .rg-sum{width:72px;min-width:72px;font-weight:800;font-size:11px;flex-direction:column}
 .roster-grid .rg-hrs{width:64px;min-width:64px;font-weight:800;font-size:12.5px;color:var(--red)}
 .roster-grid .rg-note{width:88px;min-width:88px;font-size:10.5px}
@@ -865,11 +879,26 @@ function parseRosterWorkbook(wb){
     const idRaw=String(r[idCol]||'').replace(/\s+/g,'').trim();
     const name=String(r[nameCol]||'').trim();
     if(STOP_SECTION.test(pos)||STOP_SECTION.test(name)||STOP_SECTION.test(idRaw)) break;
-    // Vị trí trực: known → map sẵn; vị trí mới (vd Briefing PQC) → tự tách nhóm
+
+    // Vị trí trực: known → map sẵn; vị trí mới (vd Briefing PQC) → tự đăng ký nhóm riêng
+    // Hỗ trợ 2 dạng:
+    //  1) Cột "Vị trí trực" có giá trị (cùng hàng NV hoặc hàng tiêu đề nhóm)
+    //  2) Hàng chỉ có tên nhóm ở cột Họ tên / cột đầu, không có mã NV, không có ca
     if(pos){
       const mapped = ensureDept(pos);
       if(mapped) currentDept = mapped;
+      // Hàng chỉ đổi nhóm (không có tên NV) → bỏ qua, không thêm employee
+      if(!name || name.toLowerCase()===pos.toLowerCase()) continue;
+    } else if(!idRaw && name && name.length>=2 && name.length<=40){
+      // Có thể là hàng tiêu đề nhóm viết vào cột Họ tên (một số file Excel)
+      const hasAnyShift = dayCols.some(c => normalizeShift(r[c]));
+      if(!hasAnyShift && !/phạm|nguyễn|trần|lê|phan|huỳnh|võ|đặng|bùi|đỗ|hồ|ngô|dương|lý/i.test(name)){
+        // Không giống tên người Việt phổ biến + không có ca → coi là tên nhóm
+        const mapped = ensureDept(name);
+        if(mapped){ currentDept = mapped; continue; }
+      }
     }
+
     if(!name) continue;
     if(SHIFT_ONLY.test(name)) continue;
     if(/^từ\s/i.test(name)) continue;
@@ -890,7 +919,7 @@ function parseRosterWorkbook(wb){
     }
     list.push({
       id:idRaw.replace(/^0+/,'')||idRaw,
-      name, dept:currentDept, shifts,
+      name, dept: currentDept || 'DM', shifts,
       total: total!=null?total:calcTotal(shifts),
       key:list.length
     });
@@ -1272,7 +1301,7 @@ function renderGrid(){
     const headDays = DAYS.map((dd,i)=>`<div class="rg-cell rg-day ${dayClass(i)}">${dd[0]}</div>`).join('');
     const body = rows.map(e=>{
       const shifts = padShifts(e.shifts);
-      const dayCells = shifts.map((s,i)=>`<div class="rg-cell rg-day s-${s||''} ${dayClass(i)}" onclick="openShiftPicker(${e.key},${i})" title="${DAYS[i]?DAYS[i][0]:''}/${DAYS[i]?DAYS[i][2]:''}">${s||''}</div>`).join('');
+      const dayCells = shifts.map((s,i)=>`<div class="rg-cell rg-day s-${s||''} ${dayClass(i)}" data-key="${e.key}" data-day="${i}" onclick="editCellShift(this,${e.key},${i})" title="${DAYS[i]?DAYS[i][0]:''}/${DAYS[i]?DAYS[i][2]:''}">${s||''}</div>`).join('');
       return `<div class="rg-row">
         <div class="rg-cell rg-name" onclick="openPerson(${e.key})"><div class="empname" title="${e.name}">${e.name}</div><div class="empid">${e.id}</div></div>
         ${dayCells}
@@ -1317,23 +1346,36 @@ function renderDuty(){
   // - Nếu sau 19:30 tối: Ca sắp tới chính là các ca sáng ngày hôm sau (todayIdx + 1)
   // - Nếu trước 07:30 sáng: Ca sắp tới chính là các ca sáng ngày hôm nay (todayIdx)
   const nextShiftIdx = (nowMin >= 19 * 60 + 30) ? todayIdx + 1 : todayIdx;
+  const prevIdx = todayIdx - 1;
 
   list.forEach(e => {
     const sToday = todayIdx >= 0 ? (e.shifts[todayIdx] || '') : '';
     const sNext = (nextShiftIdx >= 0 && nextShiftIdx < DAYS.length) ? (e.shifts[nextShiftIdx] || '') : '';
+    const sPrev = (prevIdx >= 0) ? (e.shifts[prevIdx] || '') : '';
 
     const initials = e.name.split(/\s+/).slice(-2).map(w => w[0]).join('').toUpperCase().slice(0, 2) || '??';
     const d = DEPTS[e.dept] || { name: e.dept, color: '#888' };
 
     // 1. Kiểm tra ĐANG TRỰC (On Duty)
+    // Ưu tiên ca đêm hôm trước còn kéo dài sang sáng hôm nay
     let isOnDuty = false;
-    if (sToday && SHIFT_TIMES[sToday]) {
+    let onDutyShift = '';
+    let onDutyLabel = '';
+    let onDutyRemain = '';
+
+    if (sPrev === 'E' && SHIFT_TIMES.E && nowMin < (SHIFT_TIMES.E.end[0] * 60 + SHIFT_TIMES.E.end[1])) {
+      // Đang trong ca đêm từ ngày hôm trước (còn đến 07:30 sáng nay)
+      isOnDuty = true;
+      onDutyShift = 'E';
+      onDutyLabel = SHIFT_TIMES.E.label;
+      onDutyRemain = remainingText(SHIFT_TIMES.E.end[0], SHIFT_TIMES.E.end[1], true);
+    } else if (sToday && SHIFT_TIMES[sToday]) {
       const t = SHIFT_TIMES[sToday];
       const startM = t.start[0] * 60 + t.start[1];
       const endM = t.end[0] * 60 + t.end[1];
 
       if (t.nextDay) {
-        // Ca đêm (E): 19:30 tối -> 07:30 sáng hôm sau
+        // Ca đêm (E) bắt đầu tối nay: 19:30 tối -> 07:30 sáng hôm sau
         isOnDuty = (nowMin >= startM || nowMin < endM);
       } else {
         // Ca ngày (HC, M, C9)
@@ -1341,28 +1383,38 @@ function renderDuty(){
       }
 
       if (isOnDuty) {
-        onDuty.push({
-          e, initials, d, s: sToday,
-          remain: remainingText(t.end[0], t.end[1], !!t.nextDay),
-          label: t.label
-        });
-        return; // Đang trực thì không tính vào Sắp vào ca
+        onDutyShift = sToday;
+        onDutyLabel = t.label;
+        onDutyRemain = remainingText(t.end[0], t.end[1], !!t.nextDay);
       }
     }
 
+    if (isOnDuty) {
+      onDuty.push({
+        e, initials, d, s: onDutyShift,
+        remain: onDutyRemain,
+        label: onDutyLabel
+      });
+      // KHÔNG return — vẫn kiểm tra ca sắp tới (vd: ca đêm + C9 sáng mai)
+    }
+
     // 2. Kiểm tra SẮP VÀO CA (Upcoming)
+    let addedUpcoming = false;
     // Sau 19:30 tối: chỉ lấy các ca ngày (HC, M, C9) ngày hôm sau, BỎ QUA ca đêm E ngày hôm sau
     if (nowMin >= 19 * 60 + 30) {
       if (sNext && SHIFT_TIMES[sNext] && !SHIFT_TIMES[sNext].nextDay) {
         upcoming.push({ e, initials, d, s: sNext, label: SHIFT_TIMES[sNext].label + ' · sáng mai' });
-        return;
+        addedUpcoming = true;
       }
-    } 
-    // Trước 07:30 sáng: lấy các ca ngày (HC, M, C9) sáng hôm nay
+    }
+    // Trước 07:30 sáng: lấy các ca ngày (HC, M, C9) sáng hôm nay (nếu chưa đang trực ca đó)
     else if (nowMin < 7 * 60 + 30) {
       if (sToday && SHIFT_TIMES[sToday] && !SHIFT_TIMES[sToday].nextDay) {
-        upcoming.push({ e, initials, d, s: sToday, label: SHIFT_TIMES[sToday].label + ' · sáng nay' });
-        return;
+        // Chỉ thêm upcoming nếu chưa đang trong ca đó
+        if (!(isOnDuty && onDutyShift === sToday)) {
+          upcoming.push({ e, initials, d, s: sToday, label: SHIFT_TIMES[sToday].label + ' · sáng nay' });
+          addedUpcoming = true;
+        }
       }
     }
     // Ban ngày (07:30 - 19:30): lấy các ca chưa tới giờ làm trong ngày
@@ -1372,13 +1424,15 @@ function renderDuty(){
         const startM = t.start[0] * 60 + t.start[1];
         if (nowMin < startM) {
           upcoming.push({ e, initials, d, s: sToday, label: t.label });
-          return;
+          addedUpcoming = true;
         }
       }
     }
 
-    // 3. Còn lại xếp vào OFF
-    off.push({ e, initials, d, s: sToday || 'OFF' });
+    // 3. Còn lại xếp vào OFF (chỉ khi không đang trực và không sắp vào ca)
+    if (!isOnDuty && !addedUpcoming) {
+      off.push({ e, initials, d, s: sToday || 'OFF' });
+    }
   });
 
   const item = (it, isOff) => `<div class="dutyitem"><div class="av" style="background:${it.d.color}">${it.initials}</div><div class="info"><div class="nm">${it.e.name}</div><div class="meta">${(it.d.name||'').replace('DSP ','')} · ${isOff ? 'Không ca hôm nay' : (it.label||'')}${it.remain ? ' · ' + it.remain : ''}</div></div><div class="tag ${it.s||'OFF'}">${it.s||'OFF'}</div></div>`;
@@ -1427,9 +1481,48 @@ document.getElementById('selYear').onchange=()=>{ const y=+document.getElementBy
 document.getElementById('btnLoadGh').onclick=()=>{ const y=+document.getElementById('selYear').value,m=+document.getElementById('selMonth').value; loadFromGitHub(y,m); };
 document.getElementById('btnSaveGh').onclick=()=>saveToGitHub();
 
-/* Shift picker */
+/* Shift picker — dropdown trên ô lưới + giữ modal cho lịch cá nhân */
 const overlay=document.getElementById('overlay'), modalBody=document.getElementById('modalBody');
+
+function editCellShift(el, key, dayIdx){
+  if(!requireLogin('Đăng nhập để chọn / sửa ca.')) return;
+  if(el.classList.contains('editing')) return;
+  const e=EMP.find(x=>x.key===key); if(!e) return;
+  const cur = e.shifts[dayIdx] || '';
+  el.classList.add('editing');
+  const opts = SHIFT_PICK.map(s => {
+    const sel = (s.code === cur) ? ' selected' : '';
+    const label = s.code || '—';
+    return `<option value="${s.code}"${sel}>${label}</option>`;
+  }).join('');
+  el.innerHTML = `<select class="shift-dd" size="1">${opts}</select>`;
+  const sel = el.querySelector('select');
+  sel.focus();
+  // Mở dropdown ngay (một số trình duyệt hỗ trợ)
+  try{ sel.showPicker && sel.showPicker(); }catch(ex){}
+  let applied = false;
+  const finish = (code) => {
+    if(applied) return;
+    applied = true;
+    el.classList.remove('editing');
+    if(code !== undefined && code !== cur){
+      applyShift(key, dayIdx, code);
+    } else {
+      // Khôi phục text nếu không đổi
+      el.textContent = cur || '';
+      el.className = `rg-cell rg-day s-${cur||''} ${dayClass(dayIdx)}`;
+    }
+  };
+  sel.onchange = () => finish(sel.value);
+  sel.onblur = () => setTimeout(() => finish(undefined), 120); // delay để onchange kịp chạy
+  sel.onkeydown = (ev) => {
+    if(ev.key === 'Escape'){ finish(undefined); }
+    if(ev.key === 'Enter'){ finish(sel.value); }
+  };
+}
+
 function openShiftPicker(key, dayIdx){
+  // Dùng cho lịch cá nhân (openPerson) — vẫn list modal cho dễ đọc label đầy đủ
   if(!requireLogin('Đăng nhập để chọn / sửa ca.')) return;
   const e=EMP.find(x=>x.key===key); if(!e) return;
   const dd=DAYS[dayIdx]||['?','?',''];
