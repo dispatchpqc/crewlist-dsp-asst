@@ -4245,11 +4245,32 @@ function exportExcel() {
       showToast('Đã gửi lệnh in duty #1' + (flights.some(f => dutyNoForPibFlight(f) === 2) ? ' + #2' : ''), 'success');
     }
 
-    document.getElementById('pibDuty1PrintBtn')?.addEventListener('click', () => runDuty1Print('all'));
-    document.getElementById('pibDuty1OfpOnlyBtn')?.addEventListener('click', () => runDuty1Print('ofp'));
-    document.getElementById('pibDuty1CancelBtn')?.addEventListener('click', () => closeDuty1PrintModal());
-    document.getElementById('pibDuty1PrintModal')?.addEventListener('click', (e) => {
-      if (e.target && e.target.id === 'pibDuty1PrintModal') closeDuty1PrintModal();
+    // Modal HTML nằm SAU thẻ script → dùng ủy quyền sự kiện trên document
+    document.addEventListener('click', function duty1ModalClick(e) {
+      const t = e.target;
+      if (!t) return;
+      // Bấm nền overlay → đóng
+      if (t.id === 'pibDuty1PrintModal') {
+        e.preventDefault();
+        closeDuty1PrintModal();
+        return;
+      }
+      const btn = t.closest && t.closest('#pibDuty1PrintBtn, #pibDuty1OfpOnlyBtn, #pibDuty1CancelBtn');
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (btn.id === 'pibDuty1CancelBtn') {
+        closeDuty1PrintModal();
+        return;
+      }
+      if (btn.id === 'pibDuty1PrintBtn') {
+        runDuty1Print('all');
+        return;
+      }
+      if (btn.id === 'pibDuty1OfpOnlyBtn') {
+        runDuty1Print('ofp');
+        return;
+      }
     });
 
     async function runSharePointCheck({ onlyMissing = false, silent = false } = {}) {
