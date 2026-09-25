@@ -418,6 +418,55 @@
       line-height: 1.55;
     }
     .cp-name { font-size: 0.8rem; color: var(--muted); }
+    /* Dấu * brief — badge vuông cân đối, căn giữa glyph */
+    .brief-star {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff !important;
+      background: var(--red);
+      font-weight: 800;
+      font-size: 0.72em;
+      line-height: 1;
+      width: 1.35em;
+      height: 1.35em;
+      min-width: 1.35em;
+      padding: 0;
+      margin: 0 0 0 4px;
+      border-radius: 3px;
+      vertical-align: middle;
+      box-shadow: 0 1px 2px rgba(227, 6, 19, 0.3);
+      flex-shrink: 0;
+      /* Glyph * thường nằm cao trong em-box — kéo nhẹ xuống để cân giữa badge */
+      transform: translateY(0.06em);
+    }
+    html.dark .brief-star {
+      background: var(--red);
+      color: #fff !important;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    }
+    /* TIME BRF cột: cùng style cân đối */
+    .c-brf .brief-star,
+    td.c-brf span.brief-star,
+    td.c-brf span[title*="brief"] {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff !important;
+      background: var(--red);
+      font-weight: 800;
+      font-size: 0.72em;
+      line-height: 1;
+      width: 1.35em;
+      height: 1.35em;
+      min-width: 1.35em;
+      padding: 0;
+      margin: 0 0 0 4px;
+      border-radius: 3px;
+      vertical-align: middle;
+      box-shadow: 0 1px 2px rgba(227, 6, 19, 0.3);
+      transform: translateY(0.06em);
+    }
     .c-dep .route-full { display: none; }
     .c-dep .dep-only { display: inline; }
     .c-crew .marquee-track { display: contents; }
@@ -2587,18 +2636,19 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
     function formatCrewList(f, opts) {
       const multiline = !!(opts && opts.multiline);
       const sep = multiline ? '\n' : ' · ';
+      // Set id cần đánh dấu * (sẽ ghé phòng brief)
+      const briefIds = (opts && opts.briefIds instanceof Set) ? opts.briefIds : null;
       const list = (f && f.crewMembers) ? f.crewMembers : [];
       if (!list.length) {
-        // fallback từ các field đã parse
         const parts = [];
-        if (f.cpPlusId) parts.push('CP+ ' + (f.cpPlusName || '') + ' (' + f.cpPlusId + ')');
-        if (f.foId) parts.push('FO ' + (f.foName || '') + ' (' + f.foId + ')');
-        if (f.cmId) parts.push('CM ' + (f.cmName || '') + ' (' + f.cmId + ')');
-        if (f.caId) parts.push('CA ' + (f.caName || '') + ' (' + f.caId + ')');
-        if (f.bmId) parts.push('BM ' + (f.bmName || '') + ' (' + f.bmId + ')');
+        const mark = (id) => (briefIds && briefIds.has(String(id)) ? '*' : '');
+        if (f.cpPlusId) parts.push('CP+ ' + (f.cpPlusName || '') + ' (' + f.cpPlusId + ')' + mark(f.cpPlusId));
+        if (f.foId) parts.push('FO ' + (f.foName || '') + ' (' + f.foId + ')' + mark(f.foId));
+        if (f.cmId) parts.push('CM ' + (f.cmName || '') + ' (' + f.cmId + ')' + mark(f.cmId));
+        if (f.caId) parts.push('CA ' + (f.caName || '') + ' (' + f.caId + ')' + mark(f.caId));
+        if (f.bmId) parts.push('BM ' + (f.bmName || '') + ' (' + f.bmId + ')' + mark(f.bmId));
         return parts.join(sep);
       }
-      // Tránh trùng id
       const seen = new Set();
       const parts = [];
       list.forEach(c => {
@@ -2606,34 +2656,38 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
         if (seen.has(key)) return;
         seen.add(key);
         const tag = c.dhc ? (c.roleBase + ',DHC') : c.roleBase;
-        parts.push(tag + ' ' + (c.name || '') + ' (' + c.id + ')');
+        const star = (briefIds && briefIds.has(String(c.id))) ? '*' : '';
+        parts.push(tag + ' ' + (c.name || '') + ' (' + c.id + ')' + star);
       });
       return parts.join(sep);
     }
 
-    // Nút thu gọn / xem đầy đủ danh sách tổ bay (lọc CM — chỉ mobile)
+    // Nút thu gọn / xem đầy đủ (chỉ hiện mobile). Nội dung luôn FULL; chỉ đổi class.
     document.getElementById('resultTable')?.addEventListener('click', (e) => {
       const btn = e.target.closest('.crew-toggle');
       if (!btn) return;
       e.preventDefault();
       e.stopPropagation();
       const block = btn.closest('.crew-block');
-      const text = block && block.querySelector('.crew-text');
-      if (!text) return;
-      const full = text.dataset.full || text.textContent || '';
-      const preview = text.dataset.preview || '';
+      const textEl = block && block.querySelector('.crew-text');
+      if (!textEl) return;
+      const full = textEl.dataset.full || '';
       const expanded = btn.dataset.expanded === '1';
       if (expanded) {
-        text.classList.add('is-collapsed');
-        text.classList.remove('is-expanded');
-        text.textContent = preview || full;
+        textEl.classList.add('is-collapsed');
+        textEl.classList.remove('is-expanded');
+        if (full) {
+          textEl.innerHTML = escapeHtml(full).replace(/\*/g, '<span class="brief-star" title="Sẽ ghé phòng brief">*</span>');
+        }
         btn.dataset.expanded = '0';
         btn.textContent = 'Xem đầy đủ';
         btn.title = 'Xem đầy đủ tổ bay';
       } else {
-        text.classList.remove('is-collapsed');
-        text.classList.add('is-expanded');
-        text.textContent = full;
+        textEl.classList.remove('is-collapsed');
+        textEl.classList.add('is-expanded');
+        if (full) {
+          textEl.innerHTML = escapeHtml(full).replace(/\*/g, '<span class="brief-star" title="Sẽ ghé phòng brief">*</span>');
+        }
         btn.dataset.expanded = '1';
         btn.textContent = 'Thu gọn';
         btn.title = 'Thu gọn tổ bay';
@@ -2650,7 +2704,7 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       sw.classList.toggle('mode-cm', mode === 'CM');
       document.getElementById('modeBtnCP').classList.toggle('active', mode === 'CP');
       document.getElementById('modeBtnCM').classList.toggle('active', mode === 'CM');
-      document.getElementById('resultRoleHeader').textContent = mode === 'CM' ? 'Tổ bay (CM/CA/BM…)' : 'CP+';
+      document.getElementById('resultRoleHeader').textContent = mode === 'CM' ? 'Tổ bay (CM/CA/BA…)' : 'CP+ / FO';
 
       const card = document.getElementById('resultCard');
       if (rawFlights.length) {
@@ -2660,23 +2714,76 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
         card.classList.add('switching');
         setTimeout(() => processData(filterMode), 170);
       }
-      showToast('Đã chuyển sang lọc theo ' + (mode === 'CM' ? 'CM' : 'CP+'), 'info');
+      showToast('Đã chuyển sang lọc theo ' + (mode === 'CM' ? 'CM/CA/BA' : 'CP+/FO'), 'info');
     }
 
     document.getElementById('modeBtnCP').addEventListener('click', () => setFilterMode('CP'));
     document.getElementById('modeBtnCM').addEventListener('click', () => setFilterMode('CM'));
+
+    /** Vai trò liên quan theo chế độ lọc (kể cả DHC) */
+    function relevantRoleBases(mode) {
+      if (mode === 'CM') return new Set(['CM', 'CA', 'BA', 'BM']);
+      return new Set(['CP+', 'CP', 'CPT', 'CPT+', 'FO']);
+    }
+
+    function memberRoleMatches(member, mode) {
+      const bases = relevantRoleBases(mode);
+      const rb = String(member.roleBase || member.role || '').replace(/\s+/g, '').toUpperCase();
+      if (bases.has(rb)) return true;
+      // CP+ variants
+      if (mode !== 'CM' && (rb.indexOf('CP') === 0 || rb === 'FO')) return true;
+      return false;
+    }
+
+    /** Lấy danh sách thành viên liên quan trên chuyến (CM: CM/CA/BA/BM · CP: CP+/FO) — gồm DHC */
+    function getRelevantMembers(f, mode) {
+      const list = (f && f.crewMembers) ? f.crewMembers : [];
+      const out = [];
+      const seen = new Set();
+      list.forEach(c => {
+        if (!memberRoleMatches(c, mode)) return;
+        const key = String(c.id || '') + '|' + String(c.roleBase || '');
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push(c);
+      });
+      // Fallback từ field cũ nếu chưa có crewMembers
+      if (!out.length) {
+        if (mode === 'CM') {
+          if (f.cmId) out.push({ id: f.cmId, name: f.cmName || '', roleBase: 'CM', dhc: false });
+          if (f.caId) out.push({ id: f.caId, name: f.caName || '', roleBase: 'CA', dhc: false });
+          if (f.bmId) out.push({ id: f.bmId, name: f.bmName || '', roleBase: 'BM', dhc: false });
+        } else {
+          if (f.cpPlusId) out.push({ id: f.cpPlusId, name: f.cpPlusName || '', roleBase: 'CP+', dhc: false });
+          if (f.foId) out.push({ id: f.foId, name: f.foName || '', roleBase: 'FO', dhc: false });
+        }
+      }
+      return out;
+    }
+
+    /** Người đó có đang bắt đầu duty tại chuyến f? (chuyến đầu hoặc rest > 6h) */
+    function staffStartsAtFlight(staffId, f, byStaff, REST) {
+      if (!staffId || !f) return false;
+      const flist = byStaff[String(staffId)] || [];
+      let idx = -1;
+      for (let i = 0; i < flist.length; i++) {
+        if (flist[i].flt === f.flt && flist[i].stdDt && f.stdDt &&
+            flist[i].stdDt.getTime() === f.stdDt.getTime()) { idx = i; break; }
+      }
+      if (idx === -1) idx = flist.findIndex(ff => ff.flt === f.flt);
+      if (idx === -1) return false;
+      if (idx === 0) return true;
+      const prev = flist[idx - 1];
+      if (prev.staDt && f.stdDt) return (f.stdDt - prev.staDt > REST);
+      return true;
+    }
 
     function processData(mode, opts) {
       mode = mode || filterMode;
       const silent = !!(opts && opts.silent);
       const idField = mode === 'CM' ? 'cmId' : 'cpPlusId';
       const nameField = mode === 'CM' ? 'cmName' : 'cpPlusName';
-      const roleLabel = mode === 'CM' ? 'CM' : 'CP+';
-      // Vai trò phụ dùng để "gỡ" điều kiện rest khi chính CP+/CM không đủ rest
-      // (ví dụ do DHC ở chuyến trước): nếu FO (bên CP+) / CA (bên CM) trên CHÍNH
-      // chuyến đó đang bắt đầu chuyến đầu tiên của họ tại PQC, vẫn xuất kết quả.
-      const secField = mode === 'CM' ? 'caId' : 'foId';
-      const secLabel = mode === 'CM' ? 'CA' : 'FO';
+      const roleLabel = mode === 'CM' ? 'CM/CA/BA' : 'CP+/FO';
 
       const restH = 6;
       const REST = restH * 3600 * 1000;
@@ -2694,83 +2801,106 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
 
       const results = [];
       let pqcTotal = 0, excluded = 0;
-      const pqcFlights = rawFlights.filter(f => f.dep === 'PQC' && f[idField]);
+      // PQC + có ít nhất 1 thành viên liên quan (CM/CA/BA hoặc CP+/FO), kể cả DHC
+      const pqcFlights = rawFlights.filter(f => f.dep === 'PQC' && getRelevantMembers(f, mode).length);
 
-      // ---- Chẩn đoán nhanh khi ra 0 kết quả ----
       const depPqcCount = rawFlights.filter(f => f.dep === 'PQC').length;
-      const roleCount = rawFlights.filter(f => f[idField]).length;
+      const roleCount = pqcFlights.length;
       const uniqueDeps = [...new Set(rawFlights.map(f => f.dep))];
       console.log('[Chẩn đoán lọc PQC · ' + roleLabel + ']', {
         tongChuyen: rawFlights.length,
         soChuyenDepPQC: depPqcCount,
-        ['soChuyenCo' + roleLabel]: roleCount,
+        soChuyenCoVaiLienQuan: roleCount,
         cacGiaTriDEPTimThay: uniqueDeps,
-        vaiChuyenMauDEP: rawFlights.slice(0, 3).map(f => ({ flt: f.flt, dep: f.dep, crewLines: f.crewLines })),
       });
       window.__lastDiagnostic = { depPqcCount, roleCount, roleLabel, uniqueDeps, total: rawFlights.length };
 
+      // Tránh trùng cùng chuyến PQC (nhiều CM/CA cùng thỏa) — và tránh 1 chuyến
+      // đã nằm trong 1 chuỗi duty khác bị tách ra thành 1 kết quả riêng nữa
+      // (VD: FLT 1244 đã là chặng cuối trong chuỗi bắt đầu từ 1224, không nên
+      // xuất hiện lần 2 chỉ vì có người mới ghép vào đủ rest ≥6h tại đó).
+      const seenFltKey = new Set();
+      const fltKeyOf = (ff) => String(ff.flt) + '|' + (ff.stdDt ? ff.stdDt.getTime() : '');
+
+      // Xử lý theo thứ tự thời gian để chuỗi bắt đầu SỚM HƠN luôn được dựng trước,
+      // nhờ đó các chặng tiếp nối phía sau (như 1244) được gộp đúng vào chuỗi đó
+      // thay vì bị coi là điểm bắt đầu của 1 chuỗi mới khi duyệt tới.
+      pqcFlights.sort((a, b) => (a.stdDt || 0) - (b.stdDt || 0));
+
       for (const f of pqcFlights) {
         pqcTotal++;
-        const cid = f[idField];
-        const flist = byStaff[cid] || [];
+        const rel = getRelevantMembers(f, mode);
+        if (!rel.length) continue;
+
+        // Chỉ người ĐANG DUTY (không DHC) mới xét bắt đầu / brief.
+        // DHC = deadhead trên chuyến này → không duty → không xuất kết quả chỉ vì DHC,
+        // không gắn * brief (vd BA,DHC trên 1206 không được tính).
+        const operating = rel.filter(m => !m.dhc);
+        if (!operating.length) { excluded++; continue; }
+
+        // Ai trong nhóm đang duty BẮT ĐẦU (rest ≥6h hoặc chuyến đầu)?
+        const starters = operating.filter(m => staffStartsAtFlight(m.id, f, byStaff, REST));
+        if (!starters.length) { excluded++; continue; }
+
+        const fltKey = fltKeyOf(f);
+        // Chuyến này đã thuộc về 1 chuỗi duty khác rồi (là chặng tiếp nối hoặc đã
+        // được xử lý) → KHÔNG tách thành 1 kết quả riêng nữa. Người mới ghép vào
+        // giữa chuỗi (đủ rest ≥6h) sẽ được đánh dấu * ngay trên chặng đó bên dưới,
+        // thay vì bị hiển thị thành 1 chuỗi "bắt đầu" riêng gây trùng lặp.
+        if (seenFltKey.has(fltKey)) continue;
+
+        // Leader: ưu tiên CM/CP+ đang duty, rồi starter
+        const primaryPref = mode === 'CM'
+          ? (operating.find(m => m.roleBase === 'CM') || starters.find(m => m.roleBase === 'CM') || starters[0])
+          : (operating.find(m => m.roleBase === 'CP+' || m.roleBase === 'CP') || starters.find(m => m.roleBase === 'CP+' || m.roleBase === 'CP') || starters[0]);
+        const cid = primaryPref ? primaryPref.id : (f[idField] || starters[0].id);
+        const cname = primaryPref ? (primaryPref.name || primaryPref.id) : (f[nameField] || cid);
+
+        // Chuỗi duty theo leader
+        const flist = byStaff[String(cid)] || [];
         let idx = -1;
         for (let i = 0; i < flist.length; i++) {
           if (flist[i].flt === f.flt && flist[i].stdDt && f.stdDt &&
               flist[i].stdDt.getTime() === f.stdDt.getTime()) { idx = i; break; }
         }
         if (idx === -1) idx = flist.findIndex(ff => ff.flt === f.flt);
-        if (idx === -1) continue;
+        if (idx === -1) idx = 0;
 
-        let isStart = false;
-        if (idx === 0) isStart = true;
-        else {
-          const prev = flist[idx - 1];
-          if (prev.staDt && f.stdDt) {
-            if (f.stdDt - prev.staDt > REST) isStart = true;
-          } else isStart = true;
-        }
-
-        if (!isStart) {
-          // Điều kiện bổ sung: nếu FO (CP+)/CA (CM) trên chính chuyến này đang
-          // bắt đầu chuyến đầu tiên của HỌ tại PQC (rest của họ đủ hoặc là
-          // chuyến đầu tiên), thì bỏ qua rest thiếu của CP+/CM và vẫn xuất kết quả.
-          const secId = f[secField];
-          if (secId) {
-            const secList = byStaff[secId] || [];
-            let sidx = -1;
-            for (let i = 0; i < secList.length; i++) {
-              if (secList[i].flt === f.flt && secList[i].stdDt && f.stdDt &&
-                  secList[i].stdDt.getTime() === f.stdDt.getTime()) { sidx = i; break; }
-            }
-            if (sidx === -1) sidx = secList.findIndex(ff => ff.flt === f.flt);
-            if (sidx !== -1) {
-              let secIsStart = false;
-              if (sidx === 0) secIsStart = true;
-              else {
-                const sprev = secList[sidx - 1];
-                if (sprev.staDt && f.stdDt) {
-                  if (f.stdDt - sprev.staDt > REST) secIsStart = true;
-                } else secIsStart = true;
-              }
-              if (secIsStart) {
-                isStart = true;
-                console.log(`[Bỏ qua rest ${roleLabel}] FLT ${f.flt}: ${secLabel} ${secId} bắt đầu chuyến đầu tại PQC → vẫn xuất kết quả.`);
-              }
-            }
+        const seq = [f];
+        // legStarters[i] = những người BẮT ĐẦU duty đúng tại chặng seq[i] (đủ rest
+        // ≥6h hoặc đây là chuyến đầu của họ) — tính riêng cho từng chặng, để phát
+        // hiện việc đổi ca 1 phần tổ bay ngay GIỮA chuỗi (không chỉ ở chặng đầu).
+        const legStarters = [starters];
+        if (flist.length && idx >= 0) {
+          let j = idx + 1;
+          while (j < flist.length) {
+            const curr = flist[j], prevf = flist[j - 1];
+            if (prevf.staDt && curr.stdDt && (curr.stdDt - prevf.staDt > REST)) break;
+            seq.push(curr);
+            const currRel = getRelevantMembers(curr, mode).filter(m => !m.dhc);
+            const currStarters = currRel.filter(m => staffStartsAtFlight(m.id, curr, byStaff, REST));
+            legStarters.push(currStarters);
+            j++;
           }
         }
 
-        if (!isStart) { excluded++; continue; }
+        // Đánh dấu MỌI chặng trong chuỗi này là "đã dùng" — không chỉ chặng neo —
+        // để các chặng phía sau (như 1244) không bị duyệt lại thành 1 chuỗi mới.
+        for (const sf of seq) seenFltKey.add(fltKeyOf(sf));
 
-        const seq = [f];
-        let j = idx + 1;
-        while (j < flist.length) {
-          const curr = flist[j], prevf = flist[j - 1];
-          if (prevf.staDt && curr.stdDt && (curr.stdDt - prevf.staDt > REST)) break;
-          if (curr[idField] === cid) seq.push(curr);
-          j++;
-        }
-        results.push({ cp: f[nameField] || cid, cpId: cid, seq });
+        results.push({
+          cp: cname,
+          cpId: cid,
+          seq,
+          legStarters,
+          // Giữ lại để tương thích ngược: người cần ghé phòng brief ở chặng đầu
+          briefMembers: starters.map(m => ({
+            id: m.id,
+            name: m.name || '',
+            roleBase: m.roleBase || '',
+            dhc: !!m.dhc
+          }))
+        });
       }
 
       results.sort((a, b) => (a.seq[0].stdDt || 0) - (b.seq[0].stdDt || 0));
@@ -2789,6 +2919,16 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
         }
         tbody.innerHTML = `<tr><td colspan="8" class="empty">${hint}</td></tr>`;
       } else {
+        // Chú thích chung cho dấu * — chỉ 1 dòng duy nhất cho toàn bộ kết quả
+        // (thay vì lặp lại danh sách tên ở mỗi chặng/nhóm). Chỉ áp dụng cho CM,
+        // vì bên lọc CP+ /FO không cần đánh dấu *.
+        if (filterMode === 'CM') {
+          const legend = document.createElement('tr');
+          legend.className = 'brief-legend-row';
+          legend.innerHTML = '<td colspan="8" style="padding:6px 12px 12px;font-size:0.78rem;color:var(--muted);">'
+            + '<span style="color:var(--red);font-weight:800;">*</span> : Sẽ ghé phòng brief</td>';
+          tbody.appendChild(legend);
+        }
         for (const r of results) {
           const hr = document.createElement('tr');
           hr.className = 'group-header';
@@ -2812,21 +2952,53 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
               brf = formatTime(brfDt);
             }
             const isFirst = idx === 0;
-            // CP+: chỉ hiện tên ở chuyến đầu chuỗi (tránh lặp mọi dòng)
-            // CM: tổ bay theo từng chuyến
-            const crewText = (filterMode === 'CM')
-              ? formatCrewList(f, { multiline: true })
-              : (isFirst ? ((r.cp || '') + (r.cpId ? ' (' + r.cpId + ')' : '')) : '');
-            const crewLabel = filterMode === 'CM' ? 'Tổ bay' : 'Cơ trưởng (CP+)';
-            // CM: mobile thu gọn ~2 dòng; desktop CSS luôn hiện đủ
+            // Người bắt đầu duty riêng tại CHẶNG NÀY (đổi ca giữa chuỗi cũng được
+            // đánh dấu, không chỉ chặng đầu) — dữ liệu cũ (chưa có legStarters) sẽ
+            // fallback về hành vi cũ (chỉ đánh dấu chặng đầu).
+            // Bên lọc CP (CP+/FO) không cần đánh dấu * — chỉ áp dụng cho CM.
+            const rowStarterList = filterMode === 'CM'
+              ? ((r.legStarters && r.legStarters[idx]) || (isFirst ? (r.briefMembers || []) : []))
+              : [];
+            const briefIds = new Set(rowStarterList.map(m => String(m.id)));
+            // CM: chỉ hiện danh sách tổ bay ở chặng đầu, hoặc chặng có người mới
+            // ghép vào (đổi ca giữa chuỗi) — chặng tiếp nối không đổi tổ bay
+            // (như 511 sau 510) không cần lặp lại y hệt danh sách phía trên.
+            // CP: hiện CP+/FO ở chuyến đầu (hoặc chặng có đổi ca), * nếu họ cần brief
+            let crewText = '';
+            if (filterMode === 'CM') {
+              if (isFirst || briefIds.size) {
+                crewText = formatCrewList(f, {
+                  multiline: true,
+                  briefIds: briefIds.size ? briefIds : null
+                });
+              }
+            } else if (isFirst || briefIds.size) {
+              const rel = getRelevantMembers(f, 'CP');
+              if (rel.length) {
+                crewText = rel.map(m => {
+                  const tag = m.dhc ? (m.roleBase + ',DHC') : m.roleBase;
+                  const star = briefIds.has(String(m.id)) ? '*' : '';
+                  return tag + ' ' + (m.name || '') + ' (' + m.id + ')' + star;
+                }).join('\n');
+              } else if (isFirst) {
+                crewText = (r.cp || '') + (r.cpId ? ' (' + r.cpId + ')' : '')
+                  + (briefIds.has(String(r.cpId)) ? '*' : '');
+              }
+            }
+            const crewLabel = filterMode === 'CM' ? 'Tổ bay' : 'CP+ / FO';
             const memberLines = crewText ? crewText.split('\n').filter(Boolean) : [];
             const memberCount = (f.crewMembers && f.crewMembers.length) || memberLines.length;
             const needCollapse = filterMode === 'CM' && crewText && (crewText.length > 36 || memberCount > 2);
-            const isMobileView = typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 680px)').matches;
+            // Nút "Xem đầy đủ / Thu gọn" luôn được dựng sẵn trong HTML khi cần thu
+            // gọn; việc CHỈ HIỆN nút này khi xem trên điện thoại là do CSS
+            // (@media max-width:680px) xử lý — không phụ thuộc vào thiết bị lúc
+            // dựng bảng, nên đúng trên mọi màn hình kể cả khi xoay/resize sau đó.
             let crewCell = '';
             if (crewText) {
-              if (needCollapse && isMobileView) {
-                // Preview ngắn (2 người) — bấm nút mới hiện full
+              // Luôn ghi FULL list vào ô (desktop hiện đủ; mobile CSS clamp 2 dòng khi collapsed).
+              // Trước đây ghi preview → desktop chỉ thấy 2 dòng đầu (thường chỉ CP+/FO).
+              const fullHtml = escapeHtml(crewText).replace(/\*/g, '<span class="brief-star" title="Sẽ ghé phòng brief">*</span>');
+              if (needCollapse) {
                 const preview = memberLines.slice(0, 2).join(' · ') + (memberLines.length > 2 ? '…' : '');
                 crewCell =
                   '<div class="crew-block">'
@@ -2834,13 +3006,20 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
                   + '<span class="crew-text is-collapsed"'
                   + ' data-full="' + escapeHtml(crewText).replace(/"/g, '&quot;') + '"'
                   + ' data-preview="' + escapeHtml(preview).replace(/"/g, '&quot;') + '">'
-                  + escapeHtml(preview)
+                  + fullHtml
                   + '</span>'
                   + '</div>';
               } else {
-                // Desktop hoặc danh sách ngắn: hiện đủ
-                crewCell = '<span class="crew-text is-expanded">' + escapeHtml(crewText) + '</span>';
+                crewCell = '<span class="crew-text is-expanded">' + fullHtml + '</span>';
               }
+            } else if (!isFirst) {
+              // Chặng tiếp nối, tổ bay không đổi so với chặng trước trong chuỗi
+              crewCell = '<span class="crew-text is-expanded" style="color:var(--muted);font-style:italic;">— tiếp nối, không đổi tổ bay</span>';
+            }
+            // Ghi chú briefing cạnh TIME BRF nếu chặng này có người *
+            let brfCell = (isFirst || briefIds.size) ? brf : '';
+            if (briefIds.size) {
+              brfCell = (brf || '—') + ' <span class="brief-star" title="Người đánh dấu * sẽ ghé phòng brief">*</span>';
             }
             tr.className = 'flight-row ' + (isFirst ? 'first' : 'cont');
             tr.innerHTML = `
@@ -2850,8 +3029,8 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
               <td class="c-dep" data-label="Đi"><span class="dep-only">${f.dep}</span><span class="route-full">${f.dep}<span class="arrow">→</span>${f.arr}</span></td>
               <td class="c-arr" data-label="Đến">${f.arr}</td>
               <td class="c-std" data-label="Giờ cất cánh">${local.timeStr}</td>
-              <td class="c-brf" data-label="Briefing">${isFirst ? brf : ''}</td>
-              <td class="cp-name c-crew" data-label="${crewLabel}" style="font-size:0.78rem;line-height:1.35;max-width:420px;">${crewCell}</td>`;
+              <td class="c-brf" data-label="Briefing">${brfCell}</td>
+              <td class="cp-name c-crew" data-label="${crewLabel}" style="font-size:0.78rem;line-height:1.4;min-width:220px;max-width:520px;white-space:pre-line;">${crewCell}</td>`;
             tbody.appendChild(tr);
           });
           const sep = document.createElement('tr');
@@ -6540,7 +6719,11 @@ function exportExcel() {
     const el = document.getElementById('rSyncStatus');
     if(!el) return;
     el.textContent = msg || '';
-    el.style.color = ok === true ? '#4C8C5A' : (ok === false ? '#C0392B' : '#6B5B4C');
+    // true=ok xanh · false=lỗi đỏ · 'pending'=vàng chờ · khác=xám
+    if (ok === true) el.style.color = '#4C8C5A';
+    else if (ok === false) el.style.color = '#C0392B';
+    else if (ok === 'pending') el.style.color = '#B45309';
+    else el.style.color = '#6B5B4C';
   }
 
   async function syncFromGithub(opts){
@@ -6758,19 +6941,19 @@ function exportExcel() {
     const y = payload.year || currentYear;
     const m = payload.month || currentMonth;
     const path = 'data/roster-' + y + '-' + String(m).padStart(2,'0') + '.json';
-    setSyncStatus('Đang đẩy roster JSON…');
+    setSyncStatus('⏳ Pending · đang đẩy ' + path + '…', 'pending');
     const result = await putGithubFile(
       path,
       JSON.stringify(payload, null, 2),
       'Update roster ' + y + '-' + String(m).padStart(2,'0') + ' from web'
     );
-    setSyncStatus('✓ JSON ' + path + ' · ' + new Date().toLocaleTimeString('vi-VN'), true);
+    setSyncStatus('⏳ Pending · GitHub đã nhận JSON, đang xác nhận…', 'pending');
     return result;
   }
 
   /** Cập nhật RAW_SHIFTS + CUSTOM_SHIFTS_EMBED trong index.html trên GitHub */
   async function pushIndexHtmlToGithub(){
-    setSyncStatus('Đang cập nhật index.html trên GitHub…');
+    setSyncStatus('⏳ Pending · đang cập nhật index.html…', 'pending');
     const apiPath = '/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/index.html';
     const existing = await githubApi(apiPath);
     if (!existing || !existing.content) throw new Error('Không đọc được index.html trên GitHub');
@@ -6795,7 +6978,7 @@ function exportExcel() {
       html,
       'Update index.html roster (NV/ca) from web · ' + currentYear + '-' + String(currentMonth).padStart(2,'0')
     );
-    setSyncStatus('✓ index.html + JSON · ' + new Date().toLocaleTimeString('vi-VN'), true);
+    setSyncStatus('⏳ Pending · GitHub đã nhận index.html…', 'pending');
   }
 
 
@@ -6807,17 +6990,27 @@ function exportExcel() {
       if(!token) return;
     }
     try {
+      setSyncStatus('⏳ Pending · chuẩn bị đẩy lên GitHub…', 'pending');
+      if(typeof showToast==='function') showToast('Pending · đang đẩy lên GitHub…', 'info');
       saveRoster();
       const payload = buildRosterPayloadFromEMP();
       await pushRosterJsonToGithub(payload);
+      let indexOk = true;
       try {
         await pushIndexHtmlToGithub();
       } catch (htmlErr) {
+        indexOk = false;
         console.warn('push index.html', htmlErr);
-        if(typeof showToast==='function') showToast('JSON ok, nhưng lỗi cập nhật index.html: ' + String(htmlErr.message||htmlErr).slice(0,80), 'info');
-        // vẫn coi là thành công một phần nếu JSON đã đẩy
+        if(typeof showToast==='function') showToast('JSON đã gửi, nhưng lỗi index.html: ' + String(htmlErr.message||htmlErr).slice(0,80), 'info');
       }
-      if(typeof showToast==='function') showToast('Đã đẩy GitHub: roster JSON + index.html', 'success');
+      // Chỉ báo xong sau khi API trả về — vẫn ghi nhận pending → done
+      const t = new Date().toLocaleTimeString('vi-VN');
+      if (indexOk) {
+        setSyncStatus('✓ Đã lên GitHub · JSON + index.html · ' + t, true);
+        if(typeof showToast==='function') showToast('GitHub đã nhận: roster JSON + index.html', 'success');
+      } else {
+        setSyncStatus('✓ JSON đã lên GitHub · index.html lỗi · ' + t, true);
+      }
     } catch(err){
       console.warn(err);
       const msg = String(err.message||err);
