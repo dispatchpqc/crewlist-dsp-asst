@@ -4053,9 +4053,10 @@ function exportExcel() {
       return { changed, newlyOk, newlyFile };
     }
 
-    /** Tránh hỏi in lặp lại cùng chuyến trong phiên */
+    /** Tránh hỏi in lặp lại trong phiên + lịch sử đã in (localStorage, theo ngày+FLT) */
     const _pibDuty1Offered = new Set();
     let _pibDuty1Ctx = null; // { flights: [...] }
+    const PIB_PRINTED_KEY = 'sunpq_pib_printed_v1';
 
     function pibSameStdKey(f) {
       const t = f.localTime || '';
@@ -4063,11 +4064,68 @@ function exportExcel() {
       return d + '|' + t;
     }
 
+    /** Khóa lịch sử: ngày VN + FLT + STD — hôm nay 510 ≠ mai 510 */
+    function pibPrintHistoryKey(f) {
+      const d = f.ngayVN ? formatDate(f.ngayVN) : (f.localTime ? '' : '');
+      const day = d || 'unknown';
+      const flt = String(f.flt || '').trim();
+      const std = String(f.localTime || '').trim();
+      return day + '|' + flt + '|' + std;
+    }
+
+    function loadPibPrintedMap() {
+      try {
+        const raw = localStorage.getItem(PIB_PRINTED_KEY);
+        if (!raw) return {};
+        const obj = JSON.parse(raw);
+        return (obj && typeof obj === 'object') ? obj : {};
+      } catch (e) { return {}; }
+    }
+
+    function savePibPrintedMap(map) {
+      try {
+        // Giữ tối đa ~45 ngày gần nhất
+        const entries = Object.entries(map || {});
+        if (entries.length > 400) {
+          entries.sort((a, b) => (b[1].at || 0) - (a[1].at || 0));
+          const keep = {};
+          entries.slice(0, 300).forEach(([k, v]) => { keep[k] = v; });
+          map = keep;
+        }
+        localStorage.setItem(PIB_PRINTED_KEY, JSON.stringify(map));
+      } catch (e) {}
+    }
+
+    function isFlightAlreadyPrinted(f) {
+      const map = loadPibPrintedMap();
+      return !!map[pibPrintHistoryKey(f)];
+    }
+
+    function markFlightsPrinted(flights, how) {
+      if (!flights || !flights.length) return;
+      const map = loadPibPrintedMap();
+      const at = Date.now();
+      flights.forEach(f => {
+        const k = pibPrintHistoryKey(f);
+        map[k] = {
+          at,
+          how: how || 'print',
+          flt: f.flt,
+          day: f.ngayVN ? formatDate(f.ngayVN) : '',
+          std: f.localTime || '',
+          dep: f.dep || '',
+          arr: f.arr || ''
+        };
+      });
+      savePibPrintedMap(map);
+    }
+
     /**
      * Khi phát hiện OFP/GD mới trên chuyến duty #1:
      * - Popup hỏi in tài liệu tất cả #1
      * - Nếu có #2 cùng giờ STD → gộp cả #2
      * - Có GD → in OFP+GD; chưa GD → báo và chỉ OFP
+     * - Đã in (cùng ngày+FLT+STD) → bỏ qua, không hỏi lại sau F5
      */
     function offerDuty1PrintIfNeeded(newlyFile) {
       if (!newlyFile || !newlyFile.length || !pibFlights.length) return;
@@ -4116,7 +4174,7 @@ function exportExcel() {
         }
       });
 
-      const flights = [...bundle.values()].sort((a, b) => {
+      let flights = [...bundle.values()].sort((a, b) => {
         const da = dutyNoForPibFlight(a) || 99;
         const db = dutyNoForPibFlight(b) || 99;
         if (da !== db) return da - db;
@@ -4127,7 +4185,24 @@ function exportExcel() {
       // Phải có ít nhất một #1 trong bundle
       if (!flights.some(f => dutyNoForPibFlight(f) === 1)) return;
 
-      // Signature theo trạng thái OFP/GD — hỏi lại khi GD mới về sau OFP
+      // Bỏ chuyến đã in trong ngày (theo ngày+FLT+STD)
+      const already = flights.filter(f => isFlightAlreadyPrinted(f));
+      flights = flights.filter(f => !isFlightAlreadyPrinted(f));
+      if (already.length && !flights.length) {
+        // Tất cả đã in → không hỏi
+        return;
+      }
+      if (already.length) {
+        addPibActivity(
+          'Đã in trước đó (cùng ngày): ' + already.map(f => 'FLT ' + f.flt).join(', ') + ' — bỏ qua hỏi lại',
+          'info'
+        );
+      }
+      if (!flights.length) return;
+      // Vẫn cần có #1 trong phần chưa in (nếu chỉ còn #2 thì thôi)
+      if (!flights.some(f => dutyNoForPibFlight(f) === 1)) return;
+
+      // Signature theo trạng thái OFP/GD — hỏi lại khi GD mới về sau OFP (trong phiên)
       const sig = flights.map(f =>
         f.key + ':' + (f.ofp === true ? 'O' : '') + (f.gd === true ? 'G' : '')
       ).sort().join('|');
@@ -4165,11 +4240,12 @@ function exportExcel() {
         const d = dutyNoForPibFlight(f);
         const ofpOk = f.ofp === true;
         const gdOk = f.gd === true;
+        const dayStr = f.ngayVN ? formatDate(f.ngayVN) : '';
         return `<div style="display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:8px 10px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;background:var(--hover);">
           <span style="font-weight:800;color:var(--red);">#${d || '?'}</span>
           <strong>FLT ${escapeHtml(f.flt)}</strong>
           <span style="color:var(--muted);">${escapeHtml(f.dep || '')}→${escapeHtml(f.arr || '')}</span>
-          <span style="color:var(--muted);">STD ${escapeHtml(f.localTime || '')}</span>
+          <span style="color:var(--muted);">${escapeHtml(dayStr)} · STD ${escapeHtml(f.localTime || '')}</span>
           <span class="status-pill ${ofpOk ? 'ok' : 'missing'}" style="font-size:0.72rem;padding:2px 7px;border-radius:99px;">OFP ${ofpOk ? '✓' : '✗'}</span>
           <span class="status-pill ${gdOk ? 'ok' : 'missing'}" style="font-size:0.72rem;padding:2px 7px;border-radius:99px;">GD ${gdOk ? '✓' : '✗'}</span>
         </div>`;
@@ -4185,7 +4261,6 @@ function exportExcel() {
         warn.innerHTML = '';
       }
 
-      // Nút In: chỉ bật mạnh nếu có ít nhất 1 file; nếu thiếu GD vẫn cho in OFP+GD phần có
       if (printBtn) {
         printBtn.disabled = !hasAnyOfp && !hasAnyGd;
         printBtn.textContent = hasAnyGd ? '🖨 In OFP + GD' : '🖨 In OFP (chưa GD)';
@@ -4206,6 +4281,22 @@ function exportExcel() {
       const modal = document.getElementById('pibDuty1PrintModal');
       if (modal) modal.style.display = 'none';
       _pibDuty1Ctx = null;
+    }
+
+    /** Đánh dấu đã in / bỏ qua — không hỏi lại khi F5 (cùng ngày+FLT) */
+    function markDuty1AlreadyPrinted() {
+      if (!_pibDuty1Ctx || !_pibDuty1Ctx.flights.length) {
+        closeDuty1PrintModal();
+        return;
+      }
+      const flights = _pibDuty1Ctx.flights.slice();
+      markFlightsPrinted(flights, 'manual-skip');
+      closeDuty1PrintModal();
+      addPibActivity(
+        '✓ Đã ghi nhận đã in: ' + flights.map(f => 'FLT ' + f.flt + ' (' + (f.ngayVN ? formatDate(f.ngayVN) : '') + ')').join(', '),
+        'ok'
+      );
+      showToast('Đã lưu lịch sử in — không hỏi lại hôm nay cho các chuyến này', 'success');
     }
 
     async function runDuty1Print(mode) {
@@ -4242,6 +4333,8 @@ function exportExcel() {
           addPibActivity('Lỗi in FLT ' + f.flt + ': ' + (e.message || e), 'error');
         }
       }
+      // Lưu lịch sử theo ngày+FLT+STD — F5 không hỏi lại; ngày khác vẫn hỏi
+      markFlightsPrinted(flights, mode === 'ofp' ? 'print-ofp' : 'print-all');
       showToast('Đã gửi lệnh in duty #1' + (flights.some(f => dutyNoForPibFlight(f) === 2) ? ' + #2' : ''), 'success');
     }
 
@@ -4255,12 +4348,16 @@ function exportExcel() {
         closeDuty1PrintModal();
         return;
       }
-      const btn = t.closest && t.closest('#pibDuty1PrintBtn, #pibDuty1OfpOnlyBtn, #pibDuty1CancelBtn');
+      const btn = t.closest && t.closest('#pibDuty1PrintBtn, #pibDuty1OfpOnlyBtn, #pibDuty1CancelBtn, #pibDuty1DoneBtn');
       if (!btn) return;
       e.preventDefault();
       e.stopPropagation();
       if (btn.id === 'pibDuty1CancelBtn') {
         closeDuty1PrintModal();
+        return;
+      }
+      if (btn.id === 'pibDuty1DoneBtn') {
+        markDuty1AlreadyPrinted();
         return;
       }
       if (btn.id === 'pibDuty1PrintBtn') {
@@ -5651,11 +5748,13 @@ function exportExcel() {
       <div class="pib-modal-sub" id="pibDuty1Sub" style="margin-bottom:10px;"></div>
       <div id="pibDuty1List" style="font-size:0.88rem;line-height:1.5;margin-bottom:14px;max-height:240px;overflow:auto;"></div>
       <div id="pibDuty1Warn" style="display:none;background:#FFF6E4;border:1px solid #F3D48A;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:0.84rem;color:#6B5100;line-height:1.45;"></div>
-      <div class="pib-modal-actions">
-        <button type="button" class="btn" id="pibDuty1PrintBtn" style="background:linear-gradient(135deg,#D97706,#B45309);">🖨 In</button>
+      <div class="pib-modal-actions" style="flex-wrap:wrap;">
+        <button type="button" class="btn" id="pibDuty1PrintBtn" style="background:linear-gradient(135deg,#D97706,#B45309);">🖨 In OFP + GD</button>
         <button type="button" class="btn" id="pibDuty1OfpOnlyBtn" style="background:linear-gradient(135deg,#0EA5E9,#0284C7);">⬇ Chỉ OFP</button>
+        <button type="button" class="btn" id="pibDuty1DoneBtn" style="background:linear-gradient(135deg,#059669,#047857);" title="Đã in rồi — lưu lịch sử, không hỏi lại hôm nay">✓ Đã in</button>
         <button type="button" class="btn" id="pibDuty1CancelBtn" style="background:linear-gradient(135deg,#6B7280,#4B5563);">Hủy</button>
       </div>
+      <p style="margin:10px 0 0;font-size:0.78rem;color:var(--muted);line-height:1.4;">«Đã in» hoặc sau khi in thành công sẽ được ghi nhớ theo <b>ngày + số hiệu + giờ STD</b>. F5 không hỏi lại; ngày khác (cùng FLT) vẫn hỏi.</p>
     </div>
   </div>
 
