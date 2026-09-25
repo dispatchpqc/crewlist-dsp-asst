@@ -2274,12 +2274,11 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       setTimeout(refreshBridgeStatus, 1200);
     });
 
-    // Mở trang → start bridge; đóng tab/trình duyệt → stop
+    // Mở/F5 trang → thử bật bridge nếu chưa chạy
+    // Không tắt bridge khi F5/beforeunload (tránh in bị ngắt giữa chừng)
+    // Chỉ tắt khi bấm nút «Tắt Bridge»
     window.addEventListener('load', () => {
       setTimeout(triggerBridgeStart, 300);
-    });
-    window.addEventListener('beforeunload', () => {
-      triggerBridgeStop();
     });
 
     /* ========== CREWLIST LOGIC ========== */
