@@ -3054,12 +3054,21 @@ function exportExcel() {
       const now = new Date();
       const timeStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
       pibActivity.unshift({ time: timeStr, text, type: type || 'info' });
-      if (pibActivity.length > 40) pibActivity.length = 40;
+      if (pibActivity.length > 30) pibActivity.length = 30;
       renderPibActivity();
-      // Cross-tab live update
+      // Cross-tab: chỉ text ngắn, tối đa 8 dòng — tránh phình localStorage
       try {
-        localStorage.setItem('sunpq_pib_activity', JSON.stringify({ at: Date.now(), items: pibActivity.slice(0, 15) }));
-      } catch (e) {}
+        localStorage.setItem('sunpq_pib_activity', JSON.stringify({
+          at: Date.now(),
+          items: pibActivity.slice(0, 8).map(a => ({
+            time: a.time,
+            text: String(a.text || '').slice(0, 100),
+            type: a.type || 'info'
+          }))
+        }));
+      } catch (e) {
+        try { localStorage.removeItem('sunpq_pib_activity'); } catch (e2) {}
+      }
     }
 
     /* ========== Push / Desktop Notification ========== */
@@ -3199,11 +3208,21 @@ function exportExcel() {
         String(now.getMinutes()).padStart(2,'0') + ':' +
         String(now.getSeconds()).padStart(2,'0');
       pibActivity.unshift({ time: timeStr, text: text || '', html: html, type: type || 'info' });
-      if (pibActivity.length > 50) pibActivity.length = 50;
+      if (pibActivity.length > 30) pibActivity.length = 30;
       renderPibActivity();
+      // Không lưu html vào localStorage (rất nặng) — chỉ text ngắn
       try {
-        localStorage.setItem('sunpq_pib_activity', JSON.stringify({ at: Date.now(), items: pibActivity.slice(0, 15) }));
-      } catch (e) {}
+        localStorage.setItem('sunpq_pib_activity', JSON.stringify({
+          at: Date.now(),
+          items: pibActivity.slice(0, 8).map(a => ({
+            time: a.time,
+            text: String(a.text || '').slice(0, 100),
+            type: a.type || 'info'
+          }))
+        }));
+      } catch (e) {
+        try { localStorage.removeItem('sunpq_pib_activity'); } catch (e2) {}
+      }
     }
 
     function statusPill(ok, docType, flightKey) {
@@ -3684,12 +3703,12 @@ function exportExcel() {
           : (skipped ? `Không có file hợp lệ (bỏ qua ${skipped})` : '');
       }
       if (accepted) showToast(`Đã cập nhật ${accepted} tài liệu`, 'success');
-      // Broadcast status for other tabs
+      // Cross-tab status: sessionStorage (không chiếm quota localStorage)
       try {
-        localStorage.setItem('sunpq_pib_status', JSON.stringify({
+        sessionStorage.setItem('sunpq_pib_status', JSON.stringify({
           at: Date.now(),
           flights: pibFlights.map(f => ({
-            key: f.key, ofp: f.ofp, gd: f.gd, pib: f.pib, met: f.met
+            k: f.key, o: f.ofp ? 1 : 0, g: f.gd ? 1 : 0, p: f.pib ? 1 : 0, m: f.met ? 1 : 0
           }))
         }));
       } catch (e) {}
@@ -4064,13 +4083,52 @@ function exportExcel() {
       return d + '|' + t;
     }
 
-    /** Khóa lịch sử: ngày VN + FLT + STD — hôm nay 510 ≠ mai 510 */
+    /**
+     * Khóa lịch sử gọn: ddmmyy|FLT|HHmm (vd: 250926|510|1130)
+     * Hôm nay 510 ≠ mai 510; tiết kiệm ~40% so với dd/mm/yyyy|FLT|HH:MM
+     */
     function pibPrintHistoryKey(f) {
-      const d = f.ngayVN ? formatDate(f.ngayVN) : (f.localTime ? '' : '');
-      const day = d || 'unknown';
+      let day = '0';
+      if (f.ngayVN && isValidDate && isValidDate(f.ngayVN)) {
+        const d = f.ngayVN;
+        day = String(d.getDate()).padStart(2,'0')
+          + String(d.getMonth()+1).padStart(2,'0')
+          + String(d.getFullYear()).slice(-2);
+      } else if (f.ngayVN) {
+        // formatDate có thể trả dd/mm/yyyy
+        const s = formatDate(f.ngayVN);
+        const m = String(s).match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+        if (m) {
+          day = m[1].padStart(2,'0') + m[2].padStart(2,'0') + m[3].slice(-2);
+        }
+      }
       const flt = String(f.flt || '').trim();
-      const std = String(f.localTime || '').trim();
+      const std = String(f.localTime || '').replace(/\D/g, '').slice(0, 4);
       return day + '|' + flt + '|' + std;
+    }
+
+    /**
+     * Lịch sử in: { "key": timestamp }
+     * Chỉ giữ 2 ngày + tối đa 60 bản ghi
+     */
+    function prunePibPrintedMap(map) {
+      const out = {};
+      const now = Date.now();
+      const MAX_AGE_MS = 2 * 24 * 3600 * 1000;
+      Object.entries(map || {}).forEach(([k, v]) => {
+        const at = (typeof v === 'number') ? v : (v && typeof v.at === 'number' ? v.at : 0);
+        if (!at || (now - at) > MAX_AGE_MS) return;
+        // Chuẩn hóa key cũ (có / hoặc :) sang dạng gọn nếu parse được
+        out[k] = at;
+      });
+      const keys = Object.keys(out);
+      if (keys.length > 60) {
+        keys.sort((a, b) => out[b] - out[a]);
+        const slim = {};
+        keys.slice(0, 50).forEach(k => { slim[k] = out[k]; });
+        return slim;
+      }
+      return out;
     }
 
     function loadPibPrintedMap() {
@@ -4078,27 +4136,41 @@ function exportExcel() {
         const raw = localStorage.getItem(PIB_PRINTED_KEY);
         if (!raw) return {};
         const obj = JSON.parse(raw);
-        return (obj && typeof obj === 'object') ? obj : {};
+        if (!obj || typeof obj !== 'object') return {};
+        return prunePibPrintedMap(obj);
       } catch (e) { return {}; }
     }
 
     function savePibPrintedMap(map) {
       try {
-        // Giữ tối đa ~45 ngày gần nhất
-        const entries = Object.entries(map || {});
-        if (entries.length > 400) {
-          entries.sort((a, b) => (b[1].at || 0) - (a[1].at || 0));
-          const keep = {};
-          entries.slice(0, 300).forEach(([k, v]) => { keep[k] = v; });
-          map = keep;
+        const slim = prunePibPrintedMap(map);
+        if (!Object.keys(slim).length) {
+          localStorage.removeItem(PIB_PRINTED_KEY);
+          return;
         }
-        localStorage.setItem(PIB_PRINTED_KEY, JSON.stringify(map));
-      } catch (e) {}
+        localStorage.setItem(PIB_PRINTED_KEY, JSON.stringify(slim));
+      } catch (e) {
+        try {
+          localStorage.removeItem(PIB_PRINTED_KEY);
+          const slim = prunePibPrintedMap(map);
+          const keys = Object.keys(slim).sort((a, b) => slim[b] - slim[a]).slice(0, 25);
+          const tiny = {};
+          keys.forEach(k => { tiny[k] = slim[k]; });
+          if (keys.length) localStorage.setItem(PIB_PRINTED_KEY, JSON.stringify(tiny));
+        } catch (e2) {}
+      }
     }
 
     function isFlightAlreadyPrinted(f) {
       const map = loadPibPrintedMap();
-      return !!map[pibPrintHistoryKey(f)];
+      const k = pibPrintHistoryKey(f);
+      if (map[k]) return true;
+      // Tương thích key cũ: dd/mm/yyyy|FLT|HH:MM
+      if (f.ngayVN && f.flt) {
+        const old = formatDate(f.ngayVN) + '|' + String(f.flt).trim() + '|' + String(f.localTime || '').trim();
+        if (map[old]) return true;
+      }
+      return false;
     }
 
     function markFlightsPrinted(flights, how) {
@@ -4106,19 +4178,88 @@ function exportExcel() {
       const map = loadPibPrintedMap();
       const at = Date.now();
       flights.forEach(f => {
-        const k = pibPrintHistoryKey(f);
-        map[k] = {
-          at,
-          how: how || 'print',
-          flt: f.flt,
-          day: f.ngayVN ? formatDate(f.ngayVN) : '',
-          std: f.localTime || '',
-          dep: f.dep || '',
-          arr: f.arr || ''
-        };
+        map[pibPrintHistoryKey(f)] = at;
       });
       savePibPrintedMap(map);
     }
+
+    /** Ước lượng dung lượng localStorage (ký tự ≈ bytes UTF-16/2 gần đúng cho ASCII) */
+    function estimateLocalStorageBytes() {
+      let n = 0;
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (!k) continue;
+          const v = localStorage.getItem(k) || '';
+          n += k.length + v.length;
+        }
+      } catch (e) {}
+      return n * 2; // UTF-16
+    }
+
+    /**
+     * Dọn localStorage thừa — chạy lúc load + khi gần đầy
+     * - Lịch sử in: 2 ngày, ≤50 key
+     * - Activity: ≤8 item, bỏ html, xóa nếu >12h
+     * - Status cross-tab: chuyển sang sessionStorage / xóa local
+     * - Roster cache: xóa hết prefix cũ
+     */
+    function optimizeLocalStorage() {
+      try {
+        savePibPrintedMap(loadPibPrintedMap());
+
+        // Activity: bản nhẹ, không lưu html
+        try {
+          const raw = localStorage.getItem('sunpq_pib_activity');
+          if (raw) {
+            if (raw.length > 8000 || !raw) {
+              localStorage.removeItem('sunpq_pib_activity');
+            } else {
+              const data = JSON.parse(raw);
+              if (!data || !data.at || (Date.now() - data.at) > 12 * 3600 * 1000) {
+                localStorage.removeItem('sunpq_pib_activity');
+              } else if (Array.isArray(data.items)) {
+                data.items = data.items.slice(0, 8).map(it => ({
+                  time: it.time || '',
+                  text: String(it.text || '').slice(0, 120),
+                  type: it.type || 'info'
+                }));
+                localStorage.setItem('sunpq_pib_activity', JSON.stringify(data));
+              }
+            }
+          }
+        } catch (e) { try { localStorage.removeItem('sunpq_pib_activity'); } catch (e2) {} }
+
+        // Status: không cần persist — xóa khỏi localStorage (dùng session nếu cần)
+        try { localStorage.removeItem('sunpq_pib_status'); } catch (e) {}
+
+        // Roster + meta + key rác
+        try {
+          const drop = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (!k) continue;
+            if (
+              k.indexOf('sunpq_roster_v1_') === 0 ||
+              k === 'sunpq_roster_meta' ||
+              k.indexOf('sunpq_roster_shell_') === 0
+            ) drop.push(k);
+          }
+          drop.forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+        } catch (e) {}
+
+        // Nếu vẫn lớn (>1.5MB ước lượng) → xóa activity + in cũ hơn
+        try {
+          if (estimateLocalStorageBytes() > 1.5 * 1024 * 1024) {
+            localStorage.removeItem('sunpq_pib_activity');
+            localStorage.removeItem(PIB_PRINTED_KEY);
+          }
+        } catch (e) {}
+      } catch (e) {}
+    }
+    try { optimizeLocalStorage(); } catch (e) {}
+    // Dọn lại mỗi 10 phút khi tab còn mở
+    setInterval(() => { try { optimizeLocalStorage(); } catch (e) {} }, 10 * 60 * 1000);
 
     /**
      * Khi phát hiện OFP/GD mới trên chuyến duty #1:
@@ -8238,8 +8379,7 @@ html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
     let touched = 0;
     targets.forEach(([y,m])=>{
       try {
-        // Dù ROSTER_LOCAL_DISABLED: vẫn ghi shell tháng sau để đổi tháng không mất NV
-        // (đây là dữ liệu cấu trúc NV, không phải cache ca tạm)
+        // Shell tháng sau: chỉ id/name/dept (không lưu 31 ca trống — tiết kiệm localStorage)
         const raw = localStorage.getItem(storageKey(y, m));
         let data = null;
         try { data = raw ? JSON.parse(raw) : null; } catch(e){ data = null; }
@@ -8248,15 +8388,16 @@ html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
         if(existing && existing.length){
           const have = new Set(existing.map(e=>String(e.id||'').trim()+'|'+String(e.name||'').trim().toLowerCase()));
           let changed = false;
+          // Giữ ca đã có nếu từng lưu; không pad 31 ô trống
           const next = existing.map((e,i)=>({
             id:e.id, name:e.name, dept:e.dept||'DM',
-            shifts:(e.shifts||[]).slice(0,31).concat(Array(31).fill('')).slice(0,31),
+            shifts: Array.isArray(e.shifts) && e.shifts.some(s => s) ? e.shifts.slice(0, 31) : undefined,
             key: typeof e.key==='number'?e.key:i
           }));
           roster.forEach(r=>{
             const k = String(r.id||'').trim()+'|'+String(r.name||'').trim().toLowerCase();
             if(!have.has(k)){
-              next.push({ id:r.id, name:r.name, dept:r.dept, shifts:Array(31).fill(''), key:next.length });
+              next.push({ id:r.id, name:r.name, dept:r.dept, key:next.length });
               changed = true;
             }
           });
@@ -8270,8 +8411,9 @@ html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
             touched++;
           }
         } else {
+          // Chỉ danh sách NV — không mảng ca trống
           const employees = roster.map((r,i)=>({
-            id:r.id, name:r.name, dept:r.dept, shifts:Array(31).fill(''), key:i
+            id:r.id, name:r.name, dept:r.dept, key:i
           }));
           localStorage.setItem(storageKey(y,m), JSON.stringify({
             year:y, month:m, targetHours:208, savedAt:new Date().toISOString(), employees
