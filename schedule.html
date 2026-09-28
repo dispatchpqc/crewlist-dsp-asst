@@ -1382,7 +1382,9 @@ function dayClass(i){
   return cls.join(' ');
 }
 function countShifts(shifts){ const c={HC:0,M:0,E:0,C9:0,NL:0,P:0,SN:0}; (shifts||[]).forEach(s=>{ if(s&&c[s]!==undefined) c[s]++; }); return c; }
-function calcTotal(shifts){ let t=0; (shifts||[]).forEach(s=>{ if(!s) return; if(s==='NL'||s==='P') t+=8; else if(s==='C9') t+=9; else if(s==='HC'||s==='M'||s==='E') t+=8; }); return t; }
+/* Giờ công: HC/NL/P/SN = 8h · M/E/C9 = 12h (khớp cách tính trong file Excel) */
+const SHIFT_HOURS={HC:8,NL:8,P:8,SN:8,M:12,E:12,C9:12};
+function calcTotal(shifts){ let t=0; (shifts||[]).forEach(s=>{ t+=SHIFT_HOURS[s]||0; }); return t; }
 function applyNotes(list){ list.forEach(e=>{ e.counts=countShifts(e.shifts); if(e.total==null) e.total=calcTotal(e.shifts); const short=TARGET_HOURS-e.total; e.note=short>0?('thiếu '+short+'h'):''; }); }
 function empKey(e){ return String(e.id||'').replace(/^0+/,'').trim()+'|'+String(e.name||'').trim().toLowerCase(); }
 
@@ -1906,6 +1908,7 @@ async function saveToGitHub(){
     setGhBusy(false);
     setBanner('✅ Đã lưu lịch: <b>'+currentGhFile.path+'</b> · '+EMP.length+' NV.<br>⏳ Đang cập nhật trang — tự mở khóa khi GitHub xong (thường ~20–40s).','ok');
     startPagesCooldown(PAGES_COOLDOWN_MS);
+    try{ icsSync(true); }catch(e){}
   }catch(err){
     console.error(err);
     setGhBusy(false);
@@ -2681,7 +2684,7 @@ async function deleteEmployee(key){
     setBanner('Đã xóa trên web nhưng lưu máy chủ lỗi: '+(err.message||err)+'. Bấm <b>Lưu lịch</b> thủ công.','err');
   }
 }
-function closeModal(){ overlay.classList.remove('show'); }
+function closeModal(){ fbShown=-1; overlay.classList.remove('show'); }
 overlay.onclick=e=>{ if(e.target===overlay) closeModal(); };
 
 function openTokenModal(msg){
@@ -2976,7 +2979,7 @@ async function submitReport(){
 /* ================= FEEDBACK (lưu trên GitHub) =================
  * endpoint: URL Cloudflare Worker (xem feedback-worker.js) để MỌI NGƯỜI gửi được mà không lộ khóa.
  * Để trống → chỉ máy có khóa (Key) mới ghi thẳng được; còn lại rơi về cách cũ (sao chép gửi Viber). */
-const FB = { owner:'dispatchpqc', repo:'crewlist-feedback', dir:'feedback', endpoint:'https://crewlist-feedback.dispatch-pqc.workers.dev' };
+const FB = { owner:'dispatchpqc', repo:'crewlist-feedback', dir:'feedback', endpoint:'' };
 const fbApi = `https://api.github.com/repos/${FB.owner}/${FB.repo}/contents/${FB.dir}`;
 const fbEsc = t => String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fbB64 = str => btoa(unescape(encodeURIComponent(str)));
@@ -3044,21 +3047,27 @@ function fbRefreshBtn(){
     b.title='Xem các lỗi đã được báo';
   } else { b.textContent='🚩 Báo lỗi'; b.title='Báo lỗi cho quản trị'; }
 }
+var fbShown = -1;
 async function fbPollCount(){
   if(!isAdmin()||!getToken()||document.hidden) return;
-  try{ const r=await fetch(fbApi+'?t='+Date.now(),{headers:ghApiHeaders(),cache:'no-store'});
-    fbCount = r.ok ? (await r.json()).filter(f=>/\.json$/.test(f.name)).length : 0; }catch(e){}
-  fbRefreshBtn();
+  try{
+    const r=await fetch(fbApi+'?t='+Date.now(),{headers:ghApiHeaders(),cache:'no-store'});
+    const n = r.ok ? (await r.json()).filter(f=>/\.json$/.test(f.name)).length : (r.status===404?0:fbCount);
+    const grew = n > fbCount; fbCount = n; fbRefreshBtn();
+    if(document.getElementById('fbList')){            // đang mở danh sách → tự cập nhật, không cần reload
+      if(n !== fbShown) openFeedbackAdmin(true);
+    } else if(grew){ setBanner('📥 Có <b>feedback mới</b> vừa được gửi.','ok'); }
+  }catch(e){}
 }
-
-async function openFeedbackAdmin(){
+async function openFeedbackAdmin(silent){
   if(!getToken()){ openTokenModal('Cần khóa truy cập (Key) để xem feedback.'); return; }
+  if(!silent||!document.getElementById('fbList')){
   modalBody.className='modal';
   modalBody.innerHTML=`<div class="mtop"><div><h3>Feedback từ người dùng</h3><div class="mid" id="fbSub">Đang tải…</div></div><button class="closeb" onclick="closeModal()">✕</button></div><div class="fb-list" id="fbList"></div>`;
-  overlay.classList.add('show');
+  overlay.classList.add('show'); }
   const box=document.getElementById('fbList'), sub=document.getElementById('fbSub');
   try{
-    const items=await fbFetchAll(); fbCount=items.length; fbRefreshBtn();
+    const items=await fbFetchAll(); fbCount=items.length; fbShown=items.length; fbRefreshBtn();
     sub.textContent=items.length?items.length+' lỗi chưa xử lý':'Không có feedback nào 🎉';
     box.innerHTML=items.map((f,i)=>`<div class="fb-card" id="fb${i}">
       <div class="fb-h"><b>${fbEsc(f.name||'Ẩn danh')}</b><span>${f.createdAt?new Date(f.createdAt).toLocaleString('vi-VN'):''}</span></div>
@@ -3082,7 +3091,47 @@ async function openFeedbackAdmin(){
   }catch(e){ sub.textContent='Không tải được: '+e.message+' — kiểm tra khóa có quyền vào repo '+FB.repo; }
 }
 (function(){ const _r=refreshAuthUI; refreshAuthUI=function(){ _r.apply(this,arguments); fbRefreshBtn(); if(isAdmin()) fbPollCount(); }; fbRefreshBtn();
-  setInterval(fbPollCount,90000); document.addEventListener('visibilitychange',()=>{ if(!document.hidden) fbPollCount(); }); })();
+  setInterval(fbPollCount,15000); document.addEventListener('visibilitychange',()=>{ if(!document.hidden) fbPollCount(); }); })();
+
+/* ================= LỊCH CÁ NHÂN (.ics) qua Worker ================= */
+const ICS = { endpoint:'https://roster-ics.dispatch-pqc.workers.dev' };   // dán địa chỉ roster-ics-worker vào đây
+var ICS_LINKS = {}; try{ ICS_LINKS = JSON.parse(localStorage.getItem('sunpq_ics_links')||'{}'); }catch(e){}
+const icsId = e => String(e.id||'').replace(/^0+/,'').trim();
+async function icsSync(silent){
+  const tok=getToken();
+  if(!ICS.endpoint||!tok||!EMP.length||!DAYS.length){ if(!silent) alert(!ICS.endpoint?'Chưa cấu hình ICS.endpoint trong schedule.html':(!tok?'Cần nhập Key trước.':'Chưa có lịch để đồng bộ.')); return false; }
+  const pad=n=>String(n).padStart(2,'0'), last=DAYS[DAYS.length-1];
+  const body={ key:last[3]+'-'+pad(last[2]), days:DAYS.map(d=>d[3]+'-'+pad(d[2])+'-'+pad(d[0])),
+    emp:EMP.map(e=>({id:icsId(e),name:e.name,shifts:e.shifts})).filter(e=>e.id) };
+  try{
+    const r=await fetch(ICS.endpoint+'/roster',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok},body:JSON.stringify(body)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    Object.assign(ICS_LINKS,(await r.json()).links||{});
+    try{ localStorage.setItem('sunpq_ics_links',JSON.stringify(ICS_LINKS)); }catch(e){}
+    if(!silent) setBanner('✅ Đã đồng bộ lịch cá nhân ('+body.emp.length+' NV).','ok');
+    return true;
+  }catch(e){ if(!silent) alert('Đồng bộ thất bại: '+e.message); return false; }
+}
+function openIcsModal(){
+  modalBody.className='modal';
+  modalBody.innerHTML=`<div class="mtop"><div><h3>Link lịch cá nhân</h3><div class="mid">Gửi link cho từng nhân viên → thêm vào Google/Apple Calendar, ca trực tự cập nhật</div></div><button class="closeb" onclick="closeModal()">✕</button></div>
+    <div style="display:flex;gap:8px;margin-top:8px"><input id="icsQ" placeholder="Tìm tên / mã NV…" style="flex:1;border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;font:inherit;background:var(--sun);color:var(--ink)"><button type="button" class="btn-action primary" id="icsSyncBtn">🔄 Đồng bộ</button></div>
+    <div class="fb-list" id="icsList"></div>`;
+  overlay.classList.add('show');
+  const list=document.getElementById('icsList'), q=document.getElementById('icsQ');
+  const draw=()=>{ const k=q.value.trim().toLowerCase();
+    const rows=EMP.filter(e=>!k||(e.name+' '+e.id).toLowerCase().includes(k)).slice(0,80);
+    list.innerHTML=rows.map(e=>{ const u=ICS_LINKS[icsId(e)];
+      return `<div class="fb-card" style="animation:none"><div class="fb-h"><b>${fbEsc(e.name)}</b><span>${fbEsc(e.id)}</span></div>${u?`<div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn-action" data-c="${fbEsc(u)}">📋 Sao chép link</button><a class="btn-action" style="text-decoration:none" href="${fbEsc(u.replace(/^https?:/,'webcal:'))}">📅 Thêm vào lịch</a></div>`:'<span class="fb-h">Chưa có link — bấm Đồng bộ</span>'}</div>`; }).join('')||'<div class="fb-h" style="margin-top:10px">Chưa có nhân viên nào (hãy Tải lịch trước).</div>';
+    list.querySelectorAll('[data-c]').forEach(b=>b.onclick=async()=>{ try{ await navigator.clipboard.writeText(b.dataset.c); b.textContent='✅ Đã chép'; setTimeout(()=>b.textContent='📋 Sao chép link',1500);}catch(e){ prompt('Sao chép link:',b.dataset.c);} }); };
+  q.oninput=draw; draw();
+  document.getElementById('icsSyncBtn').onclick=async e=>{ e.target.disabled=true; e.target.textContent='Đang gửi…'; await icsSync(false); e.target.disabled=false; e.target.textContent='🔄 Đồng bộ'; draw(); };
+}
+(function(){ const bl=document.getElementById('btnLogout'); if(!bl) return;
+  const b=document.createElement('button'); b.type='button'; b.className='btn-action'; b.id='btnIcs'; b.style.display='none';
+  b.textContent='📅 Lịch cá nhân'; b.title='Link lịch riêng cho từng nhân viên'; b.onclick=openIcsModal; bl.parentNode.insertBefore(b,bl);
+  const _r=refreshAuthUI; refreshAuthUI=function(){ _r.apply(this,arguments); b.style.display=isAdmin()?'':'none'; };
+  b.style.display=isAdmin()?'':'none'; })();
 </script>
 </body>
 </html>
