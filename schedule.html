@@ -1753,7 +1753,9 @@ function renderDuty(){
 function setBanner(html,type){ const el=document.getElementById('statusBanner'); el.className='banner'+(type==='ok'?' ok':type==='err'?' err':''); el.innerHTML=`<div>${html}</div>`; }
 
 function isGhBusy(){
-  return ghBusy || Date.now() < pagesWaitUntil || remoteBusy;
+  // remoteNewer: file trên máy chủ đã đổi — phải Load trước, không cho sửa (tránh ghi đè)
+  // remoteBusy: workflow/check đang chạy (Git chưa ready)
+  return ghBusy || Date.now() < pagesWaitUntil || remoteBusy || remoteNewer;
 }
 function updateSyncUI(){
   const pill = document.getElementById('syncPill');
@@ -1782,9 +1784,9 @@ function updateSyncUI(){
     subEl.textContent = 'Vui lòng đợi ~'+sec+'s · tạm khóa chỉnh sửa';
   } else if(remoteBusy){
     pill.className = 'sync-pill busy';
-    pill.title = 'Phát hiện máy chủ đang xử lý (có thể do sửa/commit từ nơi khác). Tạm khóa chỉnh sửa; có thể bấm Load lịch khi xong.';
-    titleEl.textContent = 'Máy chủ đang xử lý';
-    subEl.textContent = (remoteBusyDetail || 'Đang cập nhật từ bên ngoài') + ' · tạm khóa chỉnh sửa';
+    pill.title = 'Máy chủ đang build/deploy (GitHub checks chưa xong). Tạm khóa chỉnh sửa đến khi checks xanh.';
+    titleEl.textContent = remoteNewer ? 'Đang cập nhật bản mới' : 'Máy chủ đang xử lý';
+    subEl.textContent = (remoteBusyDetail || 'GitHub đang chạy checks') + (remoteNewer ? ' · có bản mới, đợi xong rồi Load' : ' · tạm khóa chỉnh sửa');
   } else if(remoteNewer){
     pill.className = 'sync-pill busy';
     pill.title = 'File lịch trên máy chủ đã đổi so với bản đang xem. Bấm Load lịch để lấy bản mới trước khi sửa.';
@@ -1988,9 +1990,10 @@ async function checkRemoteDeployStatus(){
   const wasNewer = remoteNewer;
   remoteBusy = pending;
   remoteBusyDetail = detail;
-  remoteNewer = newer && !pending;
+  // Giữ remoteNewer cả khi đang deploy — khóa sửa; ưu tiên hiện "đang xử lý" nếu pending
+  remoteNewer = newer;
   // Poll nhanh hơn khi đang bận
-  const wantMs = pending ? REMOTE_POLL_BUSY_MS : REMOTE_POLL_IDLE_MS;
+  const wantMs = (pending || newer) ? REMOTE_POLL_BUSY_MS : REMOTE_POLL_IDLE_MS;
   if(wantMs !== remotePollMs && remotePollTimer){
     remotePollMs = wantMs;
     clearInterval(remotePollTimer);
@@ -2022,12 +2025,13 @@ function requireEditable(actionMsg){
   if(isGhBusy()){
     let why = 'Hệ thống đang cập nhật trang';
     if(ghBusy) why = ghBusyReason || 'Đang lưu lịch';
-    else if(remoteBusy) why = remoteBusyDetail || 'Máy chủ đang xử lý (cập nhật từ bên ngoài)';
-    setBanner('⏳ <b>Tạm khóa chỉnh sửa</b> — '+why+'. Đợi pill <b>«Có thể chỉnh sửa»</b> (đèn xanh)'+(remoteNewer?' hoặc bấm <b>Load lịch</b>':'')+' rồi thao tác tiếp.','err');
-    return false;
-  }
-  if(remoteNewer){
-    setBanner('📡 Có <b>bản lịch mới trên máy chủ</b>. Bấm <b>Load lịch</b> trước khi sửa để tránh ghi đè.','err');
+    else if(Date.now() < pagesWaitUntil) why = 'Đang chờ cập nhật trang sau khi lưu';
+    else if(remoteBusy) why = remoteBusyDetail || 'GitHub checks chưa xong (build/deploy)';
+    else if(remoteNewer) why = 'Có bản lịch mới trên máy chủ — bấm Load lịch trước';
+    const tip = remoteNewer
+      ? '. Bấm <b>Load lịch</b> sau khi checks xanh để lấy bản mới.'
+      : '. Đợi pill <b>«Có thể chỉnh sửa»</b> (đèn xanh) rồi thao tác tiếp.';
+    setBanner('⏳ <b>Tạm khóa chỉnh sửa</b> — '+why+tip,'err');
     return false;
   }
   return true;
