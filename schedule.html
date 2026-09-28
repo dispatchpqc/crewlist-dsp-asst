@@ -1921,7 +1921,8 @@ async function checkRemoteDeployStatus(){
     }catch(e){}
   }
 
-  // 3) Check-suites — GitHub hay để status "queued" dù conclusion đã success → chỉ khóa nếu thật sự busy
+  // 3) Check-suites — bỏ qua suite "GitHub Pages" kẹt queued + conclusion null (bug GitHub;
+  //    deploy thật đã phản ánh ở workflow runs / check-runs build+deploy ở trên).
   if(!pending){
     try{
       const csUrl = `https://api.github.com/repos/${GH.owner}/${GH.repo}/commits/${encodeURIComponent(GH.branch)}/check-suites`;
@@ -1929,9 +1930,13 @@ async function checkRemoteDeployStatus(){
       if(r.ok){
         const data = await r.json();
         const suites = data.check_suites || [];
-        const active = suites.find(s =>
-          isReallyBusy(s) && recent(s.updated_at || s.created_at)
-        );
+        const active = suites.find(s => {
+          if(!isReallyBusy(s) || !recent(s.updated_at || s.created_at)) return false;
+          // Suite ảo của GitHub Pages thường stuck: status=queued, conclusion=null dù Pages đã xong
+          const appName = ((s.app && s.app.name) || '').toLowerCase();
+          if(appName === 'github pages' && !s.conclusion) return false;
+          return true;
+        });
         if(active){
           pending = true;
           const st = String(active.status || 'pending').toLowerCase();
