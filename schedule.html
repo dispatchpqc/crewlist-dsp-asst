@@ -426,6 +426,19 @@ header .lede{animation:fadeUp .5s .1s ease both}
 
 .rg-cell.rg-day{transition:box-shadow .15s,background .15s}
 
+
+/* Báo cáo lỗi */
+.report-imgs{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.report-imgs .ri{
+  position:relative;width:72px;height:72px;border-radius:10px;overflow:hidden;
+  border:1.5px solid var(--line);background:var(--sun);
+}
+.report-imgs .ri img{width:100%;height:100%;object-fit:cover;display:block}
+.report-imgs .ri button{
+  position:absolute;top:2px;right:2px;width:20px;height:20px;border:none;border-radius:50%;
+  background:rgba(42,29,20,.75);color:#fff;font-size:12px;cursor:pointer;line-height:1;
+}
+.report-hint{font-size:11.5px;color:var(--ink-soft);margin-top:10px;line-height:1.45}
 /* Maintenance overlay */
 .maint-overlay{
   position:fixed;inset:0;z-index:80;
@@ -656,6 +669,7 @@ html[data-theme="dark"] .login-form input{
       <div class="brandname"><div class="sun">SUN <em>PhuQuoc</em></div><div class="sub">AIRWAYS · DUTY ROSTER</div></div>
     </div>
     <div class="header-auth" id="headerAuth">
+      <button type="button" class="btn-action" id="btnReport" title="Báo cáo lỗi cho quản trị">🚩 Báo lỗi</button>
       <button type="button" class="btn-action" id="btnTheme" title="Đổi giao diện sáng/tối" aria-label="Theme">
         <svg id="iconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
         <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z"/></svg>
@@ -2709,6 +2723,180 @@ document.getElementById('btnLogout').onclick=()=>{
   if(!EMP.length) renderAll();
   setBanner('Đã đăng xuất — chế độ chỉ xem.','');
 };
+
+/* ========== BÁO CÁO LỖI → Viber ========== */
+const VIBER_PHONE_LOCAL = '0706551196';
+const VIBER_PHONE_INTL = '84706551196'; // +84 bỏ số 0 đầu
+let reportImages = []; // { file, url, name }
+
+function openReportModal(){
+  reportImages = [];
+  modalBody.className = 'modal';
+  modalBody.innerHTML = `
+    <div class="mtop">
+      <div><h3>Báo cáo lỗi</h3>
+      <div class="mid">Gửi mô tả + ảnh cho quản trị qua Viber · ${VIBER_PHONE_LOCAL}</div></div>
+      <button class="closeb" onclick="closeModal()">✕</button>
+    </div>
+    <div class="login-form">
+      <label>Họ tên / mã NV (tuỳ chọn)</label>
+      <input id="repName" placeholder="Ví dụ: Nguyễn A · 41863">
+      <label>Mô tả lỗi <span style="color:var(--danger)">*</span></label>
+      <textarea id="repDesc" rows="4" style="width:100%;border:1.5px solid var(--line);border-radius:9px;padding:9px 11px;font:inherit;font-size:13.5px;box-sizing:border-box;resize:vertical" placeholder="Lỗi xảy ra khi nào? Bạn đang làm gì? Mong muốn ra sao?"></textarea>
+      <label>Ảnh lỗi (có thể chọn nhiều)</label>
+      <input type="file" id="repFiles" accept="image/*" multiple style="font-size:13px">
+      <div class="report-imgs" id="repPreview"></div>
+      <p class="report-hint">Trình duyệt <b>không gửi tự động</b> vào Viber được. Sau khi bấm gửi: nội dung được <b>sao chép</b>, mở chat Viber — bạn <b>dán tin nhắn</b> và đính kèm ảnh (hoặc dùng chia sẻ hệ thống nếu máy hỗ trợ).</p>
+      <div class="actions">
+        <button type="button" class="btn-action primary" id="repSend">Gửi báo cáo</button>
+        <button type="button" class="btn-action" onclick="closeModal()">Hủy</button>
+      </div>
+      <div class="err" id="repErr"></div>
+    </div>`;
+  overlay.classList.add('show');
+  document.getElementById('repFiles').onchange = onReportFiles;
+  document.getElementById('repSend').onclick = submitReport;
+}
+
+function onReportFiles(ev){
+  const files = Array.from((ev.target.files)||[]);
+  ev.target.value = '';
+  for(const f of files){
+    if(!f.type || !f.type.startsWith('image/')) continue;
+    if(f.size > 8 * 1024 * 1024){
+      setBanner('Ảnh quá lớn (>8MB), bỏ qua: '+f.name,'err');
+      continue;
+    }
+    if(reportImages.length >= 6){
+      setBanner('Tối đa 6 ảnh mỗi báo cáo.','err');
+      break;
+    }
+    const url = URL.createObjectURL(f);
+    reportImages.push({ file: f, url, name: f.name });
+  }
+  renderReportPreview();
+}
+
+function renderReportPreview(){
+  const box = document.getElementById('repPreview');
+  if(!box) return;
+  box.innerHTML = reportImages.map((im,i)=>`
+    <div class="ri">
+      <img src="${im.url}" alt="">
+      <button type="button" title="Xóa" data-i="${i}">×</button>
+    </div>`).join('');
+  box.onclick = (e)=>{
+    const b = e.target.closest('button[data-i]');
+    if(!b) return;
+    const i = +b.dataset.i;
+    try{ URL.revokeObjectURL(reportImages[i].url); }catch(ex){}
+    reportImages.splice(i,1);
+    renderReportPreview();
+  };
+}
+
+function buildReportText(name, desc){
+  const auth = getAuth();
+  const lines = [
+    '🚩 BÁO CÁO LỖI — Lịch trực Sun PhuQuoc',
+    'Thời gian: ' + new Date().toLocaleString('vi-VN'),
+    'Người gửi: ' + (name || (auth ? auth.username : 'Khách')),
+    auth ? ('Tài khoản: ' + auth.username) : '',
+    'Trang: ' + (location.href || ''),
+    'Thiết bị: ' + (navigator.userAgent || '').slice(0,160),
+    '',
+    'Mô tả:',
+    desc,
+    '',
+    reportImages.length ? ('Số ảnh đính kèm: ' + reportImages.length + ' (gửi kèm trong Viber)') : 'Không có ảnh đính kèm'
+  ].filter(x => x !== null && x !== undefined);
+  return lines.join('\n');
+}
+
+async function copyText(str){
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(str);
+      return true;
+    }
+  }catch(e){}
+  try{
+    const ta = document.createElement('textarea');
+    ta.value = str; ta.style.position='fixed'; ta.style.left='-9999px';
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  }catch(e){ return false; }
+}
+
+function openViberChat(){
+  // Deep link Viber (mobile app). Desktop có thể không mở được.
+  const uri = 'viber://chat?number=' + encodeURIComponent(VIBER_PHONE_INTL);
+  try{ window.location.href = uri; }catch(e){}
+  // Fallback nhẹ: thử mở sau 400ms nếu vẫn ở trang
+  setTimeout(()=>{
+    try{
+      const a = document.createElement('a');
+      a.href = uri; a.style.display='none';
+      document.body.appendChild(a); a.click(); a.remove();
+    }catch(e){}
+  }, 300);
+}
+
+async function submitReport(){
+  const errEl = document.getElementById('repErr');
+  if(errEl) errEl.textContent = '';
+  const name = ((document.getElementById('repName')||{}).value || '').trim();
+  const desc = ((document.getElementById('repDesc')||{}).value || '').trim();
+  if(!desc){
+    if(errEl) errEl.textContent = 'Vui lòng nhập mô tả lỗi.';
+    return;
+  }
+  const text = buildReportText(name, desc);
+  const btn = document.getElementById('repSend');
+  if(btn){ btn.disabled = true; btn.textContent = 'Đang xử lý…'; }
+
+  const copied = await copyText(text);
+
+  // Ưu tiên Web Share API (mobile: có thể chọn Viber + kèm ảnh)
+  let shared = false;
+  try{
+    if(navigator.share){
+      const data = { title: 'Báo cáo lỗi — Lịch trực', text };
+      if(reportImages.length && navigator.canShare){
+        const files = reportImages.map(im => im.file);
+        const withFiles = { ...data, files };
+        if(navigator.canShare(withFiles)){
+          await navigator.share(withFiles);
+          shared = true;
+        }
+      }
+      if(!shared){
+        await navigator.share(data);
+        shared = true;
+      }
+    }
+  }catch(e){
+    // user cancel or unsupported — tiếp tục mở Viber
+    if(e && e.name === 'AbortError') shared = true; // đã mở share sheet rồi hủy
+  }
+
+  if(!shared){
+    openViberChat();
+  }
+
+  closeModal();
+  reportImages.forEach(im=>{ try{ URL.revokeObjectURL(im.url); }catch(e){} });
+  reportImages = [];
+
+  let msg = '✅ Đã chuẩn bị báo cáo.';
+  if(copied) msg += ' Nội dung đã <b>sao chép</b> — mở Viber và <b>dán (paste)</b> vào chat ' + VIBER_PHONE_LOCAL + '.';
+  else msg += ' Hãy mở Viber chat <b>' + VIBER_PHONE_LOCAL + '</b> và gửi mô tả lỗi.';
+  if(!shared) msg += ' Ảnh (nếu có) hãy chọn từ thư viện và gửi kèm trong cùng cuộc chat.';
+  setBanner(msg, 'ok');
+}
+
 (function init(){
   refreshAuthUI();
   updateSyncUI();
@@ -2727,6 +2915,8 @@ document.getElementById('btnLogout').onclick=()=>{
   if(btnM) btnM.onclick = onMaintButtonClick;
   const btnML = document.getElementById('btnMaintLogin');
   if(btnML) btnML.onclick = ()=> openLoginModal('Đăng nhập tài khoản quản trị để tiếp tục dùng web trong lúc bảo trì.');
+  const btnRep = document.getElementById('btnReport');
+  if(btnRep) btnRep.onclick = openReportModal;
   // Popup thông báo cập nhật cố định (một lần) — changelog từ bảo trì dùng maybeShowSiteChangelog
   setTimeout(showChangelogOnce, 600);
 })();
