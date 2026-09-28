@@ -425,22 +425,30 @@ header .lede{animation:fadeUp .5s .1s ease both}
 .header-auth .btn-action.primary:hover{animation:pulseSoft 1.2s ease infinite}
 
 .rg-cell.rg-day{transition:box-shadow .15s,background .15s}
-/* GitHub sync lock + status */
+/* Sync lock + status */
 .sync-pill{
-  display:inline-flex;align-items:center;gap:7px;
-  font-size:11.5px;font-weight:700;padding:6px 12px;border-radius:99px;
-  border:1.5px solid var(--line);background:var(--paper);color:var(--ink-soft);
-  white-space:nowrap;max-width:min(320px,50vw);overflow:hidden;text-overflow:ellipsis;
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:11.5px;font-weight:700;padding:7px 12px 7px 10px;border-radius:12px;
+  border:1.5px solid var(--line);background:var(--paper);color:var(--ink);
+  white-space:nowrap;max-width:min(420px,62vw);
+  line-height:1.25;cursor:help;
 }
-.sync-pill .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#B0A090}
-.sync-pill.idle .dot{background:#4C8C5A}
+.sync-pill .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:#B0A090}
+.sync-pill .sync-main{display:flex;flex-direction:column;gap:1px;min-width:0}
+.sync-pill .sync-title{font-size:12px;font-weight:800;letter-spacing:.01em}
+.sync-pill .sync-sub{font-size:10px;font-weight:600;opacity:.78;overflow:hidden;text-overflow:ellipsis}
+.sync-pill.idle{border-color:#A8D5B5;background:linear-gradient(135deg,#EAF7EE,#F5FBF6);color:#1E5C32}
+.sync-pill.idle .dot{background:#3CB371;box-shadow:0 0 0 3px rgba(60,179,113,.22)}
+.sync-pill.busy{
+  border-color:#F3D48A;background:linear-gradient(135deg,#FFF6E4,#FFFBF0);color:#6B5100;
+}
 .sync-pill.busy .dot{
-  background:#F5A300;box-shadow:0 0 0 3px rgba(245,163,0,.25);
+  background:#F5A300;box-shadow:0 0 0 3px rgba(245,163,0,.28);
   animation:pulseSoft 1.2s ease infinite;
 }
-.sync-pill.err .dot{background:var(--danger)}
-.sync-pill.busy{border-color:#F3D48A;background:#FFF8E8;color:#6B5100}
-.sync-pill.err{border-color:#F5C2C0;background:#FDECEA;color:#8A1C1C}
+.sync-pill.err{border-color:#F5C2C0;background:linear-gradient(135deg,#FDECEA,#FFF5F4);color:#8A1C1C}
+.sync-pill.err .dot{background:var(--danger);box-shadow:0 0 0 3px rgba(192,57,43,.2)}
+html[data-theme="dark"] .sync-pill.idle{background:#1e2a22;border-color:#3d6b4a;color:#9ddeb0}
 html[data-theme="dark"] .sync-pill.busy{background:#3a3020;border-color:#8a7020;color:#f0d080}
 html[data-theme="dark"] .sync-pill.err{background:#3a2020;border-color:#8a3030;color:#f0a0a0}
 body.gh-locked .roster-grid .rg-day{cursor:not-allowed;opacity:.72}
@@ -683,13 +691,19 @@ html[data-theme="dark"] .login-form input{
     </select>
   </div>
   <button type="button" class="btn-action primary" id="btnLoadGh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 19h16"/></svg> Load lịch</button>
-  <button type="button" class="btn-action" id="btnSaveGh" title="Cần Personal Access Token"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg> Lưu lịch </button>
+  <button type="button" class="btn-action" id="btnSaveGh" title="Cần khóa truy cập máy chủ để lưu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg> Lưu lịch </button>
   <input type="file" id="fileExcel" accept=".xlsx,.xls" hidden>
   <button type="button" class="btn-action" id="btnTemplate" title="Tải mẫu Excel theo tháng đang chọn (kỳ 26→25, đúng số ngày tháng)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 15v-6"/><path d="M9 12l3 3 3-3"/></svg> Mẫu Excel</button>
   <button type="button" class="btn-action" id="btnUpload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3-3 3 3"/></svg> Upload lịch </button>
-  <button type="button" class="btn-action" id="btnToken" title="Cài token ghi GitHub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.6 7.6a5 5 0 1 1-2.8-2.8L15 4h3v3l-4.4 4.4z"/></svg> Key </button>
-  <span id="syncPill" class="sync-pill idle" title="Trạng thái đồng bộ GitHub"><span class="dot"></span><span id="syncPillText">GitHub sẵn sàng</span></span>
-  <span id="loadStatus" style="font-size:11.5px;color:var(--ink-soft);max-width:180px"></span>
+  <button type="button" class="btn-action" id="btnToken" title="Cài khóa truy cập máy chủ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.6 7.6a5 5 0 1 1-2.8-2.8L15 4h3v3l-4.4 4.4z"/></svg> Key </button>
+  <span id="syncPill" class="sync-pill idle" title="Trạng thái đồng bộ lịch với máy chủ">
+    <span class="dot" aria-hidden="true"></span>
+    <span class="sync-main">
+      <span class="sync-title" id="syncPillTitle">Có thể chỉnh sửa</span>
+      <span class="sync-sub" id="syncPillSub">Máy chủ sẵn sàng · không có thao tác đang chạy</span>
+    </span>
+  </span>
+  <span id="loadStatus" style="font-size:11.5px;color:var(--ink-soft);max-width:160px"></span>
   <div class="spacer"></div>
   <div class="viewtoggle">
     <button id="btnDuty" class="active">Đang trực</button>
@@ -766,7 +780,7 @@ function openLoginModal(msg){
   modalBody.className='modal';
   modalBody.innerHTML=`
     <div class="mtop">
-      <div><h3>Đăng nhập</h3><div class="mid">${msg||'Đăng nhập để chỉnh sửa lịch và lưu GitHub'}</div></div>
+      <div><h3>Đăng nhập</h3><div class="mid">${msg||'Đăng nhập để chỉnh sửa lịch và lưu lên máy chủ'}</div></div>
       <button class="closeb" onclick="closeModal()">✕</button>
     </div>
     <div class="login-form">
@@ -779,7 +793,7 @@ function openLoginModal(msg){
         <button type="button" class="btn-action primary" id="loginSubmit">Đăng nhập</button>
         <button type="button" class="btn-action" onclick="closeModal()">Hủy</button>
       </div>
-      <p class="hint" style="margin-top:12px">Chưa đăng nhập: chỉ <b>xem</b> lịch. Đăng nhập mới được sửa ca, nạp Excel, lưu GitHub.</p>
+      <p class="hint" style="margin-top:12px">Chưa đăng nhập: chỉ <b>xem</b> lịch. Đăng nhập mới được sửa ca, nạp Excel, lưu lên máy chủ.</p>
     </div>`;
   overlay.classList.add('show');
   const doLogin=()=>{
@@ -805,9 +819,9 @@ function openLoginModal(msg){
 
 let DAYS=[], SUN_IDX=[], HOL_IDX=[], EMP=[];
 let TARGET_HOURS=216, PLAN_DAYS=27, loading=false;
-/** File đang mở trên GitHub (để PUT cập nhật) */
+/** File đang mở trên máy chủ (để PUT cập nhật) */
 let currentGhFile = null; // { path, sha, name }
-/** Khóa chỉnh sửa khi đang lưu GitHub / chờ Pages deploy */
+/** Khóa chỉnh sửa khi đang lưu / chờ cập nhật trang */
 let ghBusy = false;
 let ghBusyReason = '';
 let pagesWaitUntil = 0;
@@ -1186,7 +1200,7 @@ async function listGithubDir(path){
   const tok=getToken(); if(tok) headers.Authorization='Bearer '+tok;
   const r=await fetch(url,{headers});
   if(r.status===404) return null;
-  if(!r.ok) throw new Error('GitHub API '+r.status);
+  if(!r.ok) throw new Error('Lỗi máy chủ API '+r.status);
   return r.json();
 }
 
@@ -1212,7 +1226,7 @@ function pickBestXlsx(files){
 async function loadFromGitHub(year, month){
   if(loading) return;
   if(ghBusy){
-    setBanner('⏳ Đang lưu GitHub — đợi xong rồi Load lại.','err');
+    setBanner('⏳ Đang lưu lịch lên máy chủ — đợi xong rồi Load lại.','err');
     return;
   }
   loading=true;
@@ -1240,7 +1254,7 @@ async function loadFromGitHub(year, month){
     EMP=parsed.employees.map((e,i)=>{ const sh=(e.shifts||[]).slice(0,DAYS.length); while(sh.length<DAYS.length) sh.push(''); return {...e, shifts:sh, key:i}; });
     currentGhFile={ path:best.path, sha:best.sha, name:best.name };
     setBanner('Đã tải <b>'+best.name+'</b> · <b>'+EMP.length+'</b> NV · Tháng '+String(parsed.month).padStart(2,'0')+'/'+parsed.year,'ok');
-    document.getElementById('loadStatus').textContent='OK';
+    document.getElementById('loadStatus').textContent='Đã tải lịch';
     renderAll();
     setView('duty');
   }catch(err){
@@ -1251,7 +1265,7 @@ async function loadFromGitHub(year, month){
     const msg = (err.message||'') + '';
     const notFound = /không có thư mục|404|không có file/i.test(msg);
     if(notFound){
-      setBanner('Tháng <b>'+mm+'/'+year+'</b> chưa có lịch trên GitHub (chưa sắp xếp hoặc chưa upload).','');
+      setBanner('Tháng <b>'+mm+'/'+year+'</b> chưa có lịch trên máy chủ (chưa sắp xếp hoặc chưa tải lên).','');
     } else {
       setBanner('Không tải được: '+msg,'err');
     }
@@ -1393,14 +1407,14 @@ function downloadTemplateExcel(){
 
 
 async function saveToGitHub(){
-  if(!requireLogin('Đăng nhập để lưu lên GitHub.')) return;
+  if(!requireLogin('Đăng nhập để lưu lịch lên máy chủ.')) return;
   if(ghBusy){
-    setBanner('⏳ Đang có thao tác lưu GitHub khác — vui lòng đợi xong.','err');
+    setBanner('⏳ Đang có thao tác lưu lịch khác — vui lòng đợi xong.','err');
     return;
   }
   const tok=getToken();
   if(!tok){
-    openTokenModal('Cần Personal Access Token (scope <b>repo</b>) để ghi file lên GitHub.');
+    openTokenModal('Cần khóa truy cập máy chủ để ghi file lịch.');
     return;
   }
   if(!EMP.length){ setBanner('Chưa có dữ liệu để lưu.','err'); return; }
@@ -1412,8 +1426,8 @@ async function saveToGitHub(){
   let path = currentGhFile && currentGhFile.path ? currentGhFile.path : `${folder}/${defaultName}`;
   let sha = currentGhFile && currentGhFile.sha ? currentGhFile.sha : null;
 
-  setGhBusy(true, 'Đang lưu lên GitHub…');
-  setBanner('Đang xuất Excel và đẩy lên GitHub… <b>Không chỉnh sửa</b> trong lúc này.','');
+  setGhBusy(true, 'Đang lưu lịch…');
+  setBanner('Đang xuất Excel và gửi lên máy chủ… <b>Không chỉnh sửa</b> trong lúc này.','');
   try{
     // refresh sha if file exists
     if(!sha){
@@ -1454,7 +1468,7 @@ async function saveToGitHub(){
     });
     if(!put.ok){
       const t=await put.text();
-      throw new Error('GitHub PUT '+put.status+': '+t.slice(0,200));
+      throw new Error('Lưu máy chủ lỗi '+put.status+': '+t.slice(0,200));
     }
     const result=await put.json();
     currentGhFile={
@@ -1463,12 +1477,12 @@ async function saveToGitHub(){
       name: result.content.name
     };
     setGhBusy(false);
-    setBanner('Đã lưu GitHub: <b>'+currentGhFile.path+'</b> · '+EMP.length+' NV. Đang chờ <b>GitHub Pages</b> build — tạm khóa sửa ~50s.','ok');
+    setBanner('✅ Đã lưu lịch: <b>'+currentGhFile.path+'</b> · '+EMP.length+' NV.<br>⏳ <b>Hệ thống đang cập nhật trang</b> — pill cam «Đang cập nhật trang»; <b>không sửa</b> đến khi đèn xanh «Có thể chỉnh sửa».','ok');
     startPagesCooldown(PAGES_COOLDOWN_MS);
   }catch(err){
     console.error(err);
     setGhBusy(false);
-    setBanner('Lưu GitHub thất bại: '+(err.message||err),'err');
+    setBanner('Lưu lịch thất bại: '+(err.message||err),'err');
     updateSyncUI();
   }
 }
@@ -1490,8 +1504,8 @@ function emptyStateHtml(){
     ? `<button type="button" class="btn-action primary" onclick="document.getElementById('fileExcel').click()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3-3 3 3"/></svg> Tải lịch Excel</button>`
     : `<button type="button" class="btn-action primary" onclick="openLoginModal('Đăng nhập để nạp lịch Excel.')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg> Đăng nhập để nạp lịch</button>`;
   const desc = isLoggedIn()
-    ? 'Lịch trực tháng này chưa được sắp xếp hoặc chưa upload lên GitHub.<br>Bạn có thể nạp file Excel để tạo lịch ngay.'
-    : 'Lịch trực tháng này chưa được sắp xếp hoặc chưa upload lên GitHub.<br>Bạn đang ở chế độ chỉ xem — đăng nhập để nạp file Excel tạo lịch.';
+    ? 'Lịch trực tháng này chưa được sắp xếp hoặc chưa có trên máy chủ.<br>Bạn có thể nạp file Excel để tạo lịch ngay.'
+    : 'Lịch trực tháng này chưa được sắp xếp hoặc chưa có trên máy chủ.<br>Bạn đang ở chế độ chỉ xem — đăng nhập để nạp file Excel tạo lịch.';
   return `<div class="empty-state">
     <div class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg></div>
     <h2>Lịch tháng ${m}/${y} chưa có</h2>
@@ -1609,7 +1623,7 @@ function renderDuty(){
         </div>
       </div>
     </div>
-    <p style="font-size:11.5px;color:var(--ink-soft);margin-top:10px">* ${now.toLocaleString('vi-VN')} · Đăng nhập để sửa ca và lưu GitHub</p>`;
+    <p style="font-size:11.5px;color:var(--ink-soft);margin-top:10px">* ${now.toLocaleString('vi-VN')} · Đăng nhập để sửa ca và lưu lịch</p>`;
     return;
   }
 
@@ -1718,7 +1732,7 @@ function renderDuty(){
     <div class="dutysec anim-in-d1"><h3>${icoUp} Sắp vào ca <span class="badge">${upcoming.length}</span></h3><div class="dutylist">${upcoming.length ? upcoming.map((it,i) => item(it,false).replace('class="dutyitem"', `class="dutyitem" style="animation-delay:${i*0.04}s"`)).join('') : '<div class="dutyempty">Không có ca sắp tới</div>'}</div></div>
     <div class="dutysec anim-in-d2" style="grid-column:1/-1"><h3>${icoOff} Off / nghỉ <span class="badge">${off.length}</span></h3><div class="dutylist" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px">${off.length ? off.map((it,i) => item(it,true).replace('class="dutyitem"', `class="dutyitem" style="animation-delay:${Math.min(i,12)*0.03}s"`)).join('') : '—'}</div></div>
   </div>
-  <p style="font-size:11.5px;color:var(--ink-soft);margin-top:10px">* ${new Date().toLocaleString('vi-VN')} · Đăng nhập để sửa ca và lưu GitHub</p>`;
+  <p style="font-size:11.5px;color:var(--ink-soft);margin-top:10px">* ${new Date().toLocaleString('vi-VN')} · Đăng nhập để sửa ca và lưu lịch</p>`;
 }
 function setBanner(html,type){ const el=document.getElementById('statusBanner'); el.className='banner'+(type==='ok'?' ok':type==='err'?' err':''); el.innerHTML=`<div>${html}</div>`; }
 
@@ -1727,8 +1741,9 @@ function isGhBusy(){
 }
 function updateSyncUI(){
   const pill = document.getElementById('syncPill');
-  const txt = document.getElementById('syncPillText');
-  if(!pill || !txt) return;
+  const titleEl = document.getElementById('syncPillTitle');
+  const subEl = document.getElementById('syncPillSub');
+  if(!pill || !titleEl || !subEl) return;
   const locked = isGhBusy();
   document.body.classList.toggle('gh-locked', locked);
   ['btnSaveGh','btnUpload','btnLoadGh','btnTemplate'].forEach(id=>{
@@ -1739,14 +1754,20 @@ function updateSyncUI(){
   });
   if(ghBusy){
     pill.className = 'sync-pill busy';
-    txt.textContent = ghBusyReason || 'Đang lưu GitHub…';
+    pill.title = 'Đang ghi file lên máy chủ. Không chỉnh sửa ca / tải lên / lưu thêm cho đến khi xong.';
+    titleEl.textContent = 'Đang lưu lịch';
+    subEl.textContent = (ghBusyReason || 'Đang gửi file Excel') + ' · tạm khóa chỉnh sửa';
   } else if(Date.now() < pagesWaitUntil){
     const sec = Math.max(1, Math.ceil((pagesWaitUntil - Date.now())/1000));
     pill.className = 'sync-pill busy';
-    txt.textContent = 'Pages đang build… còn ~'+sec+'s';
+    pill.title = 'Máy chủ đã nhận file; hệ thống đang cập nhật trang (~30–60s). Đợi đèn xanh rồi mới sửa tiếp để tránh lỗi trùng.';
+    titleEl.textContent = 'Đang cập nhật trang';
+    subEl.textContent = 'Vui lòng đợi ~'+sec+'s · tạm khóa chỉnh sửa';
   } else {
     pill.className = 'sync-pill idle';
-    txt.textContent = 'GitHub sẵn sàng';
+    pill.title = 'Không có thao tác đang chạy. Có thể Load, sửa ca, tải lên hoặc Lưu lịch.';
+    titleEl.textContent = 'Có thể chỉnh sửa';
+    subEl.textContent = 'Máy chủ sẵn sàng · không có thao tác đang chạy';
   }
 }
 function setGhBusy(on, reason){
@@ -1763,7 +1784,7 @@ function startPagesCooldown(ms){
     if(Date.now() >= pagesWaitUntil){
       clearInterval(pagesPollTimer);
       pagesPollTimer = null;
-      setBanner('GitHub Pages đã cập nhật (hoặc hết thời gian chờ). Có thể chỉnh sửa tiếp.','ok');
+      setBanner('✅ <b>Có thể chỉnh sửa lại</b> — hệ thống đã cập nhật trang (hoặc hết thời gian chờ).','ok');
       updateSyncUI();
     }
   }, 1000);
@@ -1771,8 +1792,8 @@ function startPagesCooldown(ms){
 function requireEditable(actionMsg){
   if(!requireLogin(actionMsg || 'Đăng nhập để chỉnh sửa.')) return false;
   if(isGhBusy()){
-    const why = ghBusy ? (ghBusyReason || 'Đang lưu lên GitHub') : 'GitHub Pages đang build';
-    setBanner('⏳ <b>Tạm khóa chỉnh sửa</b> — '+why+'. Đợi trạng thái «GitHub sẵn sàng» rồi thao tác tiếp.','err');
+    const why = ghBusy ? (ghBusyReason || 'Đang lưu lịch') : 'Hệ thống đang cập nhật trang';
+    setBanner('⏳ <b>Tạm khóa chỉnh sửa</b> — '+why+'. Đợi pill chuyển <b>«Có thể chỉnh sửa»</b> (đèn xanh) rồi thao tác tiếp.','err');
     return false;
   }
   return true;
@@ -1783,14 +1804,14 @@ function showChangelogOnce(){
   modalBody.innerHTML = `
     <div class="mtop">
       <div><h3>Cập nhật web lịch trực</h3>
-      <div class="mid">28/09/2026 · Bản vá kỳ lịch &amp; đồng bộ GitHub</div></div>
+      <div class="mid">28/09/2026 · Bản vá kỳ lịch &amp; đồng bộ máy chủ</div></div>
       <button class="closeb" onclick="closeChangelog()">✕</button>
     </div>
     <ul class="changelog-list">
       <li><span class="ck">✓</span><span><b>Kỳ lịch chuẩn 26 → 25</b> theo từng tháng (tự bỏ 31 khi tháng trước 30 ngày; tháng 2 đủ 28/29 ngày).</span></li>
       <li><span class="ck">✓</span><span><b>Đang trực / Sắp vào ca</b> tính đúng kỳ chứa hôm nay (vd. 28/09 thuộc tháng 10).</span></li>
       <li><span class="ck">✓</span><span><b>Mẫu Excel</b> tải theo tháng đang chọn — đúng số cột ngày.</span></li>
-      <li><span class="ck">✓</span><span><b>Trạng thái GitHub</b> khi upload / lưu / sửa: khóa chỉnh sửa lúc pending, hiện pill «Pages đang build…».</span></li>
+      <li><span class="ck">✓</span><span><b>Trạng thái đồng bộ</b> khi tải lên / lưu / sửa: khóa chỉnh sửa khi đang xử lý, hiện pill «Đang cập nhật trang…».</span></li>
     </ul>
     <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
       <button type="button" class="btn-action primary" onclick="closeChangelog()">Đã hiểu</button>
@@ -1932,7 +1953,7 @@ function openShiftPicker(key, dayIdx){
         </button>`;
       }).join('')}
     </div>
-    <p class="hint">Sau khi sửa, bấm <b>💾 Lưu GitHub</b> để ghi file Excel lên repo.</p>`;
+    <p class="hint">Sau khi sửa, bấm <b>💾 Lưu lịch</b> để ghi file Excel lên máy chủ.</p>`;
   overlay.classList.add('show');
 }
 function applyShift(key, dayIdx, code){
@@ -1966,17 +1987,17 @@ async function deleteEmployee(key){
   if(!requireEditable('Đăng nhập để xóa nhân viên.')) return;
   const e=EMP.find(x=>x.key===key);
   if(!e) return;
-  const ok=confirm('Xóa nhân viên «'+e.name+'» ('+(e.id||'—')+') khỏi lịch tháng này?\n\nFile Excel trên GitHub sẽ được cập nhật ngay.');
+  const ok=confirm('Xóa nhân viên «'+e.name+'» ('+(e.id||'—')+') khỏi lịch tháng này?\n\nFile lịch trên máy chủ sẽ được cập nhật ngay.');
   if(!ok) return;
   EMP=EMP.filter(x=>x.key!==key).map((x,i)=>({...x,key:i}));
   applyNotes(EMP);
   closeModal();
   renderAll();
-  setBanner('Đã xóa <b>'+e.name+'</b>. Đang cập nhật Excel trên GitHub…','');
+  setBanner('Đã xóa <b>'+e.name+'</b>. Đang cập nhật lịch trên máy chủ…','');
   try{
     await saveToGitHub();
   }catch(err){
-    setBanner('Đã xóa trên web nhưng lưu GitHub lỗi: '+(err.message||err)+'. Bấm <b>Lưu GitHub</b> thủ công.','err');
+    setBanner('Đã xóa trên web nhưng lưu máy chủ lỗi: '+(err.message||err)+'. Bấm <b>Lưu lịch</b> thủ công.','err');
   }
 }
 function closeModal(){ overlay.classList.remove('show'); }
@@ -1985,24 +2006,24 @@ overlay.onclick=e=>{ if(e.target===overlay) closeModal(); };
 function openTokenModal(msg){
   modalBody.className='modal';
   modalBody.innerHTML=`
-    <div class="mtop"><div><h3>GitHub Token</h3><div class="mid">Cần để 💾 Lưu file Excel lên repo</div></div>
+    <div class="mtop"><div><h3>Khóa truy cập máy chủ</h3><div class="mid">Cần để 💾 Lưu file Excel lên máy chủ</div></div>
     <button class="closeb" onclick="closeModal()">✕</button></div>
     <div class="token-box">
-      ${msg||'Tạo token tại GitHub → Settings → Developer settings → Personal access tokens (classic) → scope <b>repo</b>.'}
-      <input id="tokInput" type="password" placeholder="ghp_xxxxxxxx…" value="${getToken()}">
+      ${msg||'Liên hệ quản trị để lấy khóa truy cập máy chủ (dùng khi lưu lịch).'}
+      <input id="tokInput" type="password" placeholder="Dán khóa truy cập…" value="${getToken()}">
       <div class="row">
-        <button type="button" class="btn-action primary" id="tokSave">Lưu token</button>
-        <button type="button" class="btn-action" id="tokClear">Xóa token</button>
+        <button type="button" class="btn-action primary" id="tokSave">Lưu khóa</button>
+        <button type="button" class="btn-action" id="tokClear">Xóa khóa</button>
       </div>
-      <p style="margin:8px 0 0;font-size:11px">Token chỉ lưu trên trình duyệt máy này (localStorage), không gửi đi đâu khác ngoài API GitHub.</p>
+      <p style="margin:8px 0 0;font-size:11px">Khóa chỉ lưu trên trình duyệt máy này, không gửi đi đâu khác ngoài máy chủ lịch.</p>
     </div>`;
   overlay.classList.add('show');
-  document.getElementById('tokSave').onclick=()=>{ setToken(document.getElementById('tokInput').value.trim()); closeModal(); setBanner('Đã lưu token trên trình duyệt này.','ok'); };
-  document.getElementById('tokClear').onclick=()=>{ setToken(''); document.getElementById('tokInput').value=''; setBanner('Đã xóa token.','ok'); };
+  document.getElementById('tokSave').onclick=()=>{ setToken(document.getElementById('tokInput').value.trim()); closeModal(); setBanner('Đã lưu khóa truy cập trên trình duyệt này.','ok'); };
+  document.getElementById('tokClear').onclick=()=>{ setToken(''); document.getElementById('tokInput').value=''; setBanner('Đã xóa khóa truy cập.','ok'); };
 }
-document.getElementById('btnToken').onclick=()=>{ if(!requireLogin('Đăng nhập để cấu hình token.')) return; openTokenModal(); };
+document.getElementById('btnToken').onclick=()=>{ if(!requireLogin('Đăng nhập để cấu hình khóa truy cập.')) return; openTokenModal(); };
 
-/* Template + Upload merge (so sánh GitHub / dữ liệu hiện có) */
+/* Template + Upload merge */
 document.getElementById('btnTemplate').onclick=()=>downloadTemplateExcel();
 document.getElementById('btnUpload').onclick=()=>{ if(!requireEditable('Đăng nhập để nạp Excel.')) return; document.getElementById('fileExcel').click(); };
 document.getElementById('fileExcel').onchange=async ev=>{
@@ -2020,22 +2041,22 @@ document.getElementById('fileExcel').onchange=async ev=>{
     const afterSnap = snapshotEmp(EMP);
     renderAll();
 
-    // Trùng tên + trùng hết ca → bỏ qua, không upload GitHub
+    // Trùng tên + trùng hết ca → bỏ qua, không tải lên máy chủ
     if(empSnapshotsEqual(beforeSnap, afterSnap)){
-      setBanner('File <b>'+file.name+'</b> trùng hoàn toàn với lịch đang có (tên + ca). <b>Không upload</b> lên GitHub.','');
+      setBanner('File <b>'+file.name+'</b> trùng hoàn toàn với lịch đang có (tên + ca). <b>Không tải lên</b> máy chủ.','');
       return;
     }
     const diff = countShiftDiffs(beforeSnap, afterSnap);
-    // Có thay đổi ca hoặc tên mới → cập nhật file Excel tổng (từ EMP) và đẩy GitHub
+    // Có thay đổi ca hoặc tên mới → cập nhật file Excel tổng (từ EMP) và gửi máy chủ
     // (không upload nguyên file user nạp)
     setBanner(
       'Đã gộp <b>'+file.name+'</b>: +'+added+' NV mới, cập nhật ca '+updated
       +' · đổi ca '+diff.changed+' người, thêm '+diff.added
-      +' · tổng <b>'+total+'</b> NV. Đang cập nhật file Excel tổng lên GitHub…','');
+      +' · tổng <b>'+total+'</b> NV. Đang cập nhật file Excel tổng lên máy chủ…','');
     try{
       await saveToGitHub();
     }catch(e){
-      setBanner('Đã gộp trên web nhưng lưu GitHub lỗi: '+(e.message||e)+'. Bấm <b>Lưu GitHub</b> thủ công.','err');
+      setBanner('Đã gộp trên web nhưng lưu máy chủ lỗi: '+(e.message||e)+'. Bấm <b>Lưu lịch</b> thủ công.','err');
     }
   }catch(err){ console.error(err); setBanner('Lỗi Excel: '+(err.message||err),'err'); }
 };
