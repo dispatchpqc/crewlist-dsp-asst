@@ -1,17 +1,16 @@
 {
-  "maintenance": true,
-  "message": "Đang cập nhật thêm tính năng",
-  "updatedAt": "2026-09-28T05:32:52.092Z",
+  "maintenance": false,
+  "message": "",
+  "updatedAt": "2026-09-28T05:39:56.307Z",
   "updatedBy": "admin",
   "changelog": {
-    "id": "cl-20260928-1790573073904",
+    "id": "cl-20260928-1790573996307",
     "date": "28/09/2026",
-    "title": "Đã fix lỗi",
+    "title": "Sửa lỗi và thêm tính năng",
     "items": [
-      "Cập nhật trạng thái sửa lịch",
-      "Fix lịch đúng chuẩn theo tháng",
-      "Mẫu lịch được cập nhật theo tháng",
-      "Fix trạng thái ca đang trực"
+      "Đã thêm báo cáo lỗi trực tiếp",
+      "Fix lịch theo đúng từng tháng",
+      "Thêm thanh trạng thái chỉnh sửa"
     ]
   }
 }
