@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+<script src="config.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sun PhuQuoc Airways — Lịch trực</title>
@@ -2979,7 +2980,7 @@ async function submitReport(){
 /* ================= FEEDBACK (lưu trên GitHub) =================
  * endpoint: URL Cloudflare Worker (xem feedback-worker.js) để MỌI NGƯỜI gửi được mà không lộ khóa.
  * Để trống → chỉ máy có khóa (Key) mới ghi thẳng được; còn lại rơi về cách cũ (sao chép gửi Viber). */
-const FB = { owner:'dispatchpqc', repo:'crewlist-feedback', dir:'feedback', endpoint:'' };
+const FB = { owner:'dispatchpqc', repo:'crewlist-feedback', dir:'feedback', endpoint:(window.SUNPQ&&SUNPQ.feedbackEndpoint)||'' };
 const fbApi = `https://api.github.com/repos/${FB.owner}/${FB.repo}/contents/${FB.dir}`;
 const fbEsc = t => String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fbB64 = str => btoa(unescape(encodeURIComponent(str)));
@@ -3020,7 +3021,7 @@ async function submitFeedback(){
     console.warn('feedback',e);
     btn.disabled=false; btn.textContent='Gửi báo cáo';
     if(e.message==='nocfg'||/Failed to fetch|HTTP/.test(e.message)){
-      err.textContent='Chưa gửi được lên máy chủ — chuyển sang cách gửi qua Viber.';
+      err.textContent='Chưa gửi được lên máy chủ ('+(e.message==='nocfg'?'chưa cấu hình địa chỉ Worker trong config.js':e.message)+') — chuyển sang cách gửi qua Viber.';
       setTimeout(()=>submitReport(),700);
     } else err.textContent='Lỗi: '+e.message;
   }
@@ -3094,7 +3095,7 @@ async function openFeedbackAdmin(silent){
   setInterval(fbPollCount,15000); document.addEventListener('visibilitychange',()=>{ if(!document.hidden) fbPollCount(); }); })();
 
 /* ================= LỊCH CÁ NHÂN (.ics) qua Worker ================= */
-const ICS = { endpoint:'https://roster-ics.dispatch-pqc.workers.dev' };   // dán địa chỉ roster-ics-worker vào đây
+const ICS = { endpoint:(window.SUNPQ&&SUNPQ.icsEndpoint)||'' };   // dán địa chỉ roster-ics-worker vào đây
 var ICS_LINKS = {}; try{ ICS_LINKS = JSON.parse(localStorage.getItem('sunpq_ics_links')||'{}'); }catch(e){}
 const icsId = e => String(e.id||'').replace(/^0+/,'').trim();
 async function icsSync(silent){
