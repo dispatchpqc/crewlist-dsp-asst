@@ -425,6 +425,39 @@ header .lede{animation:fadeUp .5s .1s ease both}
 .header-auth .btn-action.primary:hover{animation:pulseSoft 1.2s ease infinite}
 
 .rg-cell.rg-day{transition:box-shadow .15s,background .15s}
+/* GitHub sync lock + status */
+.sync-pill{
+  display:inline-flex;align-items:center;gap:7px;
+  font-size:11.5px;font-weight:700;padding:6px 12px;border-radius:99px;
+  border:1.5px solid var(--line);background:var(--paper);color:var(--ink-soft);
+  white-space:nowrap;max-width:min(320px,50vw);overflow:hidden;text-overflow:ellipsis;
+}
+.sync-pill .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#B0A090}
+.sync-pill.idle .dot{background:#4C8C5A}
+.sync-pill.busy .dot{
+  background:#F5A300;box-shadow:0 0 0 3px rgba(245,163,0,.25);
+  animation:pulseSoft 1.2s ease infinite;
+}
+.sync-pill.err .dot{background:var(--danger)}
+.sync-pill.busy{border-color:#F3D48A;background:#FFF8E8;color:#6B5100}
+.sync-pill.err{border-color:#F5C2C0;background:#FDECEA;color:#8A1C1C}
+html[data-theme="dark"] .sync-pill.busy{background:#3a3020;border-color:#8a7020;color:#f0d080}
+html[data-theme="dark"] .sync-pill.err{background:#3a2020;border-color:#8a3030;color:#f0a0a0}
+body.gh-locked .roster-grid .rg-day{cursor:not-allowed;opacity:.72}
+body.gh-locked .roster-grid .rg-day:hover{box-shadow:none}
+body.gh-locked .personcard{cursor:not-allowed;opacity:.85}
+body.gh-locked .calcell{cursor:not-allowed;pointer-events:none;opacity:.7}
+.changelog-list{margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.changelog-list li{
+  display:flex;gap:10px;align-items:flex-start;
+  padding:10px 12px;background:var(--sun);border:1px solid var(--line-soft);border-radius:10px;
+  font-size:13px;line-height:1.45;
+}
+.changelog-list li .ck{
+  flex-shrink:0;width:22px;height:22px;border-radius:50%;
+  background:linear-gradient(135deg,var(--gold),var(--gold-deep));color:#3a2400;
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;
+}
 .loading-shimmer{
   background:linear-gradient(90deg,var(--sun) 25%,#fff 50%,var(--sun) 75%);
   background-size:200% 100%;
@@ -655,6 +688,7 @@ html[data-theme="dark"] .login-form input{
   <button type="button" class="btn-action" id="btnTemplate" title="Tải mẫu Excel theo tháng đang chọn (kỳ 26→25, đúng số ngày tháng)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 15v-6"/><path d="M9 12l3 3 3-3"/></svg> Mẫu Excel</button>
   <button type="button" class="btn-action" id="btnUpload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3-3 3 3"/></svg> Upload lịch </button>
   <button type="button" class="btn-action" id="btnToken" title="Cài token ghi GitHub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.6 7.6a5 5 0 1 1-2.8-2.8L15 4h3v3l-4.4 4.4z"/></svg> Key </button>
+  <span id="syncPill" class="sync-pill idle" title="Trạng thái đồng bộ GitHub"><span class="dot"></span><span id="syncPillText">GitHub sẵn sàng</span></span>
   <span id="loadStatus" style="font-size:11.5px;color:var(--ink-soft);max-width:180px"></span>
   <div class="spacer"></div>
   <div class="viewtoggle">
@@ -773,6 +807,13 @@ let DAYS=[], SUN_IDX=[], HOL_IDX=[], EMP=[];
 let TARGET_HOURS=216, PLAN_DAYS=27, loading=false;
 /** File đang mở trên GitHub (để PUT cập nhật) */
 let currentGhFile = null; // { path, sha, name }
+/** Khóa chỉnh sửa khi đang lưu GitHub / chờ Pages deploy */
+let ghBusy = false;
+let ghBusyReason = '';
+let pagesWaitUntil = 0;
+let pagesPollTimer = null;
+const PAGES_COOLDOWN_MS = 50000;
+const CHANGELOG_KEY = 'sunpq_changelog_v20260928';
 
 const DEPTS = {
   DM:{name:'Duty Manager',color:'var(--dm)',bg:'var(--dm-bg)'},
@@ -1170,6 +1211,10 @@ function pickBestXlsx(files){
 
 async function loadFromGitHub(year, month){
   if(loading) return;
+  if(ghBusy){
+    setBanner('⏳ Đang lưu GitHub — đợi xong rồi Load lại.','err');
+    return;
+  }
   loading=true;
   document.getElementById('btnLoadGh').disabled=true;
   const folder=monthFolder(year,month);
@@ -1349,6 +1394,10 @@ function downloadTemplateExcel(){
 
 async function saveToGitHub(){
   if(!requireLogin('Đăng nhập để lưu lên GitHub.')) return;
+  if(ghBusy){
+    setBanner('⏳ Đang có thao tác lưu GitHub khác — vui lòng đợi xong.','err');
+    return;
+  }
   const tok=getToken();
   if(!tok){
     openTokenModal('Cần Personal Access Token (scope <b>repo</b>) để ghi file lên GitHub.');
@@ -1363,8 +1412,8 @@ async function saveToGitHub(){
   let path = currentGhFile && currentGhFile.path ? currentGhFile.path : `${folder}/${defaultName}`;
   let sha = currentGhFile && currentGhFile.sha ? currentGhFile.sha : null;
 
-  document.getElementById('btnSaveGh').disabled=true;
-  setBanner('Đang xuất Excel và đẩy lên GitHub…','');
+  setGhBusy(true, 'Đang lưu lên GitHub…');
+  setBanner('Đang xuất Excel và đẩy lên GitHub… <b>Không chỉnh sửa</b> trong lúc này.','');
   try{
     // refresh sha if file exists
     if(!sha){
@@ -1413,12 +1462,14 @@ async function saveToGitHub(){
       sha: result.content.sha,
       name: result.content.name
     };
-    setBanner('Đã lưu lên GitHub: <b>'+currentGhFile.path+'</b> · '+EMP.length+' NV','ok');
+    setGhBusy(false);
+    setBanner('Đã lưu GitHub: <b>'+currentGhFile.path+'</b> · '+EMP.length+' NV. Đang chờ <b>GitHub Pages</b> build — tạm khóa sửa ~50s.','ok');
+    startPagesCooldown(PAGES_COOLDOWN_MS);
   }catch(err){
     console.error(err);
+    setGhBusy(false);
     setBanner('Lưu GitHub thất bại: '+(err.message||err),'err');
-  }finally{
-    document.getElementById('btnSaveGh').disabled=false;
+    updateSyncUI();
   }
 }
 
@@ -1670,6 +1721,86 @@ function renderDuty(){
   <p style="font-size:11.5px;color:var(--ink-soft);margin-top:10px">* ${new Date().toLocaleString('vi-VN')} · Đăng nhập để sửa ca và lưu GitHub</p>`;
 }
 function setBanner(html,type){ const el=document.getElementById('statusBanner'); el.className='banner'+(type==='ok'?' ok':type==='err'?' err':''); el.innerHTML=`<div>${html}</div>`; }
+
+function isGhBusy(){
+  return ghBusy || Date.now() < pagesWaitUntil;
+}
+function updateSyncUI(){
+  const pill = document.getElementById('syncPill');
+  const txt = document.getElementById('syncPillText');
+  if(!pill || !txt) return;
+  const locked = isGhBusy();
+  document.body.classList.toggle('gh-locked', locked);
+  ['btnSaveGh','btnUpload','btnLoadGh','btnTemplate'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    if(id==='btnLoadGh'){ el.disabled = !!ghBusy; return; }
+    el.disabled = locked;
+  });
+  if(ghBusy){
+    pill.className = 'sync-pill busy';
+    txt.textContent = ghBusyReason || 'Đang lưu GitHub…';
+  } else if(Date.now() < pagesWaitUntil){
+    const sec = Math.max(1, Math.ceil((pagesWaitUntil - Date.now())/1000));
+    pill.className = 'sync-pill busy';
+    txt.textContent = 'Pages đang build… còn ~'+sec+'s';
+  } else {
+    pill.className = 'sync-pill idle';
+    txt.textContent = 'GitHub sẵn sàng';
+  }
+}
+function setGhBusy(on, reason){
+  ghBusy = !!on;
+  ghBusyReason = reason || '';
+  updateSyncUI();
+}
+function startPagesCooldown(ms){
+  pagesWaitUntil = Date.now() + (ms || PAGES_COOLDOWN_MS);
+  updateSyncUI();
+  if(pagesPollTimer) clearInterval(pagesPollTimer);
+  pagesPollTimer = setInterval(()=>{
+    updateSyncUI();
+    if(Date.now() >= pagesWaitUntil){
+      clearInterval(pagesPollTimer);
+      pagesPollTimer = null;
+      setBanner('GitHub Pages đã cập nhật (hoặc hết thời gian chờ). Có thể chỉnh sửa tiếp.','ok');
+      updateSyncUI();
+    }
+  }, 1000);
+}
+function requireEditable(actionMsg){
+  if(!requireLogin(actionMsg || 'Đăng nhập để chỉnh sửa.')) return false;
+  if(isGhBusy()){
+    const why = ghBusy ? (ghBusyReason || 'Đang lưu lên GitHub') : 'GitHub Pages đang build';
+    setBanner('⏳ <b>Tạm khóa chỉnh sửa</b> — '+why+'. Đợi trạng thái «GitHub sẵn sàng» rồi thao tác tiếp.','err');
+    return false;
+  }
+  return true;
+}
+function showChangelogOnce(){
+  try{ if(localStorage.getItem(CHANGELOG_KEY)) return; }catch(e){}
+  modalBody.className = 'modal';
+  modalBody.innerHTML = `
+    <div class="mtop">
+      <div><h3>Cập nhật web lịch trực</h3>
+      <div class="mid">28/09/2026 · Bản vá kỳ lịch &amp; đồng bộ GitHub</div></div>
+      <button class="closeb" onclick="closeChangelog()">✕</button>
+    </div>
+    <ul class="changelog-list">
+      <li><span class="ck">✓</span><span><b>Kỳ lịch chuẩn 26 → 25</b> theo từng tháng (tự bỏ 31 khi tháng trước 30 ngày; tháng 2 đủ 28/29 ngày).</span></li>
+      <li><span class="ck">✓</span><span><b>Đang trực / Sắp vào ca</b> tính đúng kỳ chứa hôm nay (vd. 28/09 thuộc tháng 10).</span></li>
+      <li><span class="ck">✓</span><span><b>Mẫu Excel</b> tải theo tháng đang chọn — đúng số cột ngày.</span></li>
+      <li><span class="ck">✓</span><span><b>Trạng thái GitHub</b> khi upload / lưu / sửa: khóa chỉnh sửa lúc pending, hiện pill «Pages đang build…».</span></li>
+    </ul>
+    <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+      <button type="button" class="btn-action primary" onclick="closeChangelog()">Đã hiểu</button>
+    </div>`;
+  overlay.classList.add('show');
+}
+function closeChangelog(){
+  try{ localStorage.setItem(CHANGELOG_KEY, '1'); }catch(e){}
+  closeModal();
+}
 function renderAll(){
   rebuildDeptChips();
   renderGrid(); renderCards(); renderDuty();
@@ -1742,7 +1873,7 @@ document.getElementById('btnSaveGh').onclick=()=>saveToGitHub();
 const overlay=document.getElementById('overlay'), modalBody=document.getElementById('modalBody');
 
 function editCellShift(el, key, dayIdx){
-  if(!requireLogin('Đăng nhập để chọn / sửa ca.')) return;
+  if(!requireEditable('Đăng nhập để chọn / sửa ca.')) return;
   if(el.classList.contains('editing')) return;
   const e=EMP.find(x=>x.key===key); if(!e) return;
   const cur = e.shifts[dayIdx] || '';
@@ -1780,7 +1911,7 @@ function editCellShift(el, key, dayIdx){
 
 function openShiftPicker(key, dayIdx){
   // Dùng cho lịch cá nhân (openPerson) — vẫn list modal cho dễ đọc label đầy đủ
-  if(!requireLogin('Đăng nhập để chọn / sửa ca.')) return;
+  if(!requireEditable('Đăng nhập để chọn / sửa ca.')) return;
   const e=EMP.find(x=>x.key===key); if(!e) return;
   const dd=DAYS[dayIdx]||['?','?',''];
   const cur=e.shifts[dayIdx]||'';
@@ -1832,7 +1963,7 @@ function openPerson(key){
   overlay.classList.add('show');
 }
 async function deleteEmployee(key){
-  if(!requireLogin('Đăng nhập để xóa nhân viên.')) return;
+  if(!requireEditable('Đăng nhập để xóa nhân viên.')) return;
   const e=EMP.find(x=>x.key===key);
   if(!e) return;
   const ok=confirm('Xóa nhân viên «'+e.name+'» ('+(e.id||'—')+') khỏi lịch tháng này?\n\nFile Excel trên GitHub sẽ được cập nhật ngay.');
@@ -1873,7 +2004,7 @@ document.getElementById('btnToken').onclick=()=>{ if(!requireLogin('Đăng nhậ
 
 /* Template + Upload merge (so sánh GitHub / dữ liệu hiện có) */
 document.getElementById('btnTemplate').onclick=()=>downloadTemplateExcel();
-document.getElementById('btnUpload').onclick=()=>{ if(!requireLogin('Đăng nhập để nạp Excel.')) return; document.getElementById('fileExcel').click(); };
+document.getElementById('btnUpload').onclick=()=>{ if(!requireEditable('Đăng nhập để nạp Excel.')) return; document.getElementById('fileExcel').click(); };
 document.getElementById('fileExcel').onchange=async ev=>{
   const file=ev.target.files&&ev.target.files[0]; ev.target.value=''; if(!file) return;
   try{
@@ -1944,6 +2075,7 @@ document.getElementById('btnLogout').onclick=()=>{
 };
 (function init(){
   refreshAuthUI();
+  updateSyncUI();
   setView('duty');
   // Mặc định mở kỳ lịch chứa hôm nay (26 tháng trước → 25 tháng này)
   const roster = rosterMonthForDate();
@@ -1951,6 +2083,8 @@ document.getElementById('btnLogout').onclick=()=>{
   document.getElementById('selMonth').value = String(roster.month);
   if(typeof window.syncMonthYearUI==='function') window.syncMonthYearUI();
   loadFromGitHub(roster.year, roster.month);
+  // Popup thông báo cập nhật (một lần)
+  setTimeout(showChangelogOnce, 600);
 })();
 </script>
 </body>
