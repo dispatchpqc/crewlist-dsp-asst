@@ -644,28 +644,47 @@ html[data-theme="dark"] .login-form input{
 #btnTheme{min-width:40px;justify-content:center;padding:7px 10px}
 #btnTheme svg{width:16px;height:16px}
 
+
+/* ===== Nâng cấp mượt & hiệu ứng ===== */
+html{scroll-behavior:smooth}
+.sun-field{contain:paint}
+.sun-rays{will-change:transform;transform:translateZ(0)}
+.logo-sun{width:46px;height:46px;flex:none;animation:spinSun 26s linear infinite;filter:drop-shadow(0 2px 5px rgba(232,184,74,.45));transition:transform .4s cubic-bezier(.2,.9,.3,1)}
+.brand-left:hover .logo-sun{animation-duration:5s;transform:scale(1.12)}
+.btn-action{transition:transform .18s cubic-bezier(.2,.9,.3,1),box-shadow .2s,background-color .2s,border-color .2s,color .2s}
+@media (hover:hover){.btn-action:hover{transform:translateY(-1.5px);box-shadow:0 6px 16px rgba(180,120,20,.18)}}
+.btn-action:active{transform:translateY(0) scale(.96);box-shadow:none}
+.btn-action:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--gold-deep);outline-offset:2px}
+.kpi{transition:transform .25s cubic-bezier(.2,.9,.3,1),box-shadow .25s;animation:fadeUp .5s cubic-bezier(.2,.9,.3,1) both}
+.kpi:nth-child(2){animation-delay:.05s}.kpi:nth-child(3){animation-delay:.1s}.kpi:nth-child(4){animation-delay:.15s}.kpi:nth-child(5){animation-delay:.2s}
+@media (hover:hover){.kpi:hover{transform:translateY(-3px);box-shadow:0 10px 22px rgba(180,120,20,.16)}}
+.brandname{animation:fadeIn .8s ease both}
+.roster-grid tr,.roster-grid .rg-row{transition:background-color .15s}
+.fb-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;font-weight:800;animation:pulseSoft 2s infinite}
+.fb-card{border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:10px;background:var(--paper);animation:fadeUp .3s both;transition:opacity .3s,transform .3s,max-height .3s}
+.fb-card.out{opacity:0;transform:translateX(30px)}
+.fb-card .fb-h{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--ink-soft);margin-bottom:6px}
+.fb-card .fb-d{white-space:pre-wrap;font-size:13.5px;line-height:1.5;word-break:break-word}
+.fb-card .fb-i{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.fb-card .fb-i img{width:84px;height:84px;object-fit:cover;border-radius:8px;cursor:zoom-in;border:1px solid var(--line);transition:transform .2s}
+.fb-card .fb-i img:hover{transform:scale(1.05)}
+.fb-list{max-height:62vh;overflow:auto;margin-top:4px}
+.fb-lb{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;cursor:zoom-out;animation:fadeIn .2s}
+.fb-lb img{max-width:94vw;max-height:92vh;border-radius:10px;animation:pop .25s}
+@media (prefers-reduced-motion:reduce){.logo-sun,.kpi,.brandname,.fb-badge{animation:none}.btn-action,.kpi{transition:none}html{scroll-behavior:auto}}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="sunMark" viewBox="0 0 200 200"><path fill="var(--gold)" fill-rule="evenodd" d="M123.2 131.6C122.9 131.4 123.6 130.7 121.7 131.9C119.8 133.1 115.0 136.9 111.9 138.7C108.8 140.6 106.0 141.9 103.1 143.1C100.1 144.3 98.7 145.0 94.3 146.0C89.9 147.1 80.2 148.6 76.6 149.4C72.9 150.2 74.0 150.0 72.2 150.8C70.4 151.7 67.6 153.0 65.9 154.3C64.2 155.7 63.1 156.9 62.0 159.0C60.9 161.0 59.8 164.2 59.2 166.7C58.6 169.2 58.5 171.9 58.3 174.1C58.2 176.3 58.2 178.3 58.3 180.0C58.5 181.6 58.8 183.3 59.1 184.0C59.4 184.8 59.6 184.5 60.2 184.5C60.9 184.4 60.2 184.8 63.0 183.7C65.8 182.6 72.9 179.8 76.8 177.9C80.8 176.0 83.5 174.2 86.6 172.2C89.7 170.2 92.0 168.5 95.2 165.8C98.3 163.1 103.0 158.5 105.5 155.9C108.1 153.3 107.7 153.9 110.6 150.1C113.5 146.3 120.9 136.1 123.0 133.1C125.1 130.0 123.4 131.8 123.2 131.6Z M15.1 138.9C14.4 140.0 15.1 139.6 15.2 139.9C15.4 140.2 13.3 139.6 16.1 140.6C19.0 141.7 28.1 144.9 32.3 146.0C36.4 147.2 37.6 147.2 41.0 147.6C44.4 148.1 48.2 148.6 52.8 148.6C57.5 148.6 64.6 148.1 69.0 147.6C73.3 147.2 74.5 147.0 79.0 146.0C83.5 145.0 93.0 142.6 96.1 141.7C99.2 140.7 97.7 140.8 97.5 140.5C97.4 140.1 97.2 139.7 95.2 139.5C93.2 139.2 89.1 139.5 85.6 138.9C82.0 138.3 77.6 137.1 73.9 135.8C70.3 134.6 67.4 133.2 63.7 131.3C60.1 129.4 55.5 126.2 52.2 124.6C49.0 123.0 46.3 122.3 44.4 121.7C42.4 121.1 42.2 121.1 40.6 121.1C38.9 121.1 36.6 121.0 34.5 121.7C32.4 122.4 29.5 124.1 27.9 125.0C26.3 126.0 26.1 126.2 24.7 127.5C23.3 128.8 21.1 131.0 19.5 132.9C17.9 134.8 15.8 137.7 15.1 138.9Z M137.0 108.4C136.7 108.1 136.8 107.5 136.1 109.6C135.4 111.7 134.2 117.5 132.9 121.1C131.7 124.7 130.2 127.9 128.5 131.0C126.8 134.1 125.5 136.0 122.7 139.8C119.9 143.5 114.1 150.3 111.8 153.4C109.5 156.6 109.6 157.1 108.9 158.8C108.1 160.6 107.5 162.5 107.3 164.1C107.0 165.7 107.2 166.8 107.4 168.3C107.7 169.8 108.3 171.9 108.7 173.3C109.2 174.6 109.4 175.0 110.3 176.6C111.3 178.2 112.6 180.6 114.4 182.9C116.2 185.1 119.7 188.8 121.0 190.0C122.3 191.2 121.8 190.1 122.1 190.0C122.5 189.9 121.7 191.4 123.0 189.1C124.3 186.9 128.1 180.4 130.0 176.5C131.9 172.5 133.2 169.1 134.4 165.2C135.6 161.4 136.5 157.8 137.3 153.6C138.0 149.4 138.6 145.1 138.9 140.2C139.2 135.3 139.1 128.9 138.9 124.2C138.7 119.4 138.2 114.3 137.9 111.7C137.5 109.0 137.3 108.8 137.0 108.4Z M132.6 82.2C132.4 82.3 132.0 82.1 132.6 83.5C133.2 85.0 134.9 87.7 136.1 90.8C137.4 94.0 139.1 98.6 140.0 102.3C141.0 106.0 141.4 107.7 141.8 113.0C142.2 118.2 141.7 128.9 142.2 133.9C142.8 138.9 143.9 140.6 145.1 143.0C146.4 145.3 147.9 146.6 149.8 148.1C151.7 149.5 153.8 150.7 156.7 151.7C159.5 152.7 164.3 153.8 166.7 154.3C169.1 154.9 169.8 154.9 170.9 154.9C172.0 155.0 172.8 155.1 173.3 154.6C173.7 154.1 174.1 154.7 173.7 152.0C173.3 149.2 171.7 141.9 170.8 138.2C169.8 134.4 169.3 132.8 167.9 129.3C166.4 125.8 164.0 120.6 162.0 117.0C160.1 113.5 158.4 110.8 156.4 107.9C154.3 104.9 153.3 103.3 149.7 99.1C146.0 95.0 137.1 85.8 134.2 83.0C131.4 80.1 132.9 82.1 132.6 82.2Z M10.0 77.0C9.7 77.3 9.6 77.0 10.0 78.0C10.4 79.0 11.0 80.4 12.6 83.0C14.2 85.6 17.5 90.6 19.6 93.6C21.8 96.6 22.9 97.9 25.6 100.7C28.3 103.5 32.6 107.7 35.8 110.3C38.9 113.0 41.5 114.7 44.5 116.7C47.5 118.8 49.7 120.2 53.8 122.4C57.9 124.6 66.0 128.5 69.1 130.0C72.3 131.5 71.9 131.1 72.6 131.3C73.3 131.5 74.8 132.8 73.3 131.0C71.9 129.2 66.3 123.7 63.7 120.5C61.1 117.4 59.5 115.1 57.8 112.2C56.0 109.3 55.0 107.4 53.1 103.1C51.2 98.7 48.1 89.8 46.6 86.3C45.0 82.8 44.9 83.3 43.8 81.9C42.7 80.6 41.5 79.1 40.1 78.0C38.8 76.9 37.4 76.1 35.5 75.4C33.5 74.7 31.5 74.0 28.5 73.9C25.5 73.8 20.1 74.4 17.3 74.8C14.5 75.2 12.8 75.8 11.6 76.1C10.4 76.5 10.3 76.7 10.0 77.0Z M88.3 70.7C86.1 71.5 83.5 72.9 81.7 73.9C79.8 75.0 78.9 75.8 77.4 77.1C76.0 78.4 74.4 79.9 73.1 81.7C71.7 83.4 70.1 86.3 69.3 87.9C68.4 89.5 68.3 89.6 67.8 91.4C67.3 93.3 66.6 96.7 66.4 99.0C66.1 101.2 66.2 102.8 66.5 105.0C66.8 107.1 67.1 109.4 68.0 111.8C68.8 114.2 70.4 117.2 71.6 119.1C72.8 121.0 73.4 121.8 75.0 123.3C76.5 124.8 78.8 126.9 80.8 128.3C82.8 129.6 85.1 130.7 86.9 131.5C88.7 132.2 89.9 132.6 91.7 132.9C93.5 133.3 95.7 133.5 98.0 133.5C100.2 133.5 103.3 133.3 105.4 132.9C107.4 132.6 108.4 132.2 110.2 131.5C112.0 130.7 114.2 129.6 116.0 128.4C117.8 127.2 119.6 125.8 121.1 124.3C122.7 122.8 124.1 121.1 125.3 119.2C126.6 117.4 127.8 115.0 128.5 113.3C129.3 111.5 129.7 110.2 130.0 108.6C130.3 107.0 130.6 105.8 130.6 103.5C130.6 101.2 130.5 97.2 130.1 94.9C129.8 92.6 129.3 91.3 128.5 89.5C127.8 87.7 126.8 85.8 125.8 84.1C124.8 82.5 123.8 81.2 122.4 79.8C121.0 78.3 119.1 76.5 117.3 75.2C115.6 74.0 113.3 72.8 111.8 72.0C110.3 71.3 110.3 71.2 108.6 70.7C106.9 70.3 103.8 69.5 101.6 69.3C99.4 69.0 97.4 69.0 95.2 69.3C93.0 69.5 90.6 70.0 88.3 70.7Z M112.4 65.2C114.4 66.5 122.4 70.1 125.9 72.2C129.5 74.3 131.2 75.7 133.6 77.7C136.1 79.8 137.5 81.1 140.6 84.4C143.8 87.8 149.6 94.9 152.6 97.8C155.5 100.8 156.9 101.1 158.4 102.0C159.9 103.0 160.3 103.2 161.3 103.5C162.3 103.8 162.5 104.1 164.4 104.1C166.2 104.1 169.5 104.3 172.5 103.5C175.6 102.7 179.8 100.8 182.7 99.3C185.6 97.8 188.7 95.5 189.9 94.5C191.0 93.5 191.7 95.1 189.9 93.3C188.0 91.5 182.0 86.4 178.5 83.8C175.0 81.3 172.5 79.8 168.9 77.9C165.2 75.9 160.1 73.6 156.5 72.2C152.9 70.8 151.1 70.2 147.3 69.3C143.5 68.3 138.4 67.1 133.8 66.4C129.2 65.6 122.9 64.9 119.5 64.6C116.2 64.3 114.9 64.4 113.7 64.5C112.5 64.6 110.3 63.9 112.4 65.2Z M163.9 37.2C163.7 36.8 166.2 36.4 162.8 36.4C159.3 36.3 148.0 36.7 143.3 37.1C138.5 37.5 137.5 37.9 134.2 38.7C131.0 39.5 127.2 40.7 123.9 41.9C120.5 43.1 117.5 44.4 114.1 46.0C110.8 47.6 107.5 49.3 103.8 51.5C100.1 53.7 94.9 57.1 92.0 59.1C89.1 61.1 87.2 62.6 86.2 63.4C85.1 64.3 85.3 64.2 85.7 64.3C86.1 64.5 86.5 64.9 88.5 64.5C90.5 64.1 95.0 62.5 98.0 61.8C100.9 61.2 103.2 60.8 106.4 60.7C109.6 60.5 112.1 60.3 117.2 60.8C122.2 61.4 132.8 63.4 136.7 63.9C140.6 64.4 138.8 64.1 140.6 63.9C142.5 63.7 145.8 63.4 147.9 62.6C150.0 61.8 151.9 60.2 153.3 59.1C154.7 58.0 155.3 57.1 156.2 55.9C157.1 54.7 157.8 53.7 158.8 51.8C159.8 49.9 161.3 46.5 162.2 44.4C163.0 42.2 163.6 40.0 163.9 38.8C164.2 37.6 164.1 37.6 163.9 37.2Z M46.7 25.7C45.4 25.3 46.1 25.7 45.8 26.5C45.5 27.2 45.3 27.5 44.8 30.2C44.3 33.0 43.3 38.6 43.1 42.9C42.8 47.2 42.8 51.7 43.1 55.9C43.3 60.1 43.4 63.0 44.7 68.3C45.9 73.5 48.4 82.1 50.3 87.6C52.3 93.2 54.7 98.2 56.2 101.5C57.6 104.7 58.6 106.3 59.2 107.3C59.9 108.3 59.8 107.9 60.0 107.6C60.1 107.3 60.4 106.9 60.4 105.4C60.3 103.9 59.8 100.9 59.7 98.4C59.5 95.8 59.5 92.7 59.7 90.1C59.8 87.5 60.0 85.2 60.4 82.8C60.8 80.5 60.7 79.7 61.8 76.0C63.0 72.3 66.2 64.0 67.4 60.5C68.5 57.1 68.4 57.7 68.7 55.3C69.0 52.9 69.2 48.6 69.0 46.3C68.7 44.0 68.4 43.3 67.2 41.5C66.1 39.6 64.3 37.2 62.0 35.0C59.7 32.9 55.9 30.3 53.4 28.8C50.8 27.2 48.0 26.1 46.7 25.7Z M107.6 10.1C106.7 8.9 108.2 8.4 105.7 10.4C103.2 12.5 95.9 18.8 92.6 22.2C89.2 25.6 87.6 27.9 85.4 30.8C83.3 33.8 81.2 37.0 79.5 40.0C77.7 43.0 76.4 45.7 75.0 48.7C73.5 51.7 72.7 52.9 71.0 58.1C69.3 63.2 65.7 75.6 64.8 79.5C63.8 83.4 63.8 82.9 65.2 81.5C66.6 80.1 70.5 74.2 73.1 71.2C75.6 68.1 78.1 65.6 80.6 63.3C83.1 61.0 84.3 60.1 88.1 57.6C91.8 55.1 99.8 50.7 103.2 48.4C106.6 46.2 107.0 45.3 108.3 43.9C109.6 42.6 110.4 41.4 111.1 40.4C111.7 39.4 112.0 38.9 112.4 38.0C112.7 37.0 113.0 36.5 113.1 34.8C113.3 33.1 113.6 30.6 113.3 27.8C112.9 25.0 112.0 20.9 111.1 18.0C110.1 15.1 108.5 11.4 107.6 10.1Z"/></symbol></svg>
 <div class="sun-field">
   <svg class="sun-rays" viewBox="0 0 200 200" aria-hidden="true">
-    <g fill="var(--gold)">
-      <path id="petal" d="M100 30 C112 30 122 48 100 78 C78 48 88 30 100 30 Z"/>
-      <use href="#petal" transform="rotate(45 100 100)"/>
-      <use href="#petal" transform="rotate(90 100 100)"/>
-      <use href="#petal" transform="rotate(135 100 100)"/>
-      <use href="#petal" transform="rotate(180 100 100)"/>
-      <use href="#petal" transform="rotate(225 100 100)"/>
-      <use href="#petal" transform="rotate(270 100 100)"/>
-      <use href="#petal" transform="rotate(315 100 100)"/>
-    </g>
-    <circle cx="100" cy="100" r="22" fill="var(--gold-deep)"/>
+    <use href="#sunMark"/>
   </svg>
 
 <header>
   <div class="brandrow">
     <div class="brand-left">
-      <svg width="42" height="42" viewBox="0 0 200 200" style="animation:floaty 4s ease-in-out infinite"><circle cx="100" cy="100" r="22" fill="var(--gold-deep)"/><path d="M100 44 C110 44 118 58 100 82 C82 58 90 44 100 44 Z" fill="var(--gold)"/></svg>
+      <svg class="logo-sun" viewBox="0 0 200 200" aria-hidden="true"><use href="#sunMark"/></svg>
       <div class="brandname"><div class="sun">SUN <em>PhuQuoc</em></div><div class="sub">AIRWAYS · DUTY ROSTER</div></div>
     </div>
     <div class="header-auth" id="headerAuth">
@@ -2768,7 +2787,7 @@ function openReportModal(){
   modalBody.innerHTML = `
     <div class="mtop">
       <div><h3>Báo cáo lỗi</h3>
-      <div class="mid">Gửi mô tả + ảnh cho quản trị qua Viber · ${VIBER_PHONE_LOCAL}</div></div>
+      <div class="mid">Mô tả lỗi + ảnh đính kèm sẽ được lưu lại cho quản trị xử lý</div></div>
       <button class="closeb" onclick="closeModal()">✕</button>
     </div>
     <div class="login-form">
@@ -2779,7 +2798,7 @@ function openReportModal(){
       <label>Ảnh lỗi (có thể chọn nhiều)</label>
       <input type="file" id="repFiles" accept="image/*" multiple style="font-size:13px">
       <div class="report-imgs" id="repPreview"></div>
-      <p class="report-hint">Trình duyệt <b>không gửi tự động</b> vào Viber được. Sau khi bấm gửi: nội dung được <b>sao chép</b>, mở chat Viber — bạn <b>dán tin nhắn</b> và đính kèm ảnh (hoặc dùng chia sẻ hệ thống nếu máy hỗ trợ).</p>
+      <p class="report-hint">Tối đa 6 ảnh, tự động nén trước khi gửi. Không đính kèm thông tin cá nhân nhạy cảm.</p>
       <div class="actions">
         <button type="button" class="btn-action primary" id="repSend">Gửi báo cáo</button>
         <button type="button" class="btn-action" onclick="closeModal()">Hủy</button>
@@ -2788,7 +2807,7 @@ function openReportModal(){
     </div>`;
   overlay.classList.add('show');
   document.getElementById('repFiles').onchange = onReportFiles;
-  document.getElementById('repSend').onclick = submitReport;
+  document.getElementById('repSend').onclick = submitFeedback;
 }
 
 function onReportFiles(ev){
@@ -2949,10 +2968,121 @@ async function submitReport(){
   const btnML = document.getElementById('btnMaintLogin');
   if(btnML) btnML.onclick = ()=> openLoginModal('Đăng nhập tài khoản quản trị để tiếp tục dùng web trong lúc bảo trì.');
   const btnRep = document.getElementById('btnReport');
-  if(btnRep) btnRep.onclick = openReportModal;
+  if(btnRep) btnRep.onclick = ()=> (isAdmin() ? openFeedbackAdmin() : openReportModal());
   // Popup thông báo cập nhật cố định (một lần) — changelog từ bảo trì dùng maybeShowSiteChangelog
   setTimeout(showChangelogOnce, 600);
 })();
+
+/* ================= FEEDBACK (lưu trên GitHub) =================
+ * endpoint: URL Cloudflare Worker (xem feedback-worker.js) để MỌI NGƯỜI gửi được mà không lộ khóa.
+ * Để trống → chỉ máy có khóa (Key) mới ghi thẳng được; còn lại rơi về cách cũ (sao chép gửi Viber). */
+const FB = { owner:'dispatchpqc', repo:'crewlist-feedback', dir:'feedback', endpoint:'https://crewlist-feedback.dispatch-pqc.workers.dev' };
+const fbApi = `https://api.github.com/repos/${FB.owner}/${FB.repo}/contents/${FB.dir}`;
+const fbEsc = t => String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fbB64 = str => btoa(unescape(encodeURIComponent(str)));
+let fbCount = 0;
+
+async function shrinkImg(file, max=1200, q=.72){
+  const bmp = await createImageBitmap(file);
+  const k = Math.min(1, max/Math.max(bmp.width,bmp.height));
+  const c = document.createElement('canvas'); c.width=Math.round(bmp.width*k); c.height=Math.round(bmp.height*k);
+  c.getContext('2d').drawImage(bmp,0,0,c.width,c.height); bmp.close&&bmp.close();
+  return c.toDataURL('image/jpeg', q);
+}
+
+async function submitFeedback(){
+  const desc=(document.getElementById('repDesc').value||'').trim();
+  const name=(document.getElementById('repName').value||'').trim().slice(0,80);
+  const err=document.getElementById('repErr'), btn=document.getElementById('repSend');
+  if(!desc){ err.textContent='Vui lòng nhập mô tả lỗi.'; return; }
+  err.textContent=''; btn.disabled=true; btn.textContent='Đang gửi…';
+  try{
+    const images = await Promise.all(reportImages.slice(0,6).map(i=>shrinkImg(i.file)));
+    const rec = { name, desc:desc.slice(0,3000), images,
+      ctx:{ view:(document.getElementById('titleMonth')||{}).textContent||'', ua:navigator.userAgent.slice(0,140) } };
+    if(FB.endpoint){
+      const r = await fetch(FB.endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+    } else if(getToken()){
+      const id=Date.now()+'-'+Math.random().toString(36).slice(2,7);
+      const full={id,createdAt:new Date().toISOString(),...rec};
+      const r = await fetch(`${fbApi}/${id}.json`,{method:'PUT',headers:{...ghApiHeaders(),'Content-Type':'application/json'},
+        body:JSON.stringify({message:'feedback '+id,content:fbB64(JSON.stringify(full))})});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+    } else throw new Error('nocfg');
+    closeModal();
+    reportImages.forEach(im=>{ try{URL.revokeObjectURL(im.url)}catch(e){} }); reportImages=[];
+    setBanner('✅ Đã gửi báo lỗi cho quản trị. Cảm ơn bạn!','ok');
+  }catch(e){
+    console.warn('feedback',e);
+    btn.disabled=false; btn.textContent='Gửi báo cáo';
+    if(e.message==='nocfg'||/Failed to fetch|HTTP/.test(e.message)){
+      err.textContent='Chưa gửi được lên máy chủ — chuyển sang cách gửi qua Viber.';
+      setTimeout(()=>submitReport(),700);
+    } else err.textContent='Lỗi: '+e.message;
+  }
+}
+
+async function fbFetchAll(){
+  const r = await fetch(fbApi+'?t='+Date.now(),{headers:ghApiHeaders(),cache:'no-store'});
+  if(r.status===404) return [];
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const files=(await r.json()).filter(f=>/\.json$/.test(f.name));
+  const out=await Promise.all(files.map(async f=>{
+    try{
+      const x=await fetch(f.url,{headers:{...ghApiHeaders(),'Accept':'application/vnd.github.raw+json'},cache:'no-store'});
+      const j=await x.json(); j._sha=f.sha; j._path=f.path; return j;
+    }catch(e){ return null; }
+  }));
+  return out.filter(Boolean).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+}
+
+function fbRefreshBtn(){
+  const b=document.getElementById('btnReport'); if(!b) return;
+  if(isAdmin()){
+    b.innerHTML='📥 Feedback'+(fbCount?`<span class="fb-badge">${fbCount}</span>`:'');
+    b.title='Xem các lỗi đã được báo';
+  } else { b.textContent='🚩 Báo lỗi'; b.title='Báo lỗi cho quản trị'; }
+}
+async function fbPollCount(){
+  if(!isAdmin()||!getToken()||document.hidden) return;
+  try{ const r=await fetch(fbApi+'?t='+Date.now(),{headers:ghApiHeaders(),cache:'no-store'});
+    fbCount = r.ok ? (await r.json()).filter(f=>/\.json$/.test(f.name)).length : 0; }catch(e){}
+  fbRefreshBtn();
+}
+
+async function openFeedbackAdmin(){
+  if(!getToken()){ openTokenModal('Cần khóa truy cập (Key) để xem feedback.'); return; }
+  modalBody.className='modal';
+  modalBody.innerHTML=`<div class="mtop"><div><h3>Feedback từ người dùng</h3><div class="mid" id="fbSub">Đang tải…</div></div><button class="closeb" onclick="closeModal()">✕</button></div><div class="fb-list" id="fbList"></div>`;
+  overlay.classList.add('show');
+  const box=document.getElementById('fbList'), sub=document.getElementById('fbSub');
+  try{
+    const items=await fbFetchAll(); fbCount=items.length; fbRefreshBtn();
+    sub.textContent=items.length?items.length+' lỗi chưa xử lý':'Không có feedback nào 🎉';
+    box.innerHTML=items.map((f,i)=>`<div class="fb-card" id="fb${i}">
+      <div class="fb-h"><b>${fbEsc(f.name||'Ẩn danh')}</b><span>${f.createdAt?new Date(f.createdAt).toLocaleString('vi-VN'):''}</span></div>
+      <div class="fb-d">${fbEsc(f.desc)}</div>
+      ${(f.images&&f.images.length)?`<div class="fb-i">${f.images.map(u=>`<img loading="lazy" src="${fbEsc(u)}" alt="">`).join('')}</div>`:''}
+      ${f.ctx&&f.ctx.view?`<div class="fb-h"><span>${fbEsc(f.ctx.view)}</span></div>`:''}
+      <button type="button" class="btn-action primary fb-done">✅ Đã fix — hoàn tất &amp; xóa</button></div>`).join('');
+    box.querySelectorAll('.fb-i img').forEach(im=>im.onclick=()=>{
+      const lb=document.createElement('div'); lb.className='fb-lb'; lb.innerHTML=`<img src="${im.src}">`; lb.onclick=()=>lb.remove(); document.body.appendChild(lb); });
+    box.querySelectorAll('.fb-done').forEach((btn,i)=>btn.onclick=async()=>{
+      if(!confirm('Xác nhận đã fix xong? Feedback này sẽ bị xóa.')) return;
+      btn.disabled=true; btn.textContent='Đang xóa…';
+      const f=items[i];
+      const r=await fetch(`${fbApi}/${encodeURIComponent(f._path.split('/').pop())}`,{method:'DELETE',headers:{...ghApiHeaders(),'Content-Type':'application/json'},
+        body:JSON.stringify({message:'done '+f.id,sha:f._sha})});
+      if(r.ok||r.status===404){
+        const c=document.getElementById('fb'+i); c.classList.add('out'); setTimeout(()=>c.remove(),300);
+        fbCount=Math.max(0,fbCount-1); fbRefreshBtn(); sub.textContent=fbCount?fbCount+' lỗi chưa xử lý':'Không có feedback nào 🎉';
+      } else { btn.disabled=false; btn.textContent='✅ Đã fix — hoàn tất & xóa'; alert('Xóa thất bại (HTTP '+r.status+'). Kiểm tra khóa có quyền ghi repo '+FB.repo+'.'); }
+    });
+  }catch(e){ sub.textContent='Không tải được: '+e.message+' — kiểm tra khóa có quyền vào repo '+FB.repo; }
+}
+(function(){ const _r=refreshAuthUI; refreshAuthUI=function(){ _r.apply(this,arguments); fbRefreshBtn(); if(isAdmin()) fbPollCount(); }; fbRefreshBtn();
+  setInterval(fbPollCount,90000); document.addEventListener('visibilitychange',()=>{ if(!document.hidden) fbPollCount(); }); })();
 </script>
 </body>
 </html>
