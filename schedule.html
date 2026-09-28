@@ -288,7 +288,7 @@ td.note{font-size:10.5px;padding:0 9px;white-space:nowrap}
 .dutyitem .tag.C9{background:#F1E7FA;color:#6A3D96}
 .dutyitem .tag.OFF{background:#E8E8E8;color:#666}
 .dutyempty{text-align:center;color:var(--ink-soft);padding:18px;font-size:13px}
-.overlay{position:fixed;inset:0;background:rgba(42,29,20,.45);display:flex;align-items:center;justify-content:center;padding:18px;z-index:50;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay{position:fixed;inset:0;background:rgba(42,29,20,.45);display:flex;align-items:center;justify-content:center;padding:18px;z-index:90;opacity:0;pointer-events:none;transition:opacity .2s}
 .overlay.show{opacity:1;pointer-events:all}
 .modal{
   background:var(--paper);border-radius:18px;width:100%;max-width:420px;max-height:88vh;
@@ -746,7 +746,9 @@ html[data-theme="dark"] .login-form input{
     <h2>Web đang bảo trì</h2>
     <p>Hệ thống lịch trực tạm dừng chỉnh sửa để cập nhật. Vui lòng quay lại sau ít phút.</p>
     <div class="maint-msg" id="maintOverlayMsg" style="display:none"></div>
-    <p style="margin-top:14px;font-size:12px;color:var(--ink-soft)">Tài khoản quản trị vẫn dùng bình thường.</p>
+    <div style="margin-top:18px;display:flex;justify-content:center;gap:8px;flex-wrap:wrap">
+      <button type="button" class="btn-action primary" id="btnMaintLogin">Đăng nhập</button>
+    </div>
   </div>
 </div>
 <div class="overlay" id="overlay"><div class="modal" id="modalBody"></div></div>
@@ -860,8 +862,9 @@ function openLoginModal(msg){
     setAuth({username:u, role:acc.role, at:Date.now()});
     closeModal();
     refreshAuthUI();
-    if(!EMP.length) renderAll();
     applyMaintenanceUI();
+    updateSyncUI();
+    if(!EMP.length) renderAll();
     if(siteMaint.on && !(acc.role==='admin'||u==='admin')){
       setBanner('Đã đăng nhập: <b>'+u+'</b> — hệ thống đang bảo trì, chỉ xem.','');
     } else {
@@ -2722,6 +2725,8 @@ document.getElementById('btnLogout').onclick=()=>{
   document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) loadSiteStatus(); });
   const btnM = document.getElementById('btnMaint');
   if(btnM) btnM.onclick = onMaintButtonClick;
+  const btnML = document.getElementById('btnMaintLogin');
+  if(btnML) btnML.onclick = ()=> openLoginModal('Đăng nhập tài khoản quản trị để tiếp tục dùng web trong lúc bảo trì.');
   // Popup thông báo cập nhật cố định (một lần) — changelog từ bảo trì dùng maybeShowSiteChangelog
   setTimeout(showChangelogOnce, 600);
 })();
