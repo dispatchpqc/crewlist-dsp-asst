@@ -1,16 +1,15 @@
 {
-  "maintenance": true,
-  "message": "Nâng cấp giao diện",
-  "updatedAt": "2026-09-28T07:51:33.446Z",
+  "maintenance": false,
+  "message": "",
+  "updatedAt": "2026-09-28T08:27:10.748Z",
   "updatedBy": "admin",
   "changelog": {
-    "id": "cl-20260928-1790573996307",
+    "id": "cl-20260928-1790584030748",
     "date": "28/09/2026",
-    "title": "Sửa lỗi và thêm tính năng",
+    "title": "Cập nhật giao diện",
     "items": [
-      "Đã thêm báo cáo lỗi trực tiếp",
-      "Fix lịch theo đúng từng tháng",
-      "Thêm thanh trạng thái chỉnh sửa"
+      "Đã cập nhật giao diện",
+      "Thêm tính năng báo lỗi"
     ]
   }
 }
