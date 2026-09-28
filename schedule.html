@@ -1266,13 +1266,19 @@ async function loadFromGitHub(year, month){
     const parsed=parseRosterWorkbook(wb);
     EMP=parsed.employees.map((e,i)=>{ const sh=(e.shifts||[]).slice(0,DAYS.length); while(sh.length<DAYS.length) sh.push(''); return {...e, shifts:sh, key:i}; });
     currentGhFile={ path:best.path, sha:best.sha, name:best.name };
+    // Đã đồng bộ SHA file lịch → hết cờ "bản mới", nhưng KHÔNG xóa remoteBusy
     remoteNewer = false;
-    setBanner('Đã tải <b>'+best.name+'</b> · <b>'+EMP.length+'</b> NV · Tháng '+String(parsed.month).padStart(2,'0')+'/'+parsed.year,'ok');
     document.getElementById('loadStatus').textContent='Đã tải lịch';
     renderAll();
     setView('duty');
+    // Hỏi GitHub TRƯỚC khi vẽ pill — tránh nháy xanh trong lúc checks còn pending
+    try{ await checkRemoteDeployStatus(); }catch(e){}
+    if(remoteBusy){
+      setBanner('Đã tải <b>'+best.name+'</b> · <b>'+EMP.length+'</b> NV.<br>⏳ <b>GitHub vẫn đang build/deploy</b> — tạm khóa chỉnh sửa đến khi checks xanh.','');
+    } else {
+      setBanner('Đã tải <b>'+best.name+'</b> · <b>'+EMP.length+'</b> NV · Tháng '+String(parsed.month).padStart(2,'0')+'/'+parsed.year+' — có thể chỉnh sửa.','ok');
+    }
     updateSyncUI();
-    checkRemoteDeployStatus();
   }catch(err){
     console.error(err);
     EMP=[]; currentGhFile=null;
@@ -1867,6 +1873,7 @@ async function checkRemoteDeployStatus(){
   if(ghBusy) return;
   let pending = false;
   let detail = '';
+  let apiOk = false; // ít nhất 1 API thành công — tránh xóa remoteBusy khi mạng lỗi
   const now = Date.now();
   // Cửa sổ "vừa mới": 12 phút (trước đây 30' dễ giữ khóa lâu sau khi deploy xong)
   const recent = (iso) => {
@@ -1896,6 +1903,7 @@ async function checkRemoteDeployStatus(){
     const runsUrl = `https://api.github.com/repos/${GH.owner}/${GH.repo}/actions/runs?branch=${encodeURIComponent(GH.branch)}&per_page=10`;
     const r = await fetch(runsUrl, { headers: ghApiHeaders() });
     if(r.ok){
+      apiOk = true;
       const data = await r.json();
       const runs = data.workflow_runs || [];
       const active = runs.find(run => isReallyBusy(run) && recent(run.updated_at || run.created_at));
@@ -1913,6 +1921,7 @@ async function checkRemoteDeployStatus(){
       const crUrl = `https://api.github.com/repos/${GH.owner}/${GH.repo}/commits/${encodeURIComponent(GH.branch)}/check-runs?per_page=30`;
       const r = await fetch(crUrl, { headers: { ...ghApiHeaders(), 'Accept': 'application/vnd.github+json' } });
       if(r.ok){
+        apiOk = true;
         const data = await r.json();
         const runs = data.check_runs || [];
         const active = runs.find(c =>
@@ -1988,8 +1997,12 @@ async function checkRemoteDeployStatus(){
   }
   const wasBusy = remoteBusy;
   const wasNewer = remoteNewer;
-  remoteBusy = pending;
-  remoteBusyDetail = detail;
+  // Chỉ cập nhật remoteBusy khi đã hỏi được API (hoặc phát hiện pending)
+  if(apiOk || pending){
+    remoteBusy = pending;
+    if(pending) remoteBusyDetail = detail;
+    else remoteBusyDetail = '';
+  }
   // Giữ remoteNewer cả khi đang deploy — khóa sửa; ưu tiên hiện "đang xử lý" nếu pending
   remoteNewer = newer;
   // Poll nhanh hơn khi đang bận
