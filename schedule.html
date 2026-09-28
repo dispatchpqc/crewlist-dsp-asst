@@ -826,8 +826,19 @@ let ghBusy = false;
 let ghBusyReason = '';
 let pagesWaitUntil = 0;
 let pagesPollTimer = null;
-const PAGES_COOLDOWN_MS = 50000;
+const PAGES_COOLDOWN_MS = 45000; // tối thiểu sau khi lưu local
+const PAGES_MAX_WAIT_MS = 8 * 60 * 1000; // tối đa ~8 phút chờ máy chủ
 const CHANGELOG_KEY = 'sunpq_changelog_v20260928';
+/** Trạng thái máy chủ từ bên ngoài (sửa trên web khác / commit thẳng) */
+let remoteBusy = false;
+let remoteBusyDetail = '';
+let remoteNewer = false; // file trên máy chủ mới hơn bản đang mở
+let remotePollTimer = null;
+let remotePollMs = 12000;
+const REMOTE_POLL_IDLE_MS = 15000;
+const REMOTE_POLL_BUSY_MS = 5000;
+let pagesWaitStarted = 0; // lúc bắt đầu chờ sau save local
+
 
 const DEPTS = {
   DM:{name:'Duty Manager',color:'var(--dm)',bg:'var(--dm-bg)'},
@@ -1253,10 +1264,13 @@ async function loadFromGitHub(year, month){
     const parsed=parseRosterWorkbook(wb);
     EMP=parsed.employees.map((e,i)=>{ const sh=(e.shifts||[]).slice(0,DAYS.length); while(sh.length<DAYS.length) sh.push(''); return {...e, shifts:sh, key:i}; });
     currentGhFile={ path:best.path, sha:best.sha, name:best.name };
+    remoteNewer = false;
     setBanner('Đã tải <b>'+best.name+'</b> · <b>'+EMP.length+'</b> NV · Tháng '+String(parsed.month).padStart(2,'0')+'/'+parsed.year,'ok');
     document.getElementById('loadStatus').textContent='Đã tải lịch';
     renderAll();
     setView('duty');
+    updateSyncUI();
+    checkRemoteDeployStatus();
   }catch(err){
     console.error(err);
     EMP=[]; currentGhFile=null;
@@ -1737,7 +1751,7 @@ function renderDuty(){
 function setBanner(html,type){ const el=document.getElementById('statusBanner'); el.className='banner'+(type==='ok'?' ok':type==='err'?' err':''); el.innerHTML=`<div>${html}</div>`; }
 
 function isGhBusy(){
-  return ghBusy || Date.now() < pagesWaitUntil;
+  return ghBusy || Date.now() < pagesWaitUntil || remoteBusy;
 }
 function updateSyncUI(){
   const pill = document.getElementById('syncPill');
@@ -1749,6 +1763,7 @@ function updateSyncUI(){
   ['btnSaveGh','btnUpload','btnLoadGh','btnTemplate'].forEach(id=>{
     const el=document.getElementById(id);
     if(!el) return;
+    // Load luôn cho phép khi remoteNewer / remoteBusy (để tải bản mới); chỉ chặn khi đang PUT local
     if(id==='btnLoadGh'){ el.disabled = !!ghBusy; return; }
     el.disabled = locked;
   });
@@ -1760,9 +1775,19 @@ function updateSyncUI(){
   } else if(Date.now() < pagesWaitUntil){
     const sec = Math.max(1, Math.ceil((pagesWaitUntil - Date.now())/1000));
     pill.className = 'sync-pill busy';
-    pill.title = 'Máy chủ đã nhận file; hệ thống đang cập nhật trang (~30–60s). Đợi đèn xanh rồi mới sửa tiếp để tránh lỗi trùng.';
+    pill.title = 'Máy chủ đã nhận file; hệ thống đang cập nhật trang (~30–60s). Đợi đèn xanh rồi mới sửa tiếp.';
     titleEl.textContent = 'Đang cập nhật trang';
     subEl.textContent = 'Vui lòng đợi ~'+sec+'s · tạm khóa chỉnh sửa';
+  } else if(remoteBusy){
+    pill.className = 'sync-pill busy';
+    pill.title = 'Phát hiện máy chủ đang xử lý (có thể do sửa/commit từ nơi khác). Tạm khóa chỉnh sửa; có thể bấm Load lịch khi xong.';
+    titleEl.textContent = 'Máy chủ đang xử lý';
+    subEl.textContent = (remoteBusyDetail || 'Đang cập nhật từ bên ngoài') + ' · tạm khóa chỉnh sửa';
+  } else if(remoteNewer){
+    pill.className = 'sync-pill busy';
+    pill.title = 'File lịch trên máy chủ đã đổi so với bản đang xem. Bấm Load lịch để lấy bản mới trước khi sửa.';
+    titleEl.textContent = 'Có bản mới trên máy chủ';
+    subEl.textContent = 'Bấm «Load lịch» để đồng bộ · tránh ghi đè bản mới';
   } else {
     pill.className = 'sync-pill idle';
     pill.title = 'Không có thao tác đang chạy. Có thể Load, sửa ca, tải lên hoặc Lưu lịch.';
@@ -1776,24 +1801,199 @@ function setGhBusy(on, reason){
   updateSyncUI();
 }
 function startPagesCooldown(ms){
+  pagesWaitStarted = Date.now();
   pagesWaitUntil = Date.now() + (ms || PAGES_COOLDOWN_MS);
   updateSyncUI();
   if(pagesPollTimer) clearInterval(pagesPollTimer);
-  pagesPollTimer = setInterval(()=>{
+  pagesPollTimer = setInterval(async ()=>{
     updateSyncUI();
-    if(Date.now() >= pagesWaitUntil){
-      clearInterval(pagesPollTimer);
-      pagesPollTimer = null;
-      setBanner('✅ <b>Có thể chỉnh sửa lại</b> — hệ thống đã cập nhật trang (hoặc hết thời gian chờ).','ok');
-      updateSyncUI();
+    if(Date.now() < pagesWaitUntil) return;
+    clearInterval(pagesPollTimer);
+    pagesPollTimer = null;
+    // Hết cooldown tối thiểu → hỏi máy chủ; không tự báo "sẵn sàng" nếu vẫn pending
+    await checkRemoteDeployStatus();
+    if(!isGhBusy()){
+      setBanner('✅ <b>Có thể chỉnh sửa lại</b> — máy chủ đã sẵn sàng.','ok');
+    } else {
+      setBanner('⏳ Đã hết thời gian chờ tối thiểu nhưng máy chủ <b>vẫn đang xử lý</b> (xếp hàng / deploy). Tiếp tục tạm khóa đến khi xong.','');
+      // Gia hạn chờ theo remote (có trần)
+      if(pagesWaitStarted && (Date.now() - pagesWaitStarted) < PAGES_MAX_WAIT_MS){
+        pagesWaitUntil = Date.now() + 15000;
+        startPagesCooldownWatchOnly();
+      }
     }
+    updateSyncUI();
   }, 1000);
+}
+/** Chỉ đếm UI + re-check remote, không reset mốc bắt đầu */
+function startPagesCooldownWatchOnly(){
+  if(pagesPollTimer) clearInterval(pagesPollTimer);
+  pagesPollTimer = setInterval(async ()=>{
+    updateSyncUI();
+    if(Date.now() < pagesWaitUntil) return;
+    clearInterval(pagesPollTimer);
+    pagesPollTimer = null;
+    await checkRemoteDeployStatus();
+    if(!isGhBusy()){
+      setBanner('✅ <b>Có thể chỉnh sửa lại</b> — máy chủ đã sẵn sàng.','ok');
+    } else if(pagesWaitStarted && (Date.now() - pagesWaitStarted) < PAGES_MAX_WAIT_MS){
+      pagesWaitUntil = Date.now() + 15000;
+      startPagesCooldownWatchOnly();
+      setBanner('⏳ Máy chủ vẫn đang xử lý… tiếp tục chờ.','');
+    } else {
+      // Hết trần thời gian — mở khóa nhưng cảnh báo
+      remoteBusy = false;
+      setBanner('⚠️ Đã chờ lâu — mở khóa chỉnh sửa. Nếu trang web chưa đổi, đợi thêm hoặc bấm Load lịch.','');
+    }
+    updateSyncUI();
+  }, 1000);
+}
+function ghApiHeaders(){
+  const headers = { 'Accept': 'application/vnd.github+json' };
+  const tok = getToken();
+  if(tok) headers.Authorization = 'Bearer ' + tok;
+  return headers;
+}
+/** Kiểm tra workflow / check-runs / pages đang chạy trên máy chủ (kể cả commit ngoài web) */
+async function checkRemoteDeployStatus(){
+  if(ghBusy) return;
+  let pending = false;
+  let detail = '';
+  const now = Date.now();
+  const recent = (iso) => {
+    const t = new Date(iso || 0).getTime();
+    return (now - t) < 30 * 60 * 1000; // 30 phút
+  };
+  const isActiveStatus = (st) => {
+    st = String(st || '').toLowerCase();
+    return st === 'queued' || st === 'in_progress' || st === 'pending' || st === 'waiting' || st === 'requested' || st === 'building';
+  };
+
+  // 1) Actions workflow runs (branch)
+  try{
+    const runsUrl = `https://api.github.com/repos/${GH.owner}/${GH.repo}/actions/runs?branch=${encodeURIComponent(GH.branch)}&per_page=10`;
+    const r = await fetch(runsUrl, { headers: ghApiHeaders() });
+    if(r.ok){
+      const data = await r.json();
+      const runs = data.workflow_runs || [];
+      const active = runs.find(run => isActiveStatus(run.status) && recent(run.updated_at || run.created_at));
+      if(active){
+        pending = true;
+        const st = active.status === 'queued' ? 'đang xếp hàng' : 'đang chạy';
+        detail = (active.name || 'Cập nhật trang') + ' ('+st+')';
+      }
+    }
+  }catch(e){}
+
+  // 2) Check-runs trên commit tip của branch — bắt job deploy "Queued" dù workflow cha đã partial
+  if(!pending){
+    try{
+      const crUrl = `https://api.github.com/repos/${GH.owner}/${GH.repo}/commits/${encodeURIComponent(GH.branch)}/check-runs?per_page=30`;
+      const r = await fetch(crUrl, { headers: { ...ghApiHeaders(), 'Accept': 'application/vnd.github+json' } });
+      if(r.ok){
+        const data = await r.json();
+        const runs = data.check_runs || [];
+        const active = runs.find(c => isActiveStatus(c.status) && recent(c.started_at || c.completed_at || c.started_at));
+        // Nếu không có timestamp, vẫn tính pending nếu status active
+        const active2 = active || runs.find(c => isActiveStatus(c.status));
+        if(active2){
+          pending = true;
+          const st = String(active2.status).toLowerCase() === 'queued' ? 'đang xếp hàng' : 'đang chạy';
+          detail = (active2.name || 'Kiểm tra / deploy') + ' ('+st+')';
+        }
+      }
+    }catch(e){}
+  }
+
+  // 3) Check-suites
+  if(!pending){
+    try{
+      const csUrl = `https://api.github.com/repos/${GH.owner}/${GH.repo}/commits/${encodeURIComponent(GH.branch)}/check-suites`;
+      const r = await fetch(csUrl, { headers: { ...ghApiHeaders(), 'Accept': 'application/vnd.github+json' } });
+      if(r.ok){
+        const data = await r.json();
+        const suites = data.check_suites || [];
+        const active = suites.find(s => isActiveStatus(s.status) && recent(s.updated_at || s.created_at));
+        if(active){
+          pending = true;
+          detail = 'Bộ kiểm tra máy chủ ('+(active.status||'pending')+')';
+        }
+      }
+    }catch(e){}
+  }
+
+  // 4) Pages builds API
+  if(!pending){
+    try{
+      const bUrl = `https://api.github.com/repos/${GH.owner}/${GH.repo}/pages/builds?per_page=5`;
+      const r2 = await fetch(bUrl, { headers: ghApiHeaders() });
+      if(r2.ok){
+        const builds = await r2.json();
+        const list = Array.isArray(builds) ? builds : [];
+        const active = list.find(b => isActiveStatus(b.status) && recent(b.updated_at || b.created_at));
+        if(active){
+          pending = true;
+          detail = 'Đang cập nhật trang web ('+(active.status||'building')+')';
+        }
+      }
+    }catch(e){}
+  }
+
+  // So SHA file đang mở với máy chủ → phát hiện sửa ngoài web
+  let newer = false;
+  if(currentGhFile && currentGhFile.path && currentGhFile.sha){
+    try{
+      const meta = await fetch(`${GH.apiBase}/${currentGhFile.path}?ref=${GH.branch}`, { headers: ghApiHeaders() });
+      if(meta.ok){
+        const j = await meta.json();
+        if(j.sha && j.sha !== currentGhFile.sha) newer = true;
+      }
+    }catch(e){}
+  }
+  const wasBusy = remoteBusy;
+  const wasNewer = remoteNewer;
+  remoteBusy = pending;
+  remoteBusyDetail = detail;
+  remoteNewer = newer && !pending;
+  // Poll nhanh hơn khi đang bận
+  const wantMs = pending ? REMOTE_POLL_BUSY_MS : REMOTE_POLL_IDLE_MS;
+  if(wantMs !== remotePollMs && remotePollTimer){
+    remotePollMs = wantMs;
+    clearInterval(remotePollTimer);
+    remotePollTimer = setInterval(checkRemoteDeployStatus, remotePollMs);
+  }
+  updateSyncUI();
+  if(wasBusy && !remoteBusy && !ghBusy && Date.now() >= pagesWaitUntil){
+    if(remoteNewer){
+      setBanner('Máy chủ vừa cập nhật xong — có <b>bản lịch mới</b>. Bấm <b>Load lịch</b> trước khi sửa.','ok');
+    } else {
+      setBanner('✅ Máy chủ đã xử lý xong. Có thể chỉnh sửa.','ok');
+    }
+  } else if(!wasNewer && remoteNewer){
+    setBanner('📡 Phát hiện <b>lịch mới trên máy chủ</b> (có thể sửa từ nơi khác). Bấm <b>Load lịch</b> để lấy bản mới.','');
+  }
+}
+function startRemoteStatusPoll(){
+  remotePollMs = REMOTE_POLL_IDLE_MS;
+  checkRemoteDeployStatus();
+  if(remotePollTimer) clearInterval(remotePollTimer);
+  remotePollTimer = setInterval(checkRemoteDeployStatus, remotePollMs);
+  document.addEventListener('visibilitychange', ()=>{
+    if(!document.hidden) checkRemoteDeployStatus();
+  });
+  window.addEventListener('focus', ()=>{ checkRemoteDeployStatus(); });
 }
 function requireEditable(actionMsg){
   if(!requireLogin(actionMsg || 'Đăng nhập để chỉnh sửa.')) return false;
   if(isGhBusy()){
-    const why = ghBusy ? (ghBusyReason || 'Đang lưu lịch') : 'Hệ thống đang cập nhật trang';
-    setBanner('⏳ <b>Tạm khóa chỉnh sửa</b> — '+why+'. Đợi pill chuyển <b>«Có thể chỉnh sửa»</b> (đèn xanh) rồi thao tác tiếp.','err');
+    let why = 'Hệ thống đang cập nhật trang';
+    if(ghBusy) why = ghBusyReason || 'Đang lưu lịch';
+    else if(remoteBusy) why = remoteBusyDetail || 'Máy chủ đang xử lý (cập nhật từ bên ngoài)';
+    setBanner('⏳ <b>Tạm khóa chỉnh sửa</b> — '+why+'. Đợi pill <b>«Có thể chỉnh sửa»</b> (đèn xanh)'+(remoteNewer?' hoặc bấm <b>Load lịch</b>':'')+' rồi thao tác tiếp.','err');
+    return false;
+  }
+  if(remoteNewer){
+    setBanner('📡 Có <b>bản lịch mới trên máy chủ</b>. Bấm <b>Load lịch</b> trước khi sửa để tránh ghi đè.','err');
     return false;
   }
   return true;
@@ -1811,7 +2011,7 @@ function showChangelogOnce(){
       <li><span class="ck">✓</span><span><b>Kỳ lịch chuẩn 26 → 25</b> theo từng tháng (tự bỏ 31 khi tháng trước 30 ngày; tháng 2 đủ 28/29 ngày).</span></li>
       <li><span class="ck">✓</span><span><b>Đang trực / Sắp vào ca</b> tính đúng kỳ chứa hôm nay (vd. 28/09 thuộc tháng 10).</span></li>
       <li><span class="ck">✓</span><span><b>Mẫu Excel</b> tải theo tháng đang chọn — đúng số cột ngày.</span></li>
-      <li><span class="ck">✓</span><span><b>Trạng thái đồng bộ</b> khi tải lên / lưu / sửa: khóa chỉnh sửa khi đang xử lý, hiện pill «Đang cập nhật trang…».</span></li>
+      <li><span class="ck">✓</span><span><b>Trạng thái đồng bộ</b> khi tải lên / lưu / sửa — và tự nhận khi máy chủ đang xử lý hoặc có bản mới (sửa từ nơi khác).</span></li>
     </ul>
     <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
       <button type="button" class="btn-action primary" onclick="closeChangelog()">Đã hiểu</button>
@@ -2104,6 +2304,7 @@ document.getElementById('btnLogout').onclick=()=>{
   document.getElementById('selMonth').value = String(roster.month);
   if(typeof window.syncMonthYearUI==='function') window.syncMonthYearUI();
   loadFromGitHub(roster.year, roster.month);
+  startRemoteStatusPoll();
   // Popup thông báo cập nhật (một lần)
   setTimeout(showChangelogOnce, 600);
 })();
