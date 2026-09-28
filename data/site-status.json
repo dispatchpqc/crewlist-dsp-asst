@@ -1,7 +1,7 @@
 {
-  "maintenance": false,
-  "message": "",
-  "updatedAt": "2026-09-28T05:39:56.307Z",
+  "maintenance": true,
+  "message": "Nâng cấp giao diện",
+  "updatedAt": "2026-09-28T07:51:33.446Z",
   "updatedBy": "admin",
   "changelog": {
     "id": "cl-20260928-1790573996307",
