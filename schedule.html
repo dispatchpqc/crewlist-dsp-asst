@@ -947,23 +947,34 @@ function friendlyBusyDetail(raw){
 
 async function loadSiteStatus(){
   try{
-    const url = `${GH.apiBase}/${SITE_STATUS_PATH}?ref=${GH.branch}&t=${Date.now()}`;
-    const r = await fetch(url, { headers: ghApiHeaders(), cache: 'no-store' });
-    if(r.status === 404){
-      siteMaint = { on: false, message: '', changelog: null, sha: null };
-      applyMaintenanceUI();
-      maybeShowSiteChangelog();
-      return;
+    let data = null, sha = null;
+    const useApi = !!getToken();
+    if(useApi){
+      try{
+        const r = await fetch(`${GH.apiBase}/${SITE_STATUS_PATH}?ref=${GH.branch}&t=${Date.now()}`, { headers: ghApiHeaders(), cache: 'no-store' });
+        if(r.status === 404){
+          siteMaint = { on: false, message: '', changelog: null, sha: null };
+          applyMaintenanceUI(); maybeShowSiteChangelog(); return;
+        }
+        if(r.ok){
+          const meta = await r.json();
+          sha = meta.sha || null;
+          try{ data = JSON.parse(decodeURIComponent(escape(atob((meta.content||'').replace(/\n/g,''))))); }
+          catch(e){ try{ data = JSON.parse(atob((meta.content||'').replace(/\n/g,''))); }catch(e2){ data = {}; } }
+        }
+      }catch(e){}
     }
-    if(!r.ok) return;
-    const meta = await r.json();
-    siteMaint.sha = meta.sha || null;
-    let data = {};
-    try{
-      data = JSON.parse(decodeURIComponent(escape(atob((meta.content||'').replace(/\n/g,'')))));
-    }catch(e){
-      try{ data = JSON.parse(atob((meta.content||'').replace(/\n/g,''))); }catch(e2){ data = {}; }
+    if(data === null){
+      // Đường công khai (không cần khóa)
+      const r2 = await fetch(`${GH.rawBase}/${SITE_STATUS_PATH}?t=${Date.now()}`, { cache: 'no-store' });
+      if(r2.status === 404){
+        siteMaint = { on: false, message: '', changelog: null, sha: null };
+        applyMaintenanceUI(); maybeShowSiteChangelog(); return;
+      }
+      if(!r2.ok) return;
+      try{ data = JSON.parse(await r2.text()); }catch(e){ data = {}; }
     }
+    siteMaint.sha = sha;
     siteMaint.on = !!data.maintenance;
     siteMaint.message = data.message || '';
     siteMaint.changelog = data.changelog || null;
@@ -1561,14 +1572,35 @@ function arrayBufferToBase64(buf){
   return btoa(binary);
 }
 
+/** Liệt kê thư mục KHÔNG cần khóa: dùng jsDelivr (không giới hạn 60 lượt/giờ như API GitHub) */
+async function listPublicDir(path){
+  const clean=path.replace(/^\/+|\/+$/g,'');
+  const url=`https://data.jsdelivr.com/v1/packages/gh/${GH.owner}/${GH.repo}@${GH.branch}?structure=flat&t=${Math.floor(Date.now()/60000)}`;
+  const r=await fetch(url);
+  if(!r.ok) throw new Error('Lỗi danh sách công khai '+r.status);
+  const j=await r.json();
+  const prefix='/'+clean+'/';
+  const items=(j.files||[]).filter(f=>f.name.startsWith(prefix) && !f.name.slice(prefix.length).includes('/'))
+    .map(f=>({ type:'file', name:f.name.slice(prefix.length), path:f.name.slice(1), size:f.size||0, sha:null,
+               download_url:`${GH.rawBase}/${f.name.slice(1)}` }));
+  return items.length?items:null;
+}
+
 async function listGithubDir(path){
   const url=`${GH.apiBase}/${path.replace(/^\/+/,'')}?ref=${GH.branch}`;
   const headers={'Accept':'application/vnd.github+json'};
   const tok=getToken(); if(tok) headers.Authorization='Bearer '+tok;
-  const r=await fetch(url,{headers});
-  if(r.status===404) return null;
-  if(!r.ok) throw new Error('Lỗi máy chủ API '+r.status);
-  return r.json();
+  // Người xem (không có khóa): đi thẳng đường công khai, không tốn hạn mức API
+  if(!tok){
+    try{ return await listPublicDir(path); }catch(e){ /* thử tiếp API */ }
+  }
+  let r;
+  try{ r=await fetch(url,{headers}); }catch(e){ r=null; }
+  if(r && r.status===404) return null;
+  if(r && r.ok) return r.json();
+  // API bị 403/429 (hết hạn mức) hoặc lỗi mạng → fallback công khai
+  try{ return await listPublicDir(path); }
+  catch(e){ throw new Error('Lỗi máy chủ API '+(r?r.status:'mạng')); }
 }
 
 function monthFolder(year,month){
@@ -2230,6 +2262,7 @@ function ghApiHeaders(){
  *  Tránh khóa nhầm khi GitHub UI đã xanh nhưng check-suite vẫn còn status "queued". */
 async function checkRemoteDeployStatus(){
   if(ghBusy) return;
+  if(!getToken()) return; // người xem không cần khóa sửa → không gọi API (tránh 403 hết hạn mức)
   let pending = false;
   let detail = '';
   let apiOk = false; // ít nhất 1 API thành công — tránh xóa remoteBusy khi mạng lỗi
