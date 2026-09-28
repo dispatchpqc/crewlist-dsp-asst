@@ -905,7 +905,6 @@ const PAGES_COOLDOWN_MS = 20000; // chờ tối thiểu ngắn; mở sớm nếu
 const PAGES_MIN_LOCK_MS = 8000; // không mở khóa sớm hơn 8s sau save (tránh race)
 const PAGES_MAX_WAIT_MS = 4 * 60 * 1000; // tối đa ~4 phút chờ máy chủ
 const PAGES_EXTEND_MS = 8000; // mỗi lần gia hạn khi remote vẫn busy
-const CHANGELOG_KEY = 'sunpq_changelog_v20260928';
 /** Trạng thái máy chủ từ bên ngoài (sửa trên web khác / commit thẳng) */
 let remoteBusy = false;
 let remoteBusyDetail = '';
@@ -2427,30 +2426,6 @@ function requireEditable(actionMsg){
   }
   return true;
 }
-function showChangelogOnce(){
-  try{ if(localStorage.getItem(CHANGELOG_KEY)) return; }catch(e){}
-  modalBody.className = 'modal';
-  modalBody.innerHTML = `
-    <div class="mtop">
-      <div><h3>Cập nhật web lịch trực</h3>
-      <div class="mid">28/09/2026 · Bản vá kỳ lịch &amp; đồng bộ máy chủ</div></div>
-      <button class="closeb" onclick="closeChangelog()">✕</button>
-    </div>
-    <ul class="changelog-list">
-      <li><span class="ck">✓</span><span><b>Kỳ lịch chuẩn 26 → 25</b> theo từng tháng (tự bỏ 31 khi tháng trước 30 ngày; tháng 2 đủ 28/29 ngày).</span></li>
-      <li><span class="ck">✓</span><span><b>Đang trực / Sắp vào ca</b> tính đúng kỳ chứa hôm nay (vd. 28/09 thuộc tháng 10).</span></li>
-      <li><span class="ck">✓</span><span><b>Mẫu Excel</b> tải theo tháng đang chọn — đúng số cột ngày.</span></li>
-      <li><span class="ck">✓</span><span><b>Trạng thái đồng bộ</b> khi tải lên / lưu / sửa — và tự nhận khi máy chủ đang xử lý hoặc có bản mới (sửa từ nơi khác).</span></li>
-    </ul>
-    <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
-      <button type="button" class="btn-action primary" onclick="closeChangelog()">Đã hiểu</button>
-    </div>`;
-  overlay.classList.add('show');
-}
-function closeChangelog(){
-  try{ localStorage.setItem(CHANGELOG_KEY, '1'); }catch(e){}
-  closeModal();
-}
 function renderAll(){
   rebuildDeptChips();
   renderGrid(); renderCards(); renderDuty();
@@ -2917,8 +2892,6 @@ async function submitReport(){
   if(btnML) btnML.onclick = ()=> openLoginModal('Đăng nhập tài khoản quản trị để tiếp tục dùng web trong lúc bảo trì.');
   const btnRep = document.getElementById('btnReport');
   if(btnRep) btnRep.onclick = openReportModal;
-  // Popup thông báo cập nhật cố định (một lần) — changelog từ bảo trì dùng maybeShowSiteChangelog
-  setTimeout(showChangelogOnce, 600);
 })();
 </script>
 </body>
