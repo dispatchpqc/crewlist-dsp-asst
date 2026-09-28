@@ -826,8 +826,10 @@ let ghBusy = false;
 let ghBusyReason = '';
 let pagesWaitUntil = 0;
 let pagesPollTimer = null;
-const PAGES_COOLDOWN_MS = 45000; // tối thiểu sau khi lưu local
-const PAGES_MAX_WAIT_MS = 8 * 60 * 1000; // tối đa ~8 phút chờ máy chủ
+const PAGES_COOLDOWN_MS = 20000; // chờ tối thiểu ngắn; mở sớm nếu GitHub đã xong
+const PAGES_MIN_LOCK_MS = 8000; // không mở khóa sớm hơn 8s sau save (tránh race)
+const PAGES_MAX_WAIT_MS = 4 * 60 * 1000; // tối đa ~4 phút chờ máy chủ
+const PAGES_EXTEND_MS = 8000; // mỗi lần gia hạn khi remote vẫn busy
 const CHANGELOG_KEY = 'sunpq_changelog_v20260928';
 /** Trạng thái máy chủ từ bên ngoài (sửa trên web khác / commit thẳng) */
 let remoteBusy = false;
@@ -1491,7 +1493,7 @@ async function saveToGitHub(){
       name: result.content.name
     };
     setGhBusy(false);
-    setBanner('✅ Đã lưu lịch: <b>'+currentGhFile.path+'</b> · '+EMP.length+' NV.<br>⏳ <b>Hệ thống đang cập nhật trang</b> — pill cam «Đang cập nhật trang»; <b>không sửa</b> đến khi đèn xanh «Có thể chỉnh sửa».','ok');
+    setBanner('✅ Đã lưu lịch: <b>'+currentGhFile.path+'</b> · '+EMP.length+' NV.<br>⏳ Đang cập nhật trang — tự mở khóa khi GitHub xong (thường ~20–40s).','ok');
     startPagesCooldown(PAGES_COOLDOWN_MS);
   }catch(err){
     console.error(err);
@@ -1800,53 +1802,55 @@ function setGhBusy(on, reason){
   ghBusyReason = reason || '';
   updateSyncUI();
 }
+function clearPagesCooldown(){
+  pagesWaitUntil = 0;
+  if(pagesPollTimer){ clearInterval(pagesPollTimer); pagesPollTimer = null; }
+}
+/** Sau khi lưu: khóa ngắn, vừa đếm ngược vừa hỏi GitHub — xong là mở khóa sớm (không chờ hết 45s). */
 function startPagesCooldown(ms){
   pagesWaitStarted = Date.now();
   pagesWaitUntil = Date.now() + (ms || PAGES_COOLDOWN_MS);
   updateSyncUI();
   if(pagesPollTimer) clearInterval(pagesPollTimer);
+  let tick = 0;
   pagesPollTimer = setInterval(async ()=>{
+    tick++;
     updateSyncUI();
-    if(Date.now() < pagesWaitUntil) return;
-    clearInterval(pagesPollTimer);
-    pagesPollTimer = null;
-    // Hết cooldown tối thiểu → hỏi máy chủ; không tự báo "sẵn sàng" nếu vẫn pending
-    await checkRemoteDeployStatus();
-    if(!isGhBusy()){
+    const elapsed = Date.now() - pagesWaitStarted;
+    // Mỗi ~3s (và khi hết hạn đếm) hỏi máy chủ để mở khóa sớm
+    const dueCheck = (tick % 3 === 0) || (Date.now() >= pagesWaitUntil);
+    if(!dueCheck) return;
+    try{ await checkRemoteDeployStatus(); }catch(e){}
+    // Đã qua min lock + remote không busy → mở ngay
+    if(elapsed >= PAGES_MIN_LOCK_MS && !ghBusy && !remoteBusy){
+      clearPagesCooldown();
+      updateSyncUI();
       setBanner('✅ <b>Có thể chỉnh sửa lại</b> — máy chủ đã sẵn sàng.','ok');
+      return;
+    }
+    if(Date.now() < pagesWaitUntil) return;
+    // Hết cooldown UI nhưng remote vẫn busy → gia hạn ngắn
+    if(remoteBusy && elapsed < PAGES_MAX_WAIT_MS){
+      pagesWaitUntil = Date.now() + PAGES_EXTEND_MS;
+      setBanner('⏳ Máy chủ vẫn đang xử lý… tiếp tục chờ.','');
+      updateSyncUI();
+      return;
+    }
+    // Hết trần hoặc remote đã xong
+    clearPagesCooldown();
+    if(remoteBusy){
+      remoteBusy = false;
+      setBanner('⚠️ Đã chờ lâu — mở khóa chỉnh sửa. Nếu trang web chưa đổi, đợi thêm hoặc bấm Load lịch.','');
     } else {
-      setBanner('⏳ Đã hết thời gian chờ tối thiểu nhưng máy chủ <b>vẫn đang xử lý</b> (xếp hàng / deploy). Tiếp tục tạm khóa đến khi xong.','');
-      // Gia hạn chờ theo remote (có trần)
-      if(pagesWaitStarted && (Date.now() - pagesWaitStarted) < PAGES_MAX_WAIT_MS){
-        pagesWaitUntil = Date.now() + 15000;
-        startPagesCooldownWatchOnly();
-      }
+      setBanner('✅ <b>Có thể chỉnh sửa lại</b> — máy chủ đã sẵn sàng.','ok');
     }
     updateSyncUI();
   }, 1000);
 }
-/** Chỉ đếm UI + re-check remote, không reset mốc bắt đầu */
+/** Tương thích chỗ gọi cũ — chuyển về cùng vòng poll thông minh */
 function startPagesCooldownWatchOnly(){
-  if(pagesPollTimer) clearInterval(pagesPollTimer);
-  pagesPollTimer = setInterval(async ()=>{
-    updateSyncUI();
-    if(Date.now() < pagesWaitUntil) return;
-    clearInterval(pagesPollTimer);
-    pagesPollTimer = null;
-    await checkRemoteDeployStatus();
-    if(!isGhBusy()){
-      setBanner('✅ <b>Có thể chỉnh sửa lại</b> — máy chủ đã sẵn sàng.','ok');
-    } else if(pagesWaitStarted && (Date.now() - pagesWaitStarted) < PAGES_MAX_WAIT_MS){
-      pagesWaitUntil = Date.now() + 15000;
-      startPagesCooldownWatchOnly();
-      setBanner('⏳ Máy chủ vẫn đang xử lý… tiếp tục chờ.','');
-    } else {
-      // Hết trần thời gian — mở khóa nhưng cảnh báo
-      remoteBusy = false;
-      setBanner('⚠️ Đã chờ lâu — mở khóa chỉnh sửa. Nếu trang web chưa đổi, đợi thêm hoặc bấm Load lịch.','');
-    }
-    updateSyncUI();
-  }, 1000);
+  if(pagesPollTimer) return; // đã có poll từ startPagesCooldown
+  startPagesCooldown(PAGES_EXTEND_MS);
 }
 function ghApiHeaders(){
   const headers = { 'Accept': 'application/vnd.github+json' };
