@@ -425,6 +425,27 @@ header .lede{animation:fadeUp .5s .1s ease both}
 .header-auth .btn-action.primary:hover{animation:pulseSoft 1.2s ease infinite}
 
 .rg-cell.rg-day{transition:box-shadow .15s,background .15s}
+
+/* Maintenance overlay */
+.maint-overlay{
+  position:fixed;inset:0;z-index:80;
+  background:rgba(42,29,20,.55);backdrop-filter:blur(6px);
+  display:none;align-items:center;justify-content:center;padding:20px;
+}
+.maint-overlay.show{display:flex}
+.maint-card{
+  background:var(--paper);border-radius:18px;max-width:420px;width:100%;
+  padding:28px 24px;text-align:center;
+  border:1.5px solid var(--line);
+  box-shadow:0 24px 60px rgba(42,29,20,.28);
+  animation:pop .28s cubic-bezier(.2,.9,.3,1);
+}
+.maint-card .mi{font-size:42px;margin-bottom:8px}
+.maint-card h2{margin:0 0 8px;font-size:20px;font-weight:800}
+.maint-card p{margin:0;font-size:14px;color:var(--ink-soft);line-height:1.5}
+.maint-card .maint-msg{margin-top:12px;padding:10px 12px;background:var(--sun);border-radius:10px;font-size:13px;color:var(--ink)}
+.btn-maint-on{border-color:#E8A317 !important;color:#8A6200 !important;background:linear-gradient(135deg,#FFF6E4,#FFFBF0) !important}
+.btn-maint-off{border-color:#A8D5B5 !important;color:#1E5C32 !important;background:linear-gradient(135deg,#EAF7EE,#F5FBF6) !important}
 /* Sync lock + status */
 .sync-pill{
   display:inline-flex;align-items:center;gap:8px;
@@ -642,6 +663,7 @@ html[data-theme="dark"] .login-form input{
       <span class="view-tag" id="viewOnlyHint">Chỉ xem</span>
       <button type="button" class="btn-action primary" id="btnLogin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg> Đăng nhập</button>
       <span class="auth-user" id="authBar" style="display:none"></span>
+      <button type="button" class="btn-action btn-maint-on" id="btnMaint" style="display:none" title="Bật/tắt chế độ bảo trì cho mọi người">🔧 Bảo trì</button>
       <button type="button" class="btn-action" id="btnLogout" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg> Đăng xuất</button>
     </div>
   </div>
@@ -690,7 +712,7 @@ html[data-theme="dark"] .login-form input{
       <option value="2027">2027</option>
     </select>
   </div>
-  <button type="button" class="btn-action primary" id="btnLoadGh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 19h16"/></svg> Load lịch</button>
+  <button type="button" class="btn-action primary" id="btnLoadGh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 19h16"/></svg> Tải lịch</button>
   <button type="button" class="btn-action" id="btnSaveGh" title="Cần khóa truy cập máy chủ để lưu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg> Lưu lịch </button>
   <input type="file" id="fileExcel" accept=".xlsx,.xls" hidden>
   <button type="button" class="btn-action" id="btnTemplate" title="Tải mẫu Excel theo tháng đang chọn (kỳ 26→25, đúng số ngày tháng)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 15v-6"/><path d="M9 12l3 3 3-3"/></svg> Mẫu Excel</button>
@@ -700,7 +722,7 @@ html[data-theme="dark"] .login-form input{
     <span class="dot" aria-hidden="true"></span>
     <span class="sync-main">
       <span class="sync-title" id="syncPillTitle">Có thể chỉnh sửa</span>
-      <span class="sync-sub" id="syncPillSub">Máy chủ sẵn sàng · không có thao tác đang chạy</span>
+      <span class="sync-sub" id="syncPillSub">Sẵn sàng sử dụng · không có thao tác đang chạy</span>
     </span>
   </span>
   <span id="loadStatus" style="font-size:11.5px;color:var(--ink-soft);max-width:160px"></span>
@@ -718,6 +740,15 @@ html[data-theme="dark"] .login-form input{
   <div id="gridView" style="display:none"></div>
   <div id="cardsView" style="display:none"></div>
 </main>
+<div class="maint-overlay" id="maintOverlay" aria-live="polite">
+  <div class="maint-card">
+    <div class="mi">🔧</div>
+    <h2>Web đang bảo trì</h2>
+    <p>Hệ thống lịch trực tạm dừng chỉnh sửa để cập nhật. Vui lòng quay lại sau ít phút.</p>
+    <div class="maint-msg" id="maintOverlayMsg" style="display:none"></div>
+    <p style="margin-top:14px;font-size:12px;color:var(--ink-soft)">Tài khoản quản trị vẫn dùng bình thường.</p>
+  </div>
+</div>
 <div class="overlay" id="overlay"><div class="modal" id="modalBody"></div></div>
 <script>
 const GH = {
@@ -752,6 +783,10 @@ function setAuth(user){
   }catch(e){}
 }
 function isLoggedIn(){ return !!getAuth(); }
+function isAdmin(){
+  const a = getAuth();
+  return !!(a && (a.role === 'admin' || a.username === 'admin'));
+}
 function requireLogin(action){
   if(isLoggedIn()) return true;
   openLoginModal(action || 'Thao tác này cần đăng nhập.');
@@ -763,18 +798,36 @@ function refreshAuthUI(){
   const btnIn = document.getElementById('btnLogin');
   const btnOut = document.getElementById('btnLogout');
   const hint = document.getElementById('viewOnlyHint');
-  const canEdit = !!auth;
+  const btnMaint = document.getElementById('btnMaint');
+  const canEdit = !!auth && !(siteMaint.on && !isAdmin());
   if(bar){
-    if(auth){ bar.style.display=''; bar.textContent='👤 '+auth.username; }
+    if(auth){ bar.style.display=''; bar.textContent='👤 '+auth.username+(isAdmin()?' · Admin':''); }
     else { bar.style.display='none'; bar.textContent=''; }
   }
   if(btnIn) btnIn.style.display = auth ? 'none' : '';
   if(btnOut) btnOut.style.display = auth ? '' : 'none';
-  if(hint) hint.style.display = auth ? 'none' : '';
+  if(hint){
+    if(!auth){ hint.style.display=''; hint.textContent='Chỉ xem'; }
+    else if(siteMaint.on && !isAdmin()){ hint.style.display=''; hint.textContent='Bảo trì · chỉ xem'; }
+    else { hint.style.display='none'; }
+  }
+  if(btnMaint){
+    btnMaint.style.display = isAdmin() ? '' : 'none';
+    if(siteMaint.on){
+      btnMaint.className = 'btn-action btn-maint-off';
+      btnMaint.textContent = '✅ Tắt bảo trì';
+      btnMaint.title = 'Tắt bảo trì và ghi nhận nội dung đã cập nhật';
+    } else {
+      btnMaint.className = 'btn-action btn-maint-on';
+      btnMaint.textContent = '🔧 Bảo trì';
+      btnMaint.title = 'Bật bảo trì — người khác chỉ xem / thấy thông báo bảo trì';
+    }
+  }
   ['btnSaveGh','btnUpload','btnToken','btnTemplate'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.style.display = canEdit ? '' : 'none';
   });
+  applyMaintenanceUI();
 }
 function openLoginModal(msg){
   modalBody.className='modal';
@@ -808,7 +861,12 @@ function openLoginModal(msg){
     closeModal();
     refreshAuthUI();
     if(!EMP.length) renderAll();
-    setBanner('Đã đăng nhập: <b>'+u+'</b> — có thể chỉnh sửa và lưu.','ok');
+    applyMaintenanceUI();
+    if(siteMaint.on && !(acc.role==='admin'||u==='admin')){
+      setBanner('Đã đăng nhập: <b>'+u+'</b> — hệ thống đang bảo trì, chỉ xem.','');
+    } else {
+      setBanner('Đã đăng nhập: <b>'+u+'</b> — có thể chỉnh sửa và lưu.','ok');
+    }
   };
   document.getElementById('loginSubmit').onclick=doLogin;
   document.getElementById('loginPass').onkeydown=e=>{ if(e.key==='Enter') doLogin(); };
@@ -840,6 +898,285 @@ let remotePollMs = 12000;
 const REMOTE_POLL_IDLE_MS = 5000; // luôn poll 5s theo yêu cầu
 const REMOTE_POLL_BUSY_MS = 5000;
 let pagesWaitStarted = 0; // lúc bắt đầu chờ sau save local
+
+/* ========== BẢO TRÌ HỆ THỐNG (admin) ========== */
+const SITE_STATUS_PATH = 'data/site-status.json';
+const SITE_CHANGELOG_SEEN_KEY = 'sunpq_site_changelog_seen';
+let siteMaint = { on: false, message: '', changelog: null, sha: null };
+let siteStatusPollTimer = null;
+
+function friendlyBusyDetail(raw){
+  if(!raw) return 'Đang cập nhật hệ thống';
+  let s = String(raw);
+  s = s.replace(/pages build and deployment/gi, 'Cập nhật trang web');
+  s = s.replace(/GitHub Pages/gi, 'Trang web');
+  s = s.replace(/GitHub/gi, 'hệ thống');
+  s = s.replace(/check-?runs?/gi, 'kiểm tra');
+  s = s.replace(/workflow/gi, 'tiến trình');
+  s = s.replace(/deploy/gi, 'đăng tải');
+  s = s.replace(/build/gi, 'xây dựng');
+  s = s.replace(/queued/gi, 'xếp hàng');
+  s = s.replace(/in[_\s-]?progress/gi, 'đang chạy');
+  s = s.replace(/đang xếp hàng/gi, 'đang chờ');
+  s = s.replace(/\s+/g, ' ').trim();
+  // Gọn lại câu thân thiện
+  if(/cập nhật trang web/i.test(s)){
+    if(/chờ|xếp/i.test(s)) return 'Trang web đang chờ cập nhật';
+    return 'Trang web đang được cập nhật';
+  }
+  if(/kiểm tra/i.test(s)) return 'Hệ thống đang kiểm tra cập nhật';
+  return s;
+}
+
+async function loadSiteStatus(){
+  try{
+    const url = `${GH.apiBase}/${SITE_STATUS_PATH}?ref=${GH.branch}&t=${Date.now()}`;
+    const r = await fetch(url, { headers: ghApiHeaders(), cache: 'no-store' });
+    if(r.status === 404){
+      siteMaint = { on: false, message: '', changelog: null, sha: null };
+      applyMaintenanceUI();
+      maybeShowSiteChangelog();
+      return;
+    }
+    if(!r.ok) return;
+    const meta = await r.json();
+    siteMaint.sha = meta.sha || null;
+    let data = {};
+    try{
+      data = JSON.parse(decodeURIComponent(escape(atob((meta.content||'').replace(/\n/g,'')))));
+    }catch(e){
+      try{ data = JSON.parse(atob((meta.content||'').replace(/\n/g,''))); }catch(e2){ data = {}; }
+    }
+    siteMaint.on = !!data.maintenance;
+    siteMaint.message = data.message || '';
+    siteMaint.changelog = data.changelog || null;
+    applyMaintenanceUI();
+    maybeShowSiteChangelog();
+  }catch(e){}
+}
+
+async function saveSiteStatus(payload){
+  const tok = getToken();
+  if(!tok){
+    openTokenModal('Cần khóa truy cập máy chủ để bật/tắt bảo trì.');
+    throw new Error('Thiếu khóa truy cập');
+  }
+  // refresh sha
+  try{
+    const meta = await fetch(`${GH.apiBase}/${SITE_STATUS_PATH}?ref=${GH.branch}&t=${Date.now()}`, {
+      headers: { ...ghApiHeaders(), Authorization: 'Bearer '+tok }, cache: 'no-store'
+    });
+    if(meta.ok){
+      const j = await meta.json();
+      siteMaint.sha = j.sha;
+    } else if(meta.status === 404){
+      siteMaint.sha = null;
+    }
+  }catch(e){}
+  const body = {
+    message: payload.maintenance
+      ? 'Bật bảo trì hệ thống lịch trực'
+      : 'Tắt bảo trì — cập nhật: '+((payload.changelog&&payload.changelog.items)||[]).slice(0,3).join('; '),
+    content: btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2)))),
+    branch: GH.branch
+  };
+  if(siteMaint.sha) body.sha = siteMaint.sha;
+  const put = await fetch(`${GH.apiBase}/${SITE_STATUS_PATH}`, {
+    method: 'PUT',
+    headers: {
+      'Accept': 'application/vnd.github+json',
+      'Authorization': 'Bearer '+tok,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+  if(!put.ok){
+    const t = await put.text();
+    throw new Error('Lưu trạng thái lỗi '+put.status+': '+t.slice(0,180));
+  }
+  const result = await put.json();
+  siteMaint.sha = result.content && result.content.sha;
+  siteMaint.on = !!payload.maintenance;
+  siteMaint.message = payload.message || '';
+  siteMaint.changelog = payload.changelog || null;
+}
+
+function applyMaintenanceUI(){
+  const ov = document.getElementById('maintOverlay');
+  const msgEl = document.getElementById('maintOverlayMsg');
+  const admin = isAdmin();
+  const show = siteMaint.on && !admin;
+  if(ov) ov.classList.toggle('show', show);
+  if(msgEl){
+    if(siteMaint.message){
+      msgEl.style.display = '';
+      msgEl.textContent = siteMaint.message;
+    } else {
+      msgEl.style.display = 'none';
+      msgEl.textContent = '';
+    }
+  }
+  document.body.classList.toggle('site-maint', show);
+  // Non-admin cannot edit while maintenance
+  if(siteMaint.on && !admin){
+    document.body.classList.add('gh-locked');
+  }
+  const btnMaint = document.getElementById('btnMaint');
+  if(btnMaint && isAdmin()){
+    if(siteMaint.on){
+      btnMaint.className = 'btn-action btn-maint-off';
+      btnMaint.textContent = '✅ Tắt bảo trì';
+    } else {
+      btnMaint.className = 'btn-action btn-maint-on';
+      btnMaint.textContent = '🔧 Bảo trì';
+    }
+  }
+}
+
+function maybeShowSiteChangelog(){
+  const cl = siteMaint.changelog;
+  if(!cl || !cl.id || !Array.isArray(cl.items) || !cl.items.length) return;
+  if(siteMaint.on) return; // đang bảo trì thì chưa hiện
+  try{
+    const seen = localStorage.getItem(SITE_CHANGELOG_SEEN_KEY);
+    if(seen === cl.id) return;
+  }catch(e){}
+  showSiteChangelogPopup(cl);
+}
+
+function showSiteChangelogPopup(cl){
+  if(!cl) return;
+  modalBody.className = 'modal';
+  const items = (cl.items||[]).map(it =>
+    `<li><span class="ck">✓</span><span>${String(it).replace(/</g,'&lt;')}</span></li>`
+  ).join('');
+  modalBody.innerHTML = `
+    <div class="mtop">
+      <div><h3>Cập nhật web lịch trực</h3>
+      <div class="mid">${cl.date||''}${cl.title ? ' · '+cl.title : ''}</div></div>
+      <button class="closeb" onclick="closeSiteChangelog()">✕</button>
+    </div>
+    <ul class="changelog-list">${items}</ul>
+    <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+      <button type="button" class="btn-action primary" onclick="closeSiteChangelog()">Đã hiểu</button>
+    </div>`;
+  overlay.classList.add('show');
+}
+function closeSiteChangelog(){
+  try{
+    if(siteMaint.changelog && siteMaint.changelog.id){
+      localStorage.setItem(SITE_CHANGELOG_SEEN_KEY, siteMaint.changelog.id);
+    }
+  }catch(e){}
+  closeModal();
+}
+
+function openMaintEnableModal(){
+  if(!isAdmin()) return;
+  modalBody.className = 'modal';
+  modalBody.innerHTML = `
+    <div class="mtop">
+      <div><h3>Bật bảo trì hệ thống</h3>
+      <div class="mid">Người khác sẽ thấy thông báo bảo trì và không chỉnh sửa được</div></div>
+      <button class="closeb" onclick="closeModal()">✕</button>
+    </div>
+    <div class="login-form">
+      <label>Thông báo hiện cho mọi người (tuỳ chọn)</label>
+      <input id="maintMsg" placeholder="Ví dụ: Đang nâng cấp đồng bộ lịch, khoảng 10 phút…">
+      <div class="actions">
+        <button type="button" class="btn-action primary" id="maintEnableGo">Bật bảo trì</button>
+        <button type="button" class="btn-action" onclick="closeModal()">Hủy</button>
+      </div>
+    </div>`;
+  overlay.classList.add('show');
+  document.getElementById('maintEnableGo').onclick = async ()=>{
+    const message = (document.getElementById('maintMsg').value||'').trim();
+    try{
+      setBanner('Đang bật chế độ bảo trì…','');
+      await saveSiteStatus({
+        maintenance: true,
+        message,
+        updatedAt: new Date().toISOString(),
+        updatedBy: (getAuth()||{}).username || 'admin',
+        changelog: siteMaint.changelog || null
+      });
+      closeModal();
+      applyMaintenanceUI();
+      refreshAuthUI();
+      setBanner('🔧 Đã <b>bật bảo trì</b>. Tài khoản khác chỉ xem / thấy thông báo bảo trì.','ok');
+    }catch(err){
+      setBanner('Không bật được bảo trì: '+(err.message||err),'err');
+    }
+  };
+}
+
+function openMaintDisableModal(){
+  if(!isAdmin()) return;
+  modalBody.className = 'modal';
+  modalBody.innerHTML = `
+    <div class="mtop">
+      <div><h3>Tắt bảo trì &amp; thông báo cập nhật</h3>
+      <div class="mid">Ghi lại những gì đã xử lý — mọi người sẽ thấy popup giống thông báo cập nhật</div></div>
+      <button class="closeb" onclick="closeModal()">✕</button>
+    </div>
+    <div class="login-form">
+      <label>Tiêu đề ngắn (tuỳ chọn)</label>
+      <input id="clTitle" placeholder="Ví dụ: Bản vá đồng bộ &amp; bảo trì">
+      <label>Nội dung đã cập nhật (mỗi dòng một mục)</label>
+      <textarea id="clItems" rows="6" style="width:100%;border:1.5px solid var(--line);border-radius:9px;padding:9px 11px;font:inherit;font-size:13.5px;box-sizing:border-box;resize:vertical" placeholder="Đã sửa trạng thái cập nhật trang web&#10;Đã thêm chế độ bảo trì&#10;Đã cải thiện tốc độ đồng bộ"></textarea>
+      <div class="actions">
+        <button type="button" class="btn-action primary" id="maintDisableGo">Tắt bảo trì &amp; gửi thông báo</button>
+        <button type="button" class="btn-action" onclick="closeModal()">Hủy</button>
+      </div>
+      <p class="hint" style="margin-top:10px">Người dùng chưa xem sẽ thấy popup danh sách ✓ khi mở web (sau khi tắt bảo trì).</p>
+    </div>`;
+  overlay.classList.add('show');
+  document.getElementById('maintDisableGo').onclick = async ()=>{
+    const title = (document.getElementById('clTitle').value||'').trim();
+    const raw = document.getElementById('clItems').value||'';
+    const items = raw.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    if(!items.length){
+      setBanner('Nhập ít nhất một mục đã cập nhật (mỗi dòng một ý).','err');
+      return;
+    }
+    const now = new Date();
+    const id = 'cl-'+now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+'-'+now.getTime();
+    const dateStr = String(now.getDate()).padStart(2,'0')+'/'+String(now.getMonth()+1).padStart(2,'0')+'/'+now.getFullYear();
+    const changelog = { id, date: dateStr, title, items };
+    try{
+      setBanner('Đang tắt bảo trì và lưu thông báo cập nhật…','');
+      await saveSiteStatus({
+        maintenance: false,
+        message: '',
+        updatedAt: now.toISOString(),
+        updatedBy: (getAuth()||{}).username || 'admin',
+        changelog
+      });
+      // Admin đã soạn → đánh dấu đã xem
+      try{ localStorage.setItem(SITE_CHANGELOG_SEEN_KEY, id); }catch(e){}
+      closeModal();
+      applyMaintenanceUI();
+      refreshAuthUI();
+      setBanner('✅ Đã <b>tắt bảo trì</b>. Thông báo cập nhật sẽ hiện cho người dùng khác.','ok');
+      // Hiện lại cho admin xem thử
+      showSiteChangelogPopup(changelog);
+    }catch(err){
+      setBanner('Không tắt được bảo trì: '+(err.message||err),'err');
+    }
+  };
+}
+
+function onMaintButtonClick(){
+  if(!isAdmin()) return;
+  if(!getToken()){
+    openTokenModal('Cần khóa truy cập máy chủ để bật/tắt bảo trì (ghi file trạng thái).');
+    return;
+  }
+  if(siteMaint.on) openMaintDisableModal();
+  else openMaintEnableModal();
+}
+
+
 
 
 const DEPTS = {
@@ -1759,8 +2096,7 @@ function renderDuty(){
 function setBanner(html,type){ const el=document.getElementById('statusBanner'); el.className='banner'+(type==='ok'?' ok':type==='err'?' err':''); el.innerHTML=`<div>${html}</div>`; }
 
 function isGhBusy(){
-  // remoteNewer: file trên máy chủ đã đổi — phải Load trước, không cho sửa (tránh ghi đè)
-  // remoteBusy: workflow/check đang chạy (Git chưa ready)
+  if(siteMaint.on && !isAdmin()) return true;
   return ghBusy || Date.now() < pagesWaitUntil || remoteBusy || remoteNewer;
 }
 function updateSyncUI(){
@@ -1777,32 +2113,38 @@ function updateSyncUI(){
     if(id==='btnLoadGh'){ el.disabled = !!ghBusy; return; }
     el.disabled = locked;
   });
-  if(ghBusy){
+  if(siteMaint.on && !isAdmin()){
     pill.className = 'sync-pill busy';
-    pill.title = 'Đang ghi file lên máy chủ. Không chỉnh sửa ca / tải lên / lưu thêm cho đến khi xong.';
+    pill.title = 'Hệ thống đang bảo trì. Chỉ xem, không chỉnh sửa.';
+    titleEl.textContent = 'Đang bảo trì';
+    subEl.textContent = (siteMaint.message || 'Vui lòng quay lại sau') + ' · chỉ xem';
+  } else if(ghBusy){
+    pill.className = 'sync-pill busy';
+    pill.title = 'Đang lưu lịch lên hệ thống. Vui lòng đợi xong rồi chỉnh sửa tiếp.';
     titleEl.textContent = 'Đang lưu lịch';
-    subEl.textContent = (ghBusyReason || 'Đang gửi file Excel') + ' · tạm khóa chỉnh sửa';
+    subEl.textContent = (ghBusyReason || 'Đang gửi file lịch') + ' · tạm khóa chỉnh sửa';
   } else if(Date.now() < pagesWaitUntil){
     const sec = Math.max(1, Math.ceil((pagesWaitUntil - Date.now())/1000));
     pill.className = 'sync-pill busy';
-    pill.title = 'Máy chủ đã nhận file; hệ thống đang cập nhật trang (~30–60s). Đợi đèn xanh rồi mới sửa tiếp.';
+    pill.title = 'Đã lưu xong; trang web đang cập nhật. Đợi đèn xanh rồi sửa tiếp.';
     titleEl.textContent = 'Đang cập nhật trang';
-    subEl.textContent = 'Vui lòng đợi ~'+sec+'s · tạm khóa chỉnh sửa';
+    subEl.textContent = 'Vui lòng đợi ~'+sec+' giây · tạm khóa chỉnh sửa';
   } else if(remoteBusy){
     pill.className = 'sync-pill busy';
-    pill.title = 'Máy chủ đang build/deploy (GitHub checks chưa xong). Tạm khóa chỉnh sửa đến khi checks xanh.';
-    titleEl.textContent = remoteNewer ? 'Đang cập nhật bản mới' : 'Máy chủ đang xử lý';
-    subEl.textContent = (remoteBusyDetail || 'GitHub đang chạy checks') + (remoteNewer ? ' · có bản mới, đợi xong rồi Load' : ' · tạm khóa chỉnh sửa');
+    pill.title = 'Hệ thống đang cập nhật trang web. Tạm khóa chỉnh sửa đến khi xong.';
+    titleEl.textContent = remoteNewer ? 'Đang cập nhật bản mới' : 'Hệ thống đang cập nhật';
+    const nice = friendlyBusyDetail(remoteBusyDetail);
+    subEl.textContent = nice + (remoteNewer ? ' · có bản mới, đợi xong rồi tải lại' : ' · tạm khóa chỉnh sửa');
   } else if(remoteNewer){
     pill.className = 'sync-pill busy';
-    pill.title = 'File lịch trên máy chủ đã đổi so với bản đang xem. Bấm Load lịch để lấy bản mới trước khi sửa.';
-    titleEl.textContent = 'Có bản mới trên máy chủ';
-    subEl.textContent = 'Bấm «Load lịch» để đồng bộ · tránh ghi đè bản mới';
+    pill.title = 'Lịch trên hệ thống đã đổi. Bấm «Tải lịch» để lấy bản mới trước khi sửa.';
+    titleEl.textContent = 'Có bản lịch mới';
+    subEl.textContent = 'Bấm «Tải lịch» để đồng bộ · tránh ghi đè bản mới';
   } else {
     pill.className = 'sync-pill idle';
-    pill.title = 'Không có thao tác đang chạy. Có thể Load, sửa ca, tải lên hoặc Lưu lịch.';
+    pill.title = 'Không có thao tác đang chạy. Có thể tải lịch, sửa ca hoặc lưu.';
     titleEl.textContent = 'Có thể chỉnh sửa';
-    subEl.textContent = 'Máy chủ sẵn sàng · không có thao tác đang chạy';
+    subEl.textContent = 'Sẵn sàng sử dụng · không có thao tác đang chạy';
   }
 }
 function setGhBusy(on, reason){
@@ -1923,7 +2265,7 @@ async function checkRemoteDeployStatus(){
       if(active){
         pending = true;
         const st = String(active.status).toLowerCase() === 'queued' ? 'đang xếp hàng' : 'đang chạy';
-        detail = (active.name || 'Cập nhật trang') + ' ('+st+')';
+        detail = friendlyBusyDetail((active.name || 'Cập nhật trang web') + ' ('+st+')');
       }
     }
   }catch(e){}
@@ -1942,7 +2284,7 @@ async function checkRemoteDeployStatus(){
         if(active){
           pending = true;
           const st = String(active.status).toLowerCase() === 'queued' ? 'đang xếp hàng' : 'đang chạy';
-          detail = (active.name || 'Kiểm tra / deploy') + ' ('+st+')';
+          detail = friendlyBusyDetail((active.name || 'Cập nhật') + ' ('+st+')');
         }
       }
     }catch(e){}
@@ -1968,7 +2310,7 @@ async function checkRemoteDeployStatus(){
         if(active){
           pending = true;
           const st = String(active.status || 'pending').toLowerCase();
-          detail = 'Bộ kiểm tra máy chủ ('+(st === 'queued' ? 'đang xếp hàng' : st)+')';
+          detail = friendlyBusyDetail('Hệ thống đang kiểm tra ('+(st === 'queued' ? 'đang chờ' : st)+')');
         }
       }
     }catch(e){}
@@ -1993,7 +2335,7 @@ async function checkRemoteDeployStatus(){
         });
         if(active){
           pending = true;
-          detail = 'Đang cập nhật trang web ('+(active.status||'building')+')';
+          detail = friendlyBusyDetail('Đang cập nhật trang web ('+(active.status||'building')+')');
         }
       }
     }catch(e){}
@@ -2050,14 +2392,18 @@ function startRemoteStatusPoll(){
 }
 function requireEditable(actionMsg){
   if(!requireLogin(actionMsg || 'Đăng nhập để chỉnh sửa.')) return false;
+  if(siteMaint.on && !isAdmin()){
+    setBanner('🔧 <b>Hệ thống đang bảo trì</b> — tạm thời chỉ xem. Vui lòng quay lại sau.','err');
+    return false;
+  }
   if(isGhBusy()){
     let why = 'Hệ thống đang cập nhật trang';
     if(ghBusy) why = ghBusyReason || 'Đang lưu lịch';
     else if(Date.now() < pagesWaitUntil) why = 'Đang chờ cập nhật trang sau khi lưu';
-    else if(remoteBusy) why = remoteBusyDetail || 'GitHub checks chưa xong (build/deploy)';
-    else if(remoteNewer) why = 'Có bản lịch mới trên máy chủ — bấm Load lịch trước';
+    else if(remoteBusy) why = friendlyBusyDetail(remoteBusyDetail) || 'Hệ thống đang cập nhật trang web';
+    else if(remoteNewer) why = 'Có bản lịch mới — bấm «Tải lịch» trước';
     const tip = remoteNewer
-      ? '. Bấm <b>Load lịch</b> sau khi checks xanh để lấy bản mới.'
+      ? '. Bấm <b>Tải lịch</b> khi hệ thống sẵn sàng để lấy bản mới.'
       : '. Đợi pill <b>«Có thể chỉnh sửa»</b> (đèn xanh) rồi thao tác tiếp.';
     setBanner('⏳ <b>Tạm khóa chỉnh sửa</b> — '+why+tip,'err');
     return false;
@@ -2364,14 +2710,19 @@ document.getElementById('btnLogout').onclick=()=>{
   refreshAuthUI();
   updateSyncUI();
   setView('duty');
-  // Mặc định mở kỳ lịch chứa hôm nay (26 tháng trước → 25 tháng này)
   const roster = rosterMonthForDate();
   document.getElementById('selYear').value = String(roster.year);
   document.getElementById('selMonth').value = String(roster.month);
   if(typeof window.syncMonthYearUI==='function') window.syncMonthYearUI();
   loadFromGitHub(roster.year, roster.month);
   startRemoteStatusPoll();
-  // Popup thông báo cập nhật (một lần)
+  loadSiteStatus();
+  if(siteStatusPollTimer) clearInterval(siteStatusPollTimer);
+  siteStatusPollTimer = setInterval(loadSiteStatus, 15000);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) loadSiteStatus(); });
+  const btnM = document.getElementById('btnMaint');
+  if(btnM) btnM.onclick = onMaintButtonClick;
+  // Popup thông báo cập nhật cố định (một lần) — changelog từ bảo trì dùng maybeShowSiteChangelog
   setTimeout(showChangelogOnce, 600);
 })();
 </script>
