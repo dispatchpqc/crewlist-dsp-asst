@@ -1,7 +1,17 @@
 {
-  "maintenance": true,
-  "message": "Đang vá lỗi",
-  "updatedAt": "2026-09-28T05:18:29.436Z",
+  "maintenance": false,
+  "message": "",
+  "updatedAt": "2026-09-28T05:24:33.904Z",
   "updatedBy": "admin",
-  "changelog": null
+  "changelog": {
+    "id": "cl-20260928-1790573073904",
+    "date": "28/09/2026",
+    "title": "Đã fix lỗi",
+    "items": [
+      "Cập nhật trạng thái sửa lịch",
+      "Fix lịch đúng chuẩn theo tháng",
+      "Mẫu lịch được cập nhật theo tháng",
+      "Fix trạng thái ca đang trực"
+    ]
+  }
 }
