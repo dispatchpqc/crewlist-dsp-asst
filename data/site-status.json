@@ -1,7 +1,7 @@
 {
-  "maintenance": false,
-  "message": "",
-  "updatedAt": "2026-09-28T05:24:33.904Z",
+  "maintenance": true,
+  "message": "Đang cập nhật thêm tính năng",
+  "updatedAt": "2026-09-28T05:32:52.092Z",
   "updatedBy": "admin",
   "changelog": {
     "id": "cl-20260928-1790573073904",
