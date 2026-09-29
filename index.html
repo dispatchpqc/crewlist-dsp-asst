@@ -1411,6 +1411,10 @@
         <span class="icon">🌤</span>
         <span>Check PIB &amp; MET</span>
       </button>
+      <button class="nav-item guest-hidden" type="button" id="openBrfBoardBtn" title="Mở bảng Sắp Brief (tab mới)">
+        <span class="icon">🕐</span>
+        <span>Sắp Brief</span>
+      </button>
     </nav>
 
     <div class="sidebar-footer" style="flex-direction:column;gap:8px;align-items:stretch;">
@@ -3049,6 +3053,7 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       try {
         if (pibFlights && pibFlights.length) renderPibTable();
       } catch (e) {}
+      try { publishBrfSnapshot(); } catch (e) {}
     }
 
     /**
@@ -3098,6 +3103,116 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       return null;
     }
 
+    /* ===== Bridge → brf.html: snapshot duty sắp Brief ===== */
+    const BRF_BC = ('BroadcastChannel' in window) ? new BroadcastChannel('sunpq_brf') : null;
+    let _brfSnapTimer = null;
+
+    function lookupPibStatus(flt, stdDt) {
+      if (!pibFlights || !pibFlights.length) return { ofp: false, gd: false, folderPath: '', ngay: '' };
+      const fltS = String(flt || '').trim();
+      let hit = null;
+      if (stdDt && isValidDate(stdDt)) {
+        const t = stdDt.getTime();
+        hit = pibFlights.find(f => String(f.flt).trim() === fltS && f.stdDt && isValidDate(f.stdDt) && f.stdDt.getTime() === t);
+      }
+      if (!hit) hit = pibFlights.find(f => String(f.flt).trim() === fltS);
+      if (!hit) return { ofp: false, gd: false, folderPath: '', ngay: '' };
+      return {
+        ofp: hit.ofp === true,
+        gd: hit.gd === true,
+        folderPath: hit.folderPath || '',
+        ngay: hit.ngayVN ? formatDate(hit.ngayVN) : ''
+      };
+    }
+
+    function buildBrfSnapshot() {
+      const nowMs = Date.now();
+      const groups = [];
+      if (!lastResults || !lastResults.length) {
+        return { at: nowMs, groups: [] };
+      }
+      const upcoming = [];
+      lastResults.forEach((r, origIdx) => {
+        const first = (r.seq || [])[0];
+        if (!first || !first.stdDt) return;
+        const local = toLocal(first.stdDt);
+        if (!local.dt) return;
+        const brfDt = new Date(local.dt.getTime() - brfOffsetMinFor(first.arr) * 60000);
+        const brfMs = brfDt.getTime();
+        if (brfMs - nowMs > 8 * 3600e3) return;
+        if (brfMs - nowMs < -25 * 60e3) return;
+        upcoming.push({ r, brfMs, origIdx });
+      });
+      upcoming.sort((a, b) => a.brfMs - b.brfMs || a.origIdx - b.origIdx);
+      upcoming.forEach((item, i) => {
+        const duty = i + 1;
+        const flights = (item.r.seq || []).map(f => {
+          const local = toLocal(f.stdDt);
+          const st = lookupPibStatus(f.flt, f.stdDt);
+          let folderPath = st.folderPath;
+          let ngay = st.ngay;
+          if (!folderPath && local.dt) {
+            const ngayVN = new Date(local.dt.getFullYear(), local.dt.getMonth(), local.dt.getDate());
+            ngay = formatDate(ngayVN);
+            try { folderPath = typeof spFolderPath === 'function' ? spFolderPath(ngayVN, String(f.flt).trim()) : ''; } catch (e) {}
+          }
+          return {
+            flt: String(f.flt || '').trim(),
+            dep: f.dep || '',
+            arr: f.arr || '',
+            reg: f.reg || '',
+            localTime: local.timeStr || '',
+            ofp: !!st.ofp,
+            gd: !!st.gd,
+            folderPath: folderPath || '',
+            ngay: ngay || ''
+          };
+        });
+        groups.push({
+          duty,
+          brfMs: item.brfMs,
+          cp: item.r.cp || '',
+          cpId: item.r.cpId || '',
+          flights
+        });
+      });
+      return { at: nowMs, groups };
+    }
+
+    function publishBrfSnapshot(immediate) {
+      const run = () => {
+        try {
+          const snap = buildBrfSnapshot();
+          try { localStorage.setItem('sunpq_brf_snapshot', JSON.stringify(snap)); } catch (e) {}
+          if (BRF_BC) {
+            try { BRF_BC.postMessage(snap); } catch (e) {}
+          }
+        } catch (e) { console.warn('publishBrfSnapshot', e); }
+      };
+      if (immediate) { run(); return; }
+      if (_brfSnapTimer) clearTimeout(_brfSnapTimer);
+      _brfSnapTimer = setTimeout(run, 180);
+    }
+
+    if (BRF_BC) {
+      BRF_BC.onmessage = (ev) => {
+        const m = ev.data || {};
+        if (m.type === 'request-snapshot') publishBrfSnapshot(true);
+      };
+    }
+    setInterval(() => {
+      if (lastResults && lastResults.length) publishBrfSnapshot(true);
+    }, 15000);
+
+    document.getElementById('openBrfBoardBtn')?.addEventListener('click', () => {
+      publishBrfSnapshot(true);
+      try {
+        const url = new URL('brf.html', window.location.href);
+        window.open(url.href, 'sunpq_brf_board');
+      } catch (e) {
+        window.open('brf.html', 'sunpq_brf_board');
+      }
+    });
 
     
     document.getElementById('captureBtn').addEventListener('click', async () => {
@@ -3840,6 +3955,7 @@ function exportExcel() {
           <div class="stat"><div class="stat-label">MET</div><div class="stat-value">${cMet}/${total}</div></div>
           <div class="stat"><div class="stat-label">Trong lọc duty</div><div class="stat-value" style="color:#E30613">${dutyLinked}${dutyGroups ? ' / ' + dutyGroups + ' chuỗi' : ''}</div></div>`;
       }
+      try { publishBrfSnapshot(); } catch (e) {}
     }
 
     function matchDocToFlights(fileName, docType) {
@@ -3927,6 +4043,7 @@ function exportExcel() {
       renderPibTable();
       addPibActivity(`📋 Load crewlist · ${n} chuyến` + (dutyN ? ` · ${dutyN} duty đánh dấu` : ''), 'info');
       showToast(n ? `PIB/MET: ${n} chuyến` + (dutyN ? ` · #1…#${dutyN}` : '') : 'Không có chuyến phù hợp', n ? 'success' : 'info');
+      try { publishBrfSnapshot(true); } catch (e) {}
     }
 
     if (pibCrewBtn) pibCrewBtn.addEventListener('click', () => pibCrewInput.click());
