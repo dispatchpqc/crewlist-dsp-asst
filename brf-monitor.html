@@ -132,10 +132,18 @@
  * In/Tải tài liệu gọi thẳng Print Bridge (9173) & SharePoint Bridge (8765)
  * trên máy, không cần tab chính đang mở lúc bấm in.
  * ================================================================ */
+/* ---- Mọi biến trạng thái khai báo ở ĐẦU script: tránh lỗi "truy cập trước khi khởi tạo"
+   khi loadFromStorage() gọi applyPayload()→render() ngay lập tức bằng dữ liệu cũ đã lưu ---- */
+let latest=null, lastMsgAt=0, soundOn=false, chimed=new Set();
+let lastDebug=null;
+let cpFilterVal='';
+let zoomDuty=null, zoomIsAuto=false;
+let autoRotate=false, rotateTimer=null, rotateBarTimer=null, rotateIdx=0;
+const ROTATE_MS=8000;
+
 const PRINT_BRIDGE='http://127.0.0.1:9173';
 const SP_HOSTS=['http://127.0.0.1:8765','http://localhost:8765'];
 const SP_SITE='https://sungroupcomvn.sharepoint.com/sites/SPQAirways/DailyOFP';
-let latest=null, lastMsgAt=0, soundOn=false, chimed=new Set();
 
 function esc(t){ return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function fmtCd(ms){ const past=ms<0,a=Math.abs(ms); const h=Math.floor(a/36e5),m=Math.floor((a%36e5)/6e4);
@@ -153,7 +161,6 @@ window.addEventListener('storage', e=>{
   if(e.key==='sunpq_brf_groups' && e.newValue){ try{ applyPayload(JSON.parse(e.newValue)); }catch(err){} }
 });
 function loadFromStorage(){ try{ const raw=localStorage.getItem('sunpq_brf_groups'); if(raw) applyPayload(JSON.parse(raw)); }catch(e){} }
-let lastDebug=null;
 function applyPayload(p){ if(!p||!p.groups) return; latest=p.groups; lastDebug=p.debug||null; lastMsgAt=p.ts||Date.now(); render(); }
 loadFromStorage();
 setInterval(loadFromStorage, 5000); // dự phòng nếu bỏ lỡ broadcast
@@ -173,7 +180,6 @@ function tickClock(){
 setInterval(tickClock,1000); tickClock();
 
 /* ---------- Vẽ danh sách ---------- */
-let cpFilterVal='';
 function groupCpLabel(g){ const names=[...new Set(g.flights.map(f=>f.cp).filter(Boolean))]; return names.join(', '); }
 function updateCpOptions(groups){
   const sel=document.getElementById('cpFilter');
@@ -318,7 +324,6 @@ async function doDownload(duty, btn){
 
 
 /* ---------- Chạm để phóng to 1 thẻ ---------- */
-let zoomDuty=null, zoomIsAuto=false;
 function openZoom(duty, fromAuto){
   const g=(visibleGroups()).find(x=>x.duty===duty); if(!g) return;
   zoomDuty=duty; zoomIsAuto=!!fromAuto;
@@ -341,8 +346,6 @@ function closeZoom(silent){
 }
 
 /* ---------- Tự xoay vòng từng thẻ khi có nhiều duty ---------- */
-let autoRotate=false, rotateTimer=null, rotateBarTimer=null, rotateIdx=0;
-const ROTATE_MS=8000;
 function updateRotateBtn(){
   const b=document.getElementById('rotateBtn');
   b.textContent='🔄 Tự xoay: '+(autoRotate?'Bật':'Tắt');
