@@ -1367,7 +1367,8 @@
       font-style: italic;
     }
   </style>
-</head>
+
+<style>#brfOpenBtn{position:fixed;left:16px;bottom:16px;z-index:220;background:#111827cc;color:#fff;border:none;border-radius:999px;padding:10px 16px;font-weight:700;font-size:.82rem;cursor:pointer;box-shadow:0 8px 20px rgba(0,0,0,.25)}</style></head>
 <body class="logged-out">
   <div id="loginScreen">
     <div class="login-card">
@@ -1410,10 +1411,6 @@
       <button class="nav-item guest-hidden" data-page="pib">
         <span class="icon">🌤</span>
         <span>Check PIB &amp; MET</span>
-      </button>
-      <button class="nav-item guest-hidden" type="button" id="openBrfBoardBtn" title="Mở bảng Sắp Brief (tab mới)">
-        <span class="icon">🕐</span>
-        <span>Sắp Brief</span>
       </button>
     </nav>
 
@@ -3026,6 +3023,7 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
               brfCell = (brf || '—') + ' <span class="brief-star" title="Người đánh dấu * sẽ ghé phòng brief">*</span>';
             }
             tr.className = 'flight-row ' + (isFirst ? 'first' : 'cont');
+            if (f.stdDt) tr.dataset.utc = Date.UTC(f.stdDt.getFullYear(), f.stdDt.getMonth(), f.stdDt.getDate(), f.stdDt.getHours(), f.stdDt.getMinutes());
             tr.innerHTML = `
               <td class="c-date" data-label="Ngày">${formatDate(local.date)}</td>
               <td class="c-flt ${isFirst ? 'first-of-duty' : ''}" data-label="Chuyến">${f.flt}</td>
@@ -3053,7 +3051,6 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       try {
         if (pibFlights && pibFlights.length) renderPibTable();
       } catch (e) {}
-      try { publishBrfSnapshot(); } catch (e) {}
     }
 
     /**
@@ -3103,116 +3100,6 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       return null;
     }
 
-    /* ===== Bridge → brf.html: snapshot duty sắp Brief ===== */
-    const BRF_BC = ('BroadcastChannel' in window) ? new BroadcastChannel('sunpq_brf') : null;
-    let _brfSnapTimer = null;
-
-    function lookupPibStatus(flt, stdDt) {
-      if (!pibFlights || !pibFlights.length) return { ofp: false, gd: false, folderPath: '', ngay: '' };
-      const fltS = String(flt || '').trim();
-      let hit = null;
-      if (stdDt && isValidDate(stdDt)) {
-        const t = stdDt.getTime();
-        hit = pibFlights.find(f => String(f.flt).trim() === fltS && f.stdDt && isValidDate(f.stdDt) && f.stdDt.getTime() === t);
-      }
-      if (!hit) hit = pibFlights.find(f => String(f.flt).trim() === fltS);
-      if (!hit) return { ofp: false, gd: false, folderPath: '', ngay: '' };
-      return {
-        ofp: hit.ofp === true,
-        gd: hit.gd === true,
-        folderPath: hit.folderPath || '',
-        ngay: hit.ngayVN ? formatDate(hit.ngayVN) : ''
-      };
-    }
-
-    function buildBrfSnapshot() {
-      const nowMs = Date.now();
-      const groups = [];
-      if (!lastResults || !lastResults.length) {
-        return { at: nowMs, groups: [] };
-      }
-      const upcoming = [];
-      lastResults.forEach((r, origIdx) => {
-        const first = (r.seq || [])[0];
-        if (!first || !first.stdDt) return;
-        const local = toLocal(first.stdDt);
-        if (!local.dt) return;
-        const brfDt = new Date(local.dt.getTime() - brfOffsetMinFor(first.arr) * 60000);
-        const brfMs = brfDt.getTime();
-        if (brfMs - nowMs > 8 * 3600e3) return;
-        if (brfMs - nowMs < -25 * 60e3) return;
-        upcoming.push({ r, brfMs, origIdx });
-      });
-      upcoming.sort((a, b) => a.brfMs - b.brfMs || a.origIdx - b.origIdx);
-      upcoming.forEach((item, i) => {
-        const duty = i + 1;
-        const flights = (item.r.seq || []).map(f => {
-          const local = toLocal(f.stdDt);
-          const st = lookupPibStatus(f.flt, f.stdDt);
-          let folderPath = st.folderPath;
-          let ngay = st.ngay;
-          if (!folderPath && local.dt) {
-            const ngayVN = new Date(local.dt.getFullYear(), local.dt.getMonth(), local.dt.getDate());
-            ngay = formatDate(ngayVN);
-            try { folderPath = typeof spFolderPath === 'function' ? spFolderPath(ngayVN, String(f.flt).trim()) : ''; } catch (e) {}
-          }
-          return {
-            flt: String(f.flt || '').trim(),
-            dep: f.dep || '',
-            arr: f.arr || '',
-            reg: f.reg || '',
-            localTime: local.timeStr || '',
-            ofp: !!st.ofp,
-            gd: !!st.gd,
-            folderPath: folderPath || '',
-            ngay: ngay || ''
-          };
-        });
-        groups.push({
-          duty,
-          brfMs: item.brfMs,
-          cp: item.r.cp || '',
-          cpId: item.r.cpId || '',
-          flights
-        });
-      });
-      return { at: nowMs, groups };
-    }
-
-    function publishBrfSnapshot(immediate) {
-      const run = () => {
-        try {
-          const snap = buildBrfSnapshot();
-          try { localStorage.setItem('sunpq_brf_snapshot', JSON.stringify(snap)); } catch (e) {}
-          if (BRF_BC) {
-            try { BRF_BC.postMessage(snap); } catch (e) {}
-          }
-        } catch (e) { console.warn('publishBrfSnapshot', e); }
-      };
-      if (immediate) { run(); return; }
-      if (_brfSnapTimer) clearTimeout(_brfSnapTimer);
-      _brfSnapTimer = setTimeout(run, 180);
-    }
-
-    if (BRF_BC) {
-      BRF_BC.onmessage = (ev) => {
-        const m = ev.data || {};
-        if (m.type === 'request-snapshot') publishBrfSnapshot(true);
-      };
-    }
-    setInterval(() => {
-      if (lastResults && lastResults.length) publishBrfSnapshot(true);
-    }, 15000);
-
-    document.getElementById('openBrfBoardBtn')?.addEventListener('click', () => {
-      publishBrfSnapshot(true);
-      try {
-        const url = new URL('brf.html', window.location.href);
-        window.open(url.href, 'sunpq_brf_board');
-      } catch (e) {
-        window.open('brf.html', 'sunpq_brf_board');
-      }
-    });
 
     
     document.getElementById('captureBtn').addEventListener('click', async () => {
@@ -3955,7 +3842,6 @@ function exportExcel() {
           <div class="stat"><div class="stat-label">MET</div><div class="stat-value">${cMet}/${total}</div></div>
           <div class="stat"><div class="stat-label">Trong lọc duty</div><div class="stat-value" style="color:#E30613">${dutyLinked}${dutyGroups ? ' / ' + dutyGroups + ' chuỗi' : ''}</div></div>`;
       }
-      try { publishBrfSnapshot(); } catch (e) {}
     }
 
     function matchDocToFlights(fileName, docType) {
@@ -4043,7 +3929,6 @@ function exportExcel() {
       renderPibTable();
       addPibActivity(`📋 Load crewlist · ${n} chuyến` + (dutyN ? ` · ${dutyN} duty đánh dấu` : ''), 'info');
       showToast(n ? `PIB/MET: ${n} chuyến` + (dutyN ? ` · #1…#${dutyN}` : '') : 'Không có chuyến phù hợp', n ? 'success' : 'info');
-      try { publishBrfSnapshot(true); } catch (e) {}
     }
 
     if (pibCrewBtn) pibCrewBtn.addEventListener('click', () => pibCrewInput.click());
@@ -8904,5 +8789,118 @@ html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
 })();
 </script>
 
-</body>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+#resultBody .c-flt{cursor:pointer;text-decoration:underline dotted}
+.wx-ov{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:14px}
+.wx-box{background:var(--card,#fff);color:var(--text,#222);border-radius:14px;max-width:760px;width:100%;max-height:92vh;overflow:auto;padding:16px}
+.wx-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:640px){.wx-grid{grid-template-columns:1fr}}
+.wx-c{border:1px solid var(--border,#ddd);border-radius:10px;padding:10px;font-size:.85rem;line-height:1.5}
+.wx-r{display:inline-block;padding:1px 8px;border-radius:9px;color:#fff;font-weight:700;font-size:.75rem}
+.wx-VFR{background:#059669}.wx-MVFR{background:#2563eb}.wx-IFR{background:#dc2626}.wx-LIFR{background:#a21caf}
+#wxMap{height:230px;border-radius:10px;margin-top:10px}
+</style>
+<script>
+/* ===== Thời tiết + theo dõi chuyến bay (Worker) ===== */
+const ICAO={PQC:'VVPQ',SGN:'VVTS',HAN:'VVNB',DAD:'VVDN',CXR:'VVCR',HPH:'VVCI',VII:'VVVH',VDO:'VVVD',HUI:'VVPB',UIH:'VVPC',VCA:'VVCT',DLI:'VVDL',BMV:'VVBM',PXU:'VVPK',TBB:'VVTH',VKG:'VVRG',CAH:'VVCM',VCL:'VVCL',THD:'VVTX',DIN:'VVDB',VDH:'VVDH',BKK:'VTBS',DMK:'VTBD',SIN:'WSSS',KUL:'WMKK',ICN:'RKSI',TPE:'RCTP',HKG:'VHHH',NRT:'RJAA',KIX:'RJBB',CGK:'WIII'};
+let wxT=[],wxMap=null;
+const wxBase=()=>{let u=(window.SUNPQ_WX||localStorage.getItem('sunpq_wx')||'').trim();
+  if(!u){u=(prompt('Dán địa chỉ Worker thời tiết (https://…workers.dev):')||'').trim().replace(/\/$/,''); if(u) localStorage.setItem('sunpq_wx',u);} return u.replace(/\/$/,'');};
+const wxEsc=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hhmm=ms=>{const d=new Date(ms+7*36e5);return String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0');};
+function wxStop(){wxT.forEach(clearInterval);wxT=[];if(wxMap){wxMap.remove();wxMap=null;}}
+function wxCard(code,m,tafs,w0,w1){
+  if(!m) return `<div class="wx-c"><b>${code}</b><br>Chưa có METAR.</div>`;
+  const fc=(tafs||[]).flatMap(t=>t.fcsts||[]).filter(f=>f.timeFrom*1e3<w1&&f.timeTo*1e3>w0)
+   .map(f=>`${hhmm(f.timeFrom*1e3)}–${hhmm(f.timeTo*1e3)}: gió ${f.wdir||'VRB'}°/${f.wspd||0}kt${f.wgst?'G'+f.wgst:''} · tầm nhìn ${f.visib||'?'} ${f.wxString?'· <b>'+wxEsc(f.wxString)+'</b>':''}`).join('<br>');
+  return `<div class="wx-c"><b>${code}</b> <span class="wx-r wx-${m.fltCat||'VFR'}">${m.fltCat||'?'}</span><br>
+   Gió ${m.wdir||'VRB'}°/${m.wspd||0}kt${m.wgst?' G'+m.wgst:''} · Nhiệt độ ${m.temp}°C · QNH ${m.altim}<br>Tầm nhìn ${m.visib} · ${wxEsc(m.wxString||'không hiện tượng')}<br>
+   <small style="color:var(--muted,#888)">${wxEsc(m.rawOb)}</small>
+   <div style="margin-top:6px"><b>Dự báo trong giờ bay (giờ VN):</b><br>${fc||'<small>Không có TAF cho khung giờ này</small>'}</div></div>`;
+}
+async function openWx(tr){
+  const c=n=>(tr.querySelector('.'+n)||{}).textContent.trim();
+  const flt=c('c-flt'),reg=c('c-reg'),dep=c('c-dep').replace(/→.*/,'').slice(0,3),arr=c('c-arr'),std=+tr.dataset.utc;
+  const base=wxBase(); if(!base||!std) return;
+  wxStop();
+  const ov=document.createElement('div');ov.className='wx-ov';ov.innerHTML=`<div class="wx-box"><div style="display:flex;justify-content:space-between"><h3 style="margin:0">${wxEsc(flt)} · ${dep}→${arr}</h3><button class="btn" id="wxX">✕</button></div><div id="wxSt" style="margin:6px 0;font-size:.85rem"></div><div class="wx-grid" id="wxG">Đang tải…</div><div id="wxMapBox"></div></div>`;
+  document.body.appendChild(ov);
+  const close=()=>{wxStop();ov.remove();};ov.onclick=e=>{if(e.target===ov)close();};ov.querySelector('#wxX').onclick=close;
+  const ids=[ICAO[dep],ICAO[arr]].filter(Boolean), st=ov.querySelector('#wxSt');
+  let end=std+150*6e4, ended=false;                       // ước tính giờ hạ cánh, sẽ tinh chỉnh theo khoảng cách
+  async function loadWx(){
+    if(ended||!ids.length){ov.querySelector('#wxG').textContent=ids.length?'':'Chưa có mã ICAO cho '+dep+'/'+arr;return;}
+    try{const d=await (await fetch(`${base}/wx?icao=${ids.join(',')}`)).json();
+      const M=k=>(d.metar||[]).find(x=>x.icaoId===k), T=k=>(d.taf||[]).filter(x=>x.icaoId===k);
+      const a=M(ids[0]),b=M(ids[1]||ids[0]);
+      if(a&&b&&a.lat!=null){const R=Math.PI/180,dl=(b.lon-a.lon)*R,x=Math.acos(Math.min(1,Math.sin(a.lat*R)*Math.sin(b.lat*R)+Math.cos(a.lat*R)*Math.cos(b.lat*R)*Math.cos(dl)))*6371;end=std+(x/720*60+30)*6e4;}
+      ov.querySelector('#wxG').innerHTML=ids.map(k=>wxCard(k,M(k),T(k),std-36e5,end+36e5)).join('');
+    }catch(e){ov.querySelector('#wxG').textContent='Không tải được thời tiết: '+e.message;}
+  }
+  let flew=false,lastSeen=0,trail=[],mk=null;
+  async function loadPos(){
+    const now=Date.now();
+    if(ended) return;
+    if(now<std-30*6e4){st.textContent='⏳ Chưa đến giờ — bắt đầu theo dõi vị trí lúc '+hhmm(std-30*6e4)+' (giờ VN). Thời tiết vẫn cập nhật.';return;}
+    if(now>std+8*36e5){finish('Đã quá thời gian bay — ngừng theo dõi.');return;}
+    try{const p=await (await fetch(`${base}/pos?reg=${encodeURIComponent(reg)}`)).json();
+      if(p.found&&p.lat!=null){
+        lastSeen=now; const gnd=p.alt==='ground'||p.alt<200&&p.gs<60;
+        if(!gnd) flew=true;
+        if(flew&&gnd){finish('🛬 Máy bay đã hạ cánh — kết thúc theo dõi.');return;}
+        st.innerHTML=`✈️ <b>${gnd?'Trên mặt đất':'Đang bay'}</b> · độ cao ${p.alt==='ground'?'0':p.alt+' ft'} · tốc độ ${Math.round(p.gs||0)} kt · hướng ${Math.round(p.trk||0)}°`;
+        if(!wxMap){document.getElementById('wxMapBox').innerHTML='<div id="wxMap"></div>';wxMap=L.map('wxMap').setView([p.lat,p.lon],7);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(wxMap);}
+        trail.push([p.lat,p.lon]); if(mk) mk.setLatLng([p.lat,p.lon]); else mk=L.marker([p.lat,p.lon]).addTo(wxMap);
+        L.polyline(trail,{color:'#e30613'}).addTo(wxMap); wxMap.panTo([p.lat,p.lon]);
+      } else if(flew&&now-lastSeen>20*6e4){finish('Mất tín hiệu > 20 phút sau khi bay — coi như đã kết thúc.');}
+      else st.textContent='📡 Chưa thấy tín hiệu ADS-B của '+reg+' (có thể chưa cất cánh hoặc ngoài vùng phủ sóng).';
+    }catch(e){st.textContent='Lỗi lấy vị trí: '+e.message;}
+  }
+  function finish(msg){ended=true;st.textContent=msg;wxT.forEach(clearInterval);wxT=[];}
+  loadWx();loadPos();
+  wxT.push(setInterval(loadWx,5*6e4),setInterval(loadPos,15e3));   // thời tiết 5 phút, vị trí 15 giây
+}
+document.addEventListener('click',e=>{const td=e.target.closest('#resultBody .c-flt');if(td)openWx(td.closest('tr'));});
+</script>
+
+  <div class="brf-body" id="brfBody"><div class="brf-empty">Đang tải…</div></div>
+</div>
+
+
+<script>
+/* ================= Phát dữ liệu cho tab "Theo dõi Brief" (brf-monitor.html) ================= */
+const BRF_CH = (typeof BroadcastChannel!=='undefined') ? new BroadcastChannel('sunpq-brf') : null;
+function brfComputeGroups(){
+  if(typeof pibFlights==='undefined'||!pibFlights.length) return [];
+  const map=new Map();
+  pibFlights.forEach(f=>{
+    let d; try{ d=dutyNoForPibFlight(f); }catch(e){ d=null; }
+    if(!d) return;
+    if(!map.has(d)) map.set(d,[]);
+    map.get(d).push(f);
+  });
+  const groups=[...map.entries()].map(([d,flts])=>{
+    flts.sort((a,b)=>(a.stdDt?a.stdDt.getTime():0)-(b.stdDt?b.stdDt.getTime():0));
+    const first=flts[0];
+    const brfMs = first.stdDt ? first.stdDt.getTime()-brfOffsetMinFor(first.arr)*60000 : null;
+    return { duty:d, brfMs, cp: first.caName||first.cpName||'',
+      flights: flts.map(f=>({ flt:f.flt, dep:f.dep, arr:f.arr, localTime:f.localTime, ofp:f.ofp===true, gd:f.gd===true,
+        folderPath:f.folderPath||'', ngay: f.ngayVN?formatDate(f.ngayVN):'' })) };
+  }).filter(g=>g.brfMs!=null);
+  groups.sort((a,b)=>a.brfMs-b.brfMs);
+  return groups;
+}
+function brfPublish(){
+  let groups=[]; try{ groups=brfComputeGroups(); }catch(e){ return; }
+  const payload={ groups, ts:Date.now() };
+  try{ localStorage.setItem('sunpq_brf_groups', JSON.stringify(payload)); }catch(e){}
+  if(BRF_CH) try{ BRF_CH.postMessage(payload); }catch(e){}
+}
+function openBrfMonitor(){ brfPublish(); window.open('brf-monitor.html','_blank'); }
+setInterval(brfPublish, 10000);
+(function(){ const i=setInterval(()=>{ if(typeof pibFlights!=='undefined'){ brfPublish(); } }, 3000); setTimeout(()=>clearInterval(i), 30000); })();
+</script>
+<button id="brfOpenBtn" type="button" onclick="openBrfMonitor()">🖥️ Mở tab theo dõi Brief</button></body>
 </html>
