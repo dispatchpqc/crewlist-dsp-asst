@@ -201,7 +201,7 @@ function cardInner(g, now, big){
   const cpLabel=groupCpLabel(g);
   if(big){
     return {lv, html:`<button class="zclose" onclick="closeZoom()">✕</button>
-      <div class="zduty">Brief #${g.duty} · ${g.flights.length} chuyến cùng giờ STD</div>
+      <div class="zduty">Duty #${g.duty} · ${g.flights.length} chuyến</div>
       ${cpLabel?`<div class="zcp">${esc(cpLabel)}</div>`:''}
       <div class="zcd lv-${lv}">${ms<0?'Đã qua ':'Còn '}${fmtCd(ms)}<small>BRF ${brfStr} (giờ VN)</small></div>
       <div class="zflts">${flts}</div>
@@ -212,7 +212,7 @@ function cardInner(g, now, big){
       <div class="busy-msg" id="zmsg-${g.duty}"></div>
       <div class="auto-info" id="zauto" style="display:none"><span>Tự chuyển thẻ tiếp theo…</span><div class="auto-bar"><i id="zautoBar"></i></div></div>`};
   }
-  return {lv, html:`<div class="row1"><div><div class="duty-tag">Brief #${g.duty} · ${g.flights.length} chuyến cùng giờ STD</div>${cpLabel?`<div class="cp-name" style="font-size:.78rem;color:var(--muted);margin-top:2px">${esc(cpLabel)}</div>`:''}</div>
+  return {lv, html:`<div class="row1"><div><div class="duty-tag">Duty #${g.duty} · ${g.flights.length} chuyến</div>${cpLabel?`<div class="cp-name" style="font-size:.78rem;color:var(--muted);margin-top:2px">${esc(cpLabel)}</div>`:''}</div>
       <div><div class="cd lv-${lv}">${ms<0?'Đã qua ':'Còn '}${fmtCd(ms)}<small>BRF ${brfStr}</small></div></div></div>
     <div class="flts">${flts}</div>
     <div class="actions">

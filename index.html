@@ -2779,13 +2779,14 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       return true;
     }
 
-    function processData(mode, opts) {
+    /** Tính các chuỗi duty bắt đầu từ PQC (CP+/FO hoặc CM) — hàm THUẦN, không đụng DOM/lastResults.
+     * Dùng lại nguyên logic của processData() để trang theo dõi Brief luôn ra đúng kết quả
+     * như bảng Lọc chuyến bay, mà không phụ thuộc trạng thái tìm kiếm hiện tại trên trang đó. */
+    function computeDutyChains(mode) {
       mode = mode || filterMode;
-      const silent = !!(opts && opts.silent);
       const idField = mode === 'CM' ? 'cmId' : 'cpPlusId';
       const nameField = mode === 'CM' ? 'cmName' : 'cpPlusName';
       const roleLabel = mode === 'CM' ? 'CM/CA/BA' : 'CP+/FO';
-
       const restH = 6;
       const REST = restH * 3600 * 1000;
 
@@ -2905,6 +2906,14 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       }
 
       results.sort((a, b) => (a.seq[0].stdDt || 0) - (b.seq[0].stdDt || 0));
+      return { results, roleLabel };
+    }
+
+    function processData(mode, opts) {
+      mode = mode || filterMode;
+      const silent = !!(opts && opts.silent);
+      const { results, roleLabel } = computeDutyChains(mode);
+
       lastResults = results;
       lastRoleLabel = roleLabel;
 
@@ -8873,27 +8882,31 @@ document.addEventListener('click',e=>{const td=e.target.closest('#resultBody .c-
 /* ================= Phát dữ liệu cho tab "Theo dõi Brief" (brf-monitor.html) ================= */
 const BRF_CH = (typeof BroadcastChannel!=='undefined') ? new BroadcastChannel('sunpq-brf') : null;
 function brfComputeGroups(){
-  // Tự đứng độc lập: nhóm theo ĐÚNG giờ STD trùng nhau trong chính danh sách Check PIB & MET,
-  // KHÔNG phụ thuộc kết quả tìm kiếm ở trang Lọc chuyến bay (lastResults) — tránh bị rớt chuyến
-  // khi trang đó chưa tìm hoặc đang lọc hẹp theo một tên/vai trò khác.
-  if(typeof pibFlights==='undefined'||!pibFlights.length) return [];
-  const map=new Map();
-  pibFlights.forEach(f=>{
-    if(!f.stdDt) return;
-    const key=f.stdDt.getTime();
-    if(!map.has(key)) map.set(key,[]);
-    map.get(key).push(f);
-  });
-  const groups=[...map.entries()].map(([k,flts])=>{
-    flts.sort((a,b)=>String(a.flt||'').localeCompare(String(b.flt||'')));
-    const first=flts[0];
+  // Dùng ĐÚNG cách xây chuỗi duty theo CP của trang (computeDutyChains) — mỗi
+  // thẻ là MỘT chuỗi của MỘT CP, đếm giờ brief theo chặng đầu (vd FLT 1206),
+  // nhưng vẫn liệt kê đủ các chặng tiếp nối (1225, 1224…). Tự đứng độc lập,
+  // không phụ thuộc trang Lọc chuyến bay có đang mở/đã tìm hay chưa.
+  if(typeof rawFlights==='undefined'||!rawFlights.length||typeof computeDutyChains!=='function') return [];
+  let chains=[]; try{ chains=computeDutyChains('CP').results||[]; }catch(e){ return []; }
+  const pibByKey=new Map();
+  try{ (pibFlights||[]).forEach(f=>{ if(f.stdDt) pibByKey.set(f.flt+'|'+f.stdDt.getTime(), f); }); }catch(e){}
+  const groups=chains.map(r=>{
+    const first=r.seq[0]; if(!first||!first.stdDt) return null;
     const brfMs=first.stdDt.getTime()-brfOffsetMinFor(first.arr)*60000;
-    return { brfMs,
-      flights: flts.map(f=>({ flt:f.flt, dep:f.dep, arr:f.arr, localTime:f.localTime, ofp:f.ofp===true, gd:f.gd===true,
-        folderPath:f.folderPath||'', ngay: f.ngayVN?formatDate(f.ngayVN):'',
-        cp:f.cpPlusName||'', cpId:f.cpPlusId||'' })) };
-  }).sort((a,b)=>a.brfMs-b.brfMs);
-  groups.forEach((g,i)=>g.duty=i+1); // số thứ tự hiển thị, theo giờ brief gần nhất
+    return { brfMs, cp:r.cp||'', cpId:r.cpId||'',
+      flights: r.seq.map(f=>{
+        const key=f.flt+'|'+(f.stdDt?f.stdDt.getTime():'');
+        const pf=pibByKey.get(key);
+        const ngayVnDate = f.stdDt ? new Date(f.stdDt.getTime()+7*3600000) : null;
+        return { flt:f.flt, dep:f.dep, arr:f.arr,
+          localTime: pf?pf.localTime:(ngayVnDate?formatTime(ngayVnDate):''),
+          ofp: pf?pf.ofp===true:false, gd: pf?pf.gd===true:false,
+          folderPath: pf?(pf.folderPath||''):(ngayVnDate?spFolderPath(ngayVnDate,f.flt):''),
+          ngay: pf&&pf.ngayVN ? formatDate(pf.ngayVN) : (ngayVnDate?formatDate(ngayVnDate):''),
+          cp:r.cp||'', cpId:r.cpId||'' };
+      }) };
+  }).filter(Boolean).sort((a,b)=>a.brfMs-b.brfMs);
+  groups.forEach((g,i)=>g.duty=i+1);
   return groups;
 }
 function brfPublish(){
