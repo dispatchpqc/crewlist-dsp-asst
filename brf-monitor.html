@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Theo dõi Brief · SUN PhuQuoc</title>
+<style>
+  :root{
+    --bg:#0b0f14; --card:#141b23; --line:#232d38; --ink:#eef3f8; --muted:#8392a3;
+    --gap:#6b7684; --soon:#f5a623; --now:#e30613; --past:#10b981;
+    --red:#e30613; --gold:#f5a623;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"Segoe UI",Roboto,Inter,Arial,sans-serif;overflow:hidden}
+  body{display:flex;flex-direction:column;height:100vh}
+
+  /* ===== Thanh trên: logo, đồng hồ, trạng thái kết nối ===== */
+  header{display:flex;align-items:center;justify-content:space-between;gap:14px;
+    padding:14px 22px;border-bottom:1px solid var(--line);flex:none;background:linear-gradient(180deg,#141b23,#0f141a)}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.05rem;letter-spacing:.3px}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--gold)}
+  .clock{font-variant-numeric:tabular-nums;font-size:1.6rem;font-weight:800}
+  .clock small{display:block;font-size:.65rem;font-weight:600;color:var(--muted);letter-spacing:.5px;text-align:center}
+  .status{display:flex;align-items:center;gap:8px;font-size:.78rem;color:var(--muted)}
+  .status .led{width:9px;height:9px;border-radius:50%;background:var(--gap)}
+  .status.live .led{background:var(--past);box-shadow:0 0 0 0 rgba(16,185,129,.6);animation:ledPulse 2s infinite}
+  .status.stale .led{background:var(--soon)}
+  .status.dead .led{background:var(--now)}
+  @keyframes ledPulse{0%{box-shadow:0 0 0 0 rgba(16,185,129,.5)}70%{box-shadow:0 0 0 8px rgba(16,185,129,0)}100%{box-shadow:0 0 0 0 rgba(16,185,129,0)}}
+  .toolbar{display:flex;gap:8px;align-items:center}
+  .toolbar button{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:9px;
+    padding:8px 12px;font-size:.78rem;font-weight:700;cursor:pointer}
+  .toolbar button.active{background:var(--gold);color:#241a03;border-color:transparent}
+  .toolbar button:hover{filter:brightness(1.12)}
+
+  /* ===== Lưới thẻ duty ===== */
+  main{flex:1;overflow:auto;padding:20px;display:grid;gap:16px;
+    grid-template-columns:repeat(auto-fill,minmax(320px,1fr));align-content:start}
+  .empty{grid-column:1/-1;margin:auto;text-align:center;color:var(--muted);padding:40px}
+  .empty h2{color:var(--ink);font-size:1.3rem;margin-bottom:8px}
+  .empty a{color:var(--gold)}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;position:relative;
+    overflow:hidden;transition:transform .2s;display:flex;flex-direction:column;gap:10px}
+  .card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px}
+  .card.lv-gap::before{background:var(--gap)}
+  .card.lv-soon::before{background:var(--soon)}
+  .card.lv-now::before{background:var(--now)}
+  .card.lv-past::before{background:var(--past)}
+  .card.lv-now{box-shadow:0 0 0 2px rgba(227,6,19,.5);animation:cardPulse 1.3s infinite}
+  @keyframes cardPulse{0%,100%{box-shadow:0 0 0 2px rgba(227,6,19,.55)}50%{box-shadow:0 0 0 6px rgba(227,6,19,.12)}}
+
+  .row1{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .duty-tag{font-weight:800;color:var(--gold);font-size:.82rem;text-transform:uppercase;letter-spacing:.4px}
+  .cp-name{font-size:.82rem;color:var(--muted);margin-top:2px}
+  .cd{font-weight:900;font-variant-numeric:tabular-nums;font-size:1.5rem;line-height:1;text-align:right}
+  .cd small{display:block;font-size:.62rem;font-weight:700;color:var(--muted);text-align:right;margin-top:2px}
+  .cd.lv-soon{color:var(--soon)} .cd.lv-now{color:var(--now)} .cd.lv-past{color:var(--past)} .cd.lv-gap{color:var(--ink)}
+  .brf-time{font-size:.74rem;color:var(--muted)}
+
+  .flts{display:flex;flex-direction:column;gap:6px;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);padding:8px 0}
+  .flt-row{display:flex;justify-content:space-between;align-items:center;font-size:.86rem}
+  .flt-main{font-weight:700}
+  .flt-route{color:var(--muted);font-weight:500;margin-left:6px}
+  .pill{font-size:.64rem;font-weight:800;padding:2px 7px;border-radius:99px;margin-left:4px}
+  .pill.ok{background:rgba(16,185,129,.18);color:#34d399}
+  .pill.missing{background:rgba(227,6,19,.18);color:#fca5a5}
+
+  .actions{display:flex;gap:8px}
+  .actions button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);background:#1b2430;color:var(--ink);
+    font-weight:800;font-size:.82rem;cursor:pointer;transition:background .15s}
+  .actions button.primary{background:var(--red);border-color:transparent}
+  .actions button:disabled{opacity:.45;cursor:default}
+  .actions button:not(:disabled):hover{filter:brightness(1.15)}
+  .busy-msg{font-size:.72rem;color:var(--muted);min-height:14px}
+
+  footer{flex:none;padding:7px 22px;font-size:.7rem;color:var(--muted);border-top:1px solid var(--line);
+    display:flex;justify-content:space-between}
+
+  @media (prefers-color-scheme: light){} /* luôn dùng nền tối — màn hình treo tường nên tối cho dễ nhìn ban đêm */
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="dot"></span> SUN PhuQuoc · Theo dõi Brief</div>
+  <div class="clock" id="clock">--:--:--<small id="clockDate">—</small></div>
+  <div class="toolbar">
+    <button id="soundBtn" title="Bật/tắt chuông nhắc">🔔 Chuông: Tắt</button>
+    <div class="status dead" id="statusBox"><span class="led"></span><span id="statusText">Chưa nhận dữ liệu</span></div>
+  </div>
+</header>
+<main id="grid"><div class="empty"><h2>Đang chờ dữ liệu…</h2><p>Mở tab chính <b>index.html</b>, vào <b>Check PIB &amp; MET</b> và tải crewlist.<br>Tab đó sẽ tự gửi dữ liệu sang đây.</p></div></main>
+<footer><span>Tự cập nhật mỗi 10 giây · chỉ hiện duty có Brief trong 6 giờ tới</span><span id="lastSync">—</span></footer>
+
+<script>
+/* ================================================================
+ * TAB THEO DÕI BRIEF — độc lập, nhận dữ liệu từ tab chính (index.html)
+ * qua BroadcastChannel + localStorage (đồng bộ giữa các tab cùng site).
+ * In/Tải tài liệu gọi thẳng Print Bridge (9173) & SharePoint Bridge (8765)
+ * trên máy, không cần tab chính đang mở lúc bấm in.
+ * ================================================================ */
+const PRINT_BRIDGE='http://127.0.0.1:9173';
+const SP_HOSTS=['http://127.0.0.1:8765','http://localhost:8765'];
+const SP_SITE='https://sungroupcomvn.sharepoint.com/sites/SPQAirways/DailyOFP';
+let latest=null, lastMsgAt=0, soundOn=false, chimed=new Set();
+
+function esc(t){ return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function fmtCd(ms){ const past=ms<0,a=Math.abs(ms); const h=Math.floor(a/36e5),m=Math.floor((a%36e5)/6e4);
+  return (h>0?h+'h ':'')+m+'p'; }
+function level(ms){ if(ms<=0) return 'past'; if(ms<=15*6e4) return 'now'; if(ms<=45*6e4) return 'soon'; return 'gap'; }
+function beep(){ try{ const ctx=new (window.AudioContext||window.webkitAudioContext)();
+  const o=ctx.createOscillator(), g=ctx.createGain(); o.connect(g); g.connect(ctx.destination);
+  o.frequency.value=880; g.gain.value=.08; o.start(); setTimeout(()=>{o.stop();ctx.close();},260);
+}catch(e){} }
+
+/* ---------- Nhận dữ liệu ---------- */
+const ch = (typeof BroadcastChannel!=='undefined') ? new BroadcastChannel('sunpq-brf') : null;
+if(ch) ch.onmessage = e=>applyPayload(e.data);
+window.addEventListener('storage', e=>{
+  if(e.key==='sunpq_brf_groups' && e.newValue){ try{ applyPayload(JSON.parse(e.newValue)); }catch(err){} }
+});
+function loadFromStorage(){ try{ const raw=localStorage.getItem('sunpq_brf_groups'); if(raw) applyPayload(JSON.parse(raw)); }catch(e){} }
+function applyPayload(p){ if(!p||!p.groups) return; latest=p.groups; lastMsgAt=p.ts||Date.now(); render(); }
+loadFromStorage();
+setInterval(loadFromStorage, 5000); // dự phòng nếu bỏ lỡ broadcast
+
+/* ---------- Đồng hồ & trạng thái kết nối ---------- */
+function tickClock(){
+  const d=new Date();
+  document.getElementById('clock').firstChild.textContent =
+    String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');
+  document.getElementById('clockDate').textContent = 'Giờ VN · '+d.toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit'});
+  const age=Date.now()-lastMsgAt, box=document.getElementById('statusBox'), txt=document.getElementById('statusText');
+  box.className='status '+(!lastMsgAt?'dead':age<25000?'live':age<120000?'stale':'dead');
+  txt.textContent = !lastMsgAt ? 'Chưa nhận dữ liệu' : age<25000 ? 'Đang nhận trực tiếp' : age<120000 ? 'Dữ liệu hơi cũ ('+Math.round(age/1000)+'s)' : 'Mất kết nối tab chính';
+  document.getElementById('lastSync').textContent = lastMsgAt ? 'Cập nhật lúc '+new Date(lastMsgAt).toLocaleTimeString('vi-VN') : '';
+  if(latest) render(true); // chỉ cập nhật đếm ngược, không build lại DOM
+}
+setInterval(tickClock,1000); tickClock();
+
+/* ---------- Vẽ danh sách ---------- */
+function render(onlyCountdown){
+  const grid=document.getElementById('grid');
+  if(!latest || !latest.length){
+    if(!onlyCountdown) grid.innerHTML='<div class="empty"><h2>Không có duty nào sắp Brief</h2><p>Trong 6 giờ tới chưa có chuyến nào cần chuẩn bị 🎉</p></div>';
+    return;
+  }
+  const now=Date.now();
+  const visible=latest.filter(g=>g.brfMs-now<6*3600e3 && g.brfMs-now>-20*60e3).sort((a,b)=>a.brfMs-now-(b.brfMs-now));
+  if(!visible.length){
+    if(!onlyCountdown) grid.innerHTML='<div class="empty"><h2>Không có duty nào sắp Brief</h2><p>Trong 6 giờ tới chưa có chuyến nào cần chuẩn bị 🎉</p></div>';
+    return;
+  }
+  if(onlyCountdown){
+    visible.forEach(g=>{
+      const el=document.getElementById('card-'+g.duty); if(!el) return;
+      const ms=g.brfMs-now, lv=level(ms);
+      el.className='card lv-'+lv;
+      const cd=el.querySelector('.cd'); cd.className='cd lv-'+lv; cd.firstChild.textContent=(ms<0?'Đã qua ':'Còn ')+fmtCd(ms);
+      if(lv==='now' && soundOn && !chimed.has(g.duty)){ chimed.add(g.duty); beep(); }
+    });
+    return;
+  }
+  chimed.clear();
+  grid.innerHTML=visible.map(g=>{
+    const ms=g.brfMs-now, lv=level(ms);
+    const flts=g.flights.map(f=>`<div class="flt-row"><span class="flt-main">FLT ${esc(f.flt)}<span class="flt-route">${esc(f.dep||'')}→${esc(f.arr||'')} · ${esc(f.localTime||'')}</span></span>
+      <span><span class="pill ${f.ofp?'ok':'missing'}">OFP</span><span class="pill ${f.gd?'ok':'missing'}">GD</span></span></div>`).join('');
+    const hasAny=g.flights.some(f=>f.ofp||f.gd);
+    const brfLocal=new Date(g.brfMs+7*3600e3);
+    const brfStr=String(brfLocal.getUTCHours()).padStart(2,'0')+':'+String(brfLocal.getUTCMinutes()).padStart(2,'0');
+    return `<div class="card lv-${lv}" id="card-${g.duty}">
+      <div class="row1"><div><div class="duty-tag">Duty #${g.duty} · ${g.flights.length} chuyến</div><div class="cp-name">${esc(g.cp)}</div></div>
+        <div><div class="cd lv-${lv}">${ms<0?'Đã qua ':'Còn '}${fmtCd(ms)}<small>BRF ${brfStr}</small></div></div></div>
+      <div class="flts">${flts}</div>
+      <div class="actions">
+        <button class="primary" ${hasAny?'':'disabled'} onclick="doPrint(${g.duty},this)">🖨 In toàn bộ (${g.flights.length})</button>
+        <button ${hasAny?'':'disabled'} onclick="doDownload(${g.duty},this)">⬇ Tải toàn bộ</button>
+      </div>
+      <div class="busy-msg" id="msg-${g.duty}"></div>
+    </div>`;
+  }).join('');
+}
+
+/* ---------- Nút chuông ---------- */
+document.getElementById('soundBtn').onclick=()=>{
+  soundOn=!soundOn;
+  document.getElementById('soundBtn').textContent='🔔 Chuông: '+(soundOn?'Bật':'Tắt');
+  document.getElementById('soundBtn').classList.toggle('active',soundOn);
+  if(soundOn) beep(); // âm thử + "mở khóa" audio context theo yêu cầu trình duyệt
+};
+
+/* ---------- In / Tải — gọi thẳng bridge trên máy, độc lập với tab chính ---------- */
+function groupOf(duty){ return (latest||[]).find(g=>g.duty===duty); }
+async function spFetchBlob(flights, docTypes){
+  let lastErr;
+  for(const host of SP_HOSTS){
+    try{
+      const res=await fetch(host+'/sharepoint/download',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({siteUrl:SP_SITE, docTypes:docTypes||null, flights:flights.map(f=>({flt:f.flt,folderPath:f.folderPath,ngay:f.ngay}))})});
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const blob=await res.blob(); const cd=res.headers.get('Content-Disposition')||'';
+      const m=cd.match(/filename="?([^"]+)"?/i); const ct=res.headers.get('Content-Type')||'';
+      return { blob, fname:m?m[1]:((flights[0]?.flt||'file')+'_docs.pdf'), contentType:ct };
+    }catch(e){ lastErr=e; }
+  }
+  throw lastErr||new Error('Không nối được SharePoint Bridge (8765)');
+}
+async function doPrint(duty, btn){
+  const g=groupOf(duty); if(!g) return; const msg=document.getElementById('msg-'+duty);
+  btn.disabled=true; const old=btn.textContent; btn.textContent='Đang gửi in…'; msg.textContent='';
+  try{
+    const st=await fetch(PRINT_BRIDGE+'/status').catch(()=>null);
+    if(!st||!st.ok) throw new Error('Print Bridge (9173) chưa chạy trên máy này');
+    const {blob,fname}=await spFetchBlob(g.flights,null);
+    const file=new File([blob],fname,{type:'application/pdf'});
+    const r=await fetch(PRINT_BRIDGE+'/print',{method:'POST',headers:{'Content-Type':'application/pdf','X-File-Name':fname,'X-File-Type':'OFP','X-Copies':'1'},body:await file.arrayBuffer()});
+    const data=await r.json().catch(()=>({ok:false,log:'Phản hồi không hợp lệ'}));
+    msg.textContent = data.ok ? '✅ Đã gửi in: '+fname : '⚠ Lỗi in: '+(data.log||'');
+  }catch(e){ msg.textContent='⚠ '+(e.message||e); }
+  finally{ btn.disabled=false; btn.textContent=old; }
+}
+async function doDownload(duty, btn){
+  const g=groupOf(duty); if(!g) return; const msg=document.getElementById('msg-'+duty);
+  btn.disabled=true; const old=btn.textContent; btn.textContent='Đang tải…'; msg.textContent='';
+  try{
+    const {blob,fname}=await spFetchBlob(g.flights,null);
+    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=fname;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),8000);
+    msg.textContent='✅ Đã tải: '+fname;
+  }catch(e){ msg.textContent='⚠ '+(e.message||e); }
+  finally{ btn.disabled=false; btn.textContent=old; }
+}
+</script>
+</body>
+</html>
