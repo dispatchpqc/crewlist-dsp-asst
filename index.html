@@ -8881,13 +8881,18 @@ document.addEventListener('click',e=>{const td=e.target.closest('#resultBody .c-
 <script>
 /* ================= Phát dữ liệu cho tab "Theo dõi Brief" (brf-monitor.html) ================= */
 const BRF_CH = (typeof BroadcastChannel!=='undefined') ? new BroadcastChannel('sunpq-brf') : null;
+let BRF_DEBUG={};
 function brfComputeGroups(){
   // Dùng ĐÚNG cách xây chuỗi duty theo CP của trang (computeDutyChains) — mỗi
   // thẻ là MỘT chuỗi của MỘT CP, đếm giờ brief theo chặng đầu (vd FLT 1206),
   // nhưng vẫn liệt kê đủ các chặng tiếp nối (1225, 1224…). Tự đứng độc lập,
   // không phụ thuộc trang Lọc chuyến bay có đang mở/đã tìm hay chưa.
+  BRF_DEBUG={ rawFlightsLen: (typeof rawFlights!=='undefined'?rawFlights.length:-1), hasFn: typeof computeDutyChains==='function', error:null, chainsFound:0, chainsWithFutureBrf:0 };
   if(typeof rawFlights==='undefined'||!rawFlights.length||typeof computeDutyChains!=='function') return [];
-  let chains=[]; try{ chains=computeDutyChains('CP').results||[]; }catch(e){ return []; }
+  let chains=[];
+  try{ chains=computeDutyChains('CP').results||[]; }
+  catch(e){ BRF_DEBUG.error=(e && e.message)||String(e); console.error('[BRF monitor] computeDutyChains lỗi:',e); return []; }
+  BRF_DEBUG.chainsFound=chains.length;
   const pibByKey=new Map();
   try{ (pibFlights||[]).forEach(f=>{ if(f.stdDt) pibByKey.set(f.flt+'|'+f.stdDt.getTime(), f); }); }catch(e){}
   const groups=chains.map(r=>{
@@ -8906,12 +8911,13 @@ function brfComputeGroups(){
           cp:r.cp||'', cpId:r.cpId||'' };
       }) };
   }).filter(Boolean).sort((a,b)=>a.brfMs-b.brfMs);
+  BRF_DEBUG.chainsWithFutureBrf=groups.length;
   groups.forEach((g,i)=>g.duty=i+1);
   return groups;
 }
 function brfPublish(){
   let groups=[]; try{ groups=brfComputeGroups(); }catch(e){ return; }
-  const payload={ groups, ts:Date.now() };
+  const payload={ groups, ts:Date.now(), debug:BRF_DEBUG };
   try{ localStorage.setItem('sunpq_brf_groups', JSON.stringify(payload)); }catch(e){}
   if(BRF_CH) try{ BRF_CH.postMessage(payload); }catch(e){}
 }
