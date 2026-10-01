@@ -8873,23 +8873,27 @@ document.addEventListener('click',e=>{const td=e.target.closest('#resultBody .c-
 /* ================= Phát dữ liệu cho tab "Theo dõi Brief" (brf-monitor.html) ================= */
 const BRF_CH = (typeof BroadcastChannel!=='undefined') ? new BroadcastChannel('sunpq-brf') : null;
 function brfComputeGroups(){
+  // Tự đứng độc lập: nhóm theo ĐÚNG giờ STD trùng nhau trong chính danh sách Check PIB & MET,
+  // KHÔNG phụ thuộc kết quả tìm kiếm ở trang Lọc chuyến bay (lastResults) — tránh bị rớt chuyến
+  // khi trang đó chưa tìm hoặc đang lọc hẹp theo một tên/vai trò khác.
   if(typeof pibFlights==='undefined'||!pibFlights.length) return [];
   const map=new Map();
   pibFlights.forEach(f=>{
-    let d; try{ d=dutyNoForPibFlight(f); }catch(e){ d=null; }
-    if(!d) return;
-    if(!map.has(d)) map.set(d,[]);
-    map.get(d).push(f);
+    if(!f.stdDt) return;
+    const key=f.stdDt.getTime();
+    if(!map.has(key)) map.set(key,[]);
+    map.get(key).push(f);
   });
-  const groups=[...map.entries()].map(([d,flts])=>{
-    flts.sort((a,b)=>(a.stdDt?a.stdDt.getTime():0)-(b.stdDt?b.stdDt.getTime():0));
+  const groups=[...map.entries()].map(([k,flts])=>{
+    flts.sort((a,b)=>String(a.flt||'').localeCompare(String(b.flt||'')));
     const first=flts[0];
-    const brfMs = first.stdDt ? first.stdDt.getTime()-brfOffsetMinFor(first.arr)*60000 : null;
-    return { duty:d, brfMs, cp: first.caName||first.cpName||'',
+    const brfMs=first.stdDt.getTime()-brfOffsetMinFor(first.arr)*60000;
+    return { brfMs,
       flights: flts.map(f=>({ flt:f.flt, dep:f.dep, arr:f.arr, localTime:f.localTime, ofp:f.ofp===true, gd:f.gd===true,
-        folderPath:f.folderPath||'', ngay: f.ngayVN?formatDate(f.ngayVN):'' })) };
-  }).filter(g=>g.brfMs!=null);
-  groups.sort((a,b)=>a.brfMs-b.brfMs);
+        folderPath:f.folderPath||'', ngay: f.ngayVN?formatDate(f.ngayVN):'',
+        cp:f.cpPlusName||'', cpId:f.cpPlusId||'' })) };
+  }).sort((a,b)=>a.brfMs-b.brfMs);
+  groups.forEach((g,i)=>g.duty=i+1); // số thứ tự hiển thị, theo giờ brief gần nhất
   return groups;
 }
 function brfPublish(){
