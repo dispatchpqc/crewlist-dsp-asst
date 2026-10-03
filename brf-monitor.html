@@ -17,9 +17,18 @@
 
   /* ===== Thanh trên: logo, đồng hồ, trạng thái kết nối ===== */
   header{display:flex;align-items:center;justify-content:space-between;gap:14px;
-    padding:14px 22px;border-bottom:1px solid var(--line);flex:none;background:linear-gradient(180deg,#141b23,#0f141a)}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.05rem;letter-spacing:.3px}
-  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--gold)}
+    padding:14px 22px;border-bottom:1px solid var(--line);flex:none;position:relative;overflow:hidden;
+    background:linear-gradient(180deg,#161f29,#0f141a)}
+  header::after{content:'';position:absolute;inset:0;pointer-events:none;opacity:.5;
+    background:radial-gradient(600px 80px at 20% 0%,rgba(245,166,35,.12),transparent 60%);}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.05rem;letter-spacing:.3px;position:relative;z-index:1}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px 2px rgba(245,166,35,.6);
+    animation:dotBreathe 2.4s ease-in-out infinite}
+  @keyframes dotBreathe{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.8)}}
+  .brand .plane{display:inline-block;animation:planeFly 7s ease-in-out infinite}
+  @keyframes planeFly{0%,100%{transform:translateX(0) rotate(90deg)}50%{transform:translateX(5px) rotate(90deg)}}
+  .day-badge{position:relative;z-index:1;font-size:.72rem;font-weight:800;color:var(--muted);background:rgba(255,255,255,.04);
+    border:1px solid var(--line);padding:4px 10px;border-radius:999px;margin-left:10px}
   .clock{font-variant-numeric:tabular-nums;font-size:1.6rem;font-weight:800}
   .clock small{display:block;font-size:.65rem;font-weight:600;color:var(--muted);letter-spacing:.5px;text-align:center}
   .status{display:flex;align-items:center;gap:8px;font-size:.78rem;color:var(--muted)}
@@ -41,37 +50,79 @@
   .empty h2{color:var(--ink);font-size:1.3rem;margin-bottom:8px}
   .empty a{color:var(--gold)}
 
-  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;position:relative;
-    overflow:hidden;transition:transform .2s;display:flex;flex-direction:column;gap:10px}
-  .card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px}
+  .card{background:linear-gradient(165deg,#161f29,#111820);border:1px solid var(--line);border-radius:18px;padding:17px;
+    position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;display:flex;flex-direction:column;gap:11px;
+    animation:cardIn .35s cubic-bezier(.2,.9,.3,1) both;box-shadow:0 8px 20px rgba(0,0,0,.25)}
+  main.grid-ready .card{animation-delay:calc(var(--i,0)*.05s)}
+  @keyframes cardIn{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+  .card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px;border-radius:18px 0 0 18px}
   .card.lv-gap::before{background:var(--gap)}
-  .card.lv-soon::before{background:var(--soon)}
-  .card.lv-now::before{background:var(--now)}
-  .card.lv-past::before{background:var(--past)}
-  .card.lv-now{box-shadow:0 0 0 2px rgba(227,6,19,.5);animation:cardPulse 1.3s infinite}
-  @keyframes cardPulse{0%,100%{box-shadow:0 0 0 2px rgba(227,6,19,.55)}50%{box-shadow:0 0 0 6px rgba(227,6,19,.12)}}
+  .card.lv-soon::before{background:linear-gradient(180deg,var(--soon),#c07a00)}
+  .card.lv-now::before{background:linear-gradient(180deg,var(--now),#8e0309)}
+  .card.lv-past::before{background:linear-gradient(180deg,var(--past),#06724f)}
+  .card.lv-now{box-shadow:0 0 0 2px rgba(227,6,19,.55),0 10px 30px rgba(227,6,19,.18);animation:cardPulse 1.3s infinite, cardIn .35s cubic-bezier(.2,.9,.3,1) both}
+  @keyframes cardPulse{0%,100%{box-shadow:0 0 0 2px rgba(227,6,19,.55),0 10px 30px rgba(227,6,19,.12)}50%{box-shadow:0 0 0 7px rgba(227,6,19,.14),0 10px 30px rgba(227,6,19,.22)}}
+  @media (hover:hover){ .card:hover{transform:translateY(-3px);box-shadow:0 16px 34px rgba(0,0,0,.35)} }
 
   .row1{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
-  .duty-tag{font-weight:800;color:var(--gold);font-size:.82rem;text-transform:uppercase;letter-spacing:.4px}
-  .cd{font-weight:900;font-variant-numeric:tabular-nums;font-size:1.5rem;line-height:1;text-align:right}
-  .cd small{display:block;font-size:.62rem;font-weight:700;color:var(--muted);text-align:right;margin-top:2px}
-  .cd.lv-soon{color:var(--soon)} .cd.lv-now{color:var(--now)} .cd.lv-past{color:var(--past)} .cd.lv-gap{color:var(--ink)}
-  .brf-time{font-size:.74rem;color:var(--muted)}
+  .duty-tag{display:inline-flex;align-items:center;gap:6px;font-weight:900;font-size:.76rem;text-transform:uppercase;
+    letter-spacing:.5px;padding:4px 10px;border-radius:999px;background:rgba(245,166,35,.14);color:var(--gold)}
+  .card.lv-now .duty-tag{background:rgba(227,6,19,.18);color:#ff8a80}
+  .card.lv-past .duty-tag{background:rgba(16,185,129,.16);color:#34d399}
+  .cp-name{font-weight:800;font-size:1.02rem;margin-top:6px;display:flex;align-items:center;gap:6px}
+  .cp-name::before{content:'👤';font-size:.85rem;opacity:.75}
+  .cd{font-weight:900;font-variant-numeric:tabular-nums;font-size:1.7rem;line-height:1;text-align:right;
+    display:flex;align-items:center;gap:6px;justify-content:flex-end}
+  .cd .ic{font-size:1.15rem}
+  .cd small{display:block;font-size:.66rem;font-weight:700;color:var(--muted);text-align:right;margin-top:3px;letter-spacing:.3px}
+  .cd.lv-soon{color:var(--soon)} .cd.lv-now{color:var(--now);text-shadow:0 0 16px rgba(227,6,19,.5)}
+  .cd.lv-past{color:var(--past)} .cd.lv-gap{color:var(--ink)}
 
-  .flts{display:flex;flex-direction:column;gap:6px;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);padding:8px 0}
-  .flt-row{display:flex;justify-content:space-between;align-items:center;font-size:.86rem}
+  /* ---- Thanh tiến trình đếm ngược tới giờ Brief ---- */
+  .prog{height:6px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:2px}
+  .prog i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--gold),var(--now));
+    transition:width 1s linear}
+  .card.lv-past .prog i{background:var(--past)}
+
+  /* ---- Hero: chuyến đầu tiên, nổi bật rõ ràng ---- */
+  .hero{position:relative;border:1.5px solid rgba(245,166,35,.35);background:linear-gradient(135deg,rgba(245,166,35,.1),rgba(245,166,35,.02));
+    border-radius:13px;padding:11px 13px;overflow:hidden}
+  .card.lv-now .hero{border-color:rgba(227,6,19,.5);background:linear-gradient(135deg,rgba(227,6,19,.14),rgba(227,6,19,.02))}
+  .card.lv-past .hero{border-color:rgba(16,185,129,.35);background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(16,185,129,.02))}
+  .hero-tag{position:absolute;top:0;right:0;background:var(--gold);color:#241a03;font-size:.6rem;font-weight:900;
+    padding:3px 10px 3px 12px;border-radius:0 0 0 10px;letter-spacing:.4px}
+  .card.lv-now .hero-tag{background:var(--now);color:#fff}
+  .card.lv-past .hero-tag{background:var(--past);color:#06281c}
+  .hero-flt{font-weight:900;font-size:1.08rem;margin-top:2px}
+  .hero-route{display:flex;align-items:center;gap:7px;margin-top:5px;font-size:.88rem;color:var(--ink)}
+  .hero-route .ap{font-weight:800}
+  .hero-route .arrow{color:var(--muted);display:flex;align-items:center;flex:1;min-width:24px}
+  .hero-route .arrow .line{flex:1;height:1px;background:repeating-linear-gradient(90deg,var(--muted) 0 4px,transparent 4px 8px)}
+  .hero-route .arrow .plane{margin:0 4px;transform:rotate(90deg);display:inline-block}
+  .hero-std{font-size:.76rem;color:var(--muted);margin-top:3px}
+
+  /* ---- Chặng tiếp theo: dạng dòng thời gian nối tiếp ---- */
+  .next-label{font-size:.68rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;
+    margin:10px 0 2px;display:flex;align-items:center;gap:5px}
+  .next-label::before,.next-label::after{content:'';flex:1;height:1px;background:var(--line)}
+  .timeline{display:flex;flex-direction:column;gap:0;position:relative;padding-left:16px}
+  .timeline::before{content:'';position:absolute;left:4px;top:4px;bottom:4px;width:1px;background:var(--line)}
+  .tl-row{position:relative;padding:5px 0;font-size:.85rem;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .tl-row::before{content:'';position:absolute;left:-16px;top:50%;transform:translateY(-50%);width:7px;height:7px;
+    border-radius:50%;background:var(--gap);border:2px solid var(--bg)}
   .flt-main{font-weight:700}
   .flt-route{color:var(--muted);font-weight:500;margin-left:6px}
-  .pill{font-size:.64rem;font-weight:800;padding:2px 7px;border-radius:99px;margin-left:4px}
+  .pill{font-size:.64rem;font-weight:800;padding:2px 7px;border-radius:99px;margin-left:4px;display:inline-flex;align-items:center;gap:2px}
   .pill.ok{background:rgba(16,185,129,.18);color:#34d399}
   .pill.missing{background:rgba(227,6,19,.18);color:#fca5a5}
 
   .actions{display:flex;gap:8px}
   .actions button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);background:#1b2430;color:var(--ink);
-    font-weight:800;font-size:.82rem;cursor:pointer;transition:background .15s}
-  .actions button.primary{background:var(--red);border-color:transparent}
-  .actions button:disabled{opacity:.45;cursor:default}
-  .actions button:not(:disabled):hover{filter:brightness(1.15)}
+    font-weight:800;font-size:.82rem;cursor:pointer;transition:transform .15s,filter .15s,background .15s}
+  .actions button.primary{background:linear-gradient(135deg,var(--red),#b3040f);border-color:transparent}
+  .actions button:disabled{opacity:.4;cursor:default}
+  .actions button:not(:disabled):hover{filter:brightness(1.18);transform:translateY(-1px)}
+  .actions button:not(:disabled):active{transform:translateY(0) scale(.97)}
   .busy-msg{font-size:.72rem;color:var(--muted);min-height:14px}
 
   footer{flex:none;padding:7px 22px;font-size:.7rem;color:var(--muted);border-top:1px solid var(--line);
@@ -110,7 +161,7 @@
 </head>
 <body>
 <header>
-  <div class="brand"><span class="dot"></span> SUN PhuQuoc · Theo dõi Brief</div>
+  <div class="brand"><span class="dot"></span> SUN PhuQuoc · Theo dõi Brief <span class="plane">✈️</span><span class="day-badge" id="dayBadge">— duty</span></div>
   <div class="clock" id="clock">--:--:--<small id="clockDate">—</small></div>
   <div class="toolbar">
     <select id="cpFilter" title="Lọc theo CP"><option value="">Tất cả CP</option></select>
@@ -123,7 +174,7 @@
 <div id="zoomOv" onclick="if(event.target===this) closeZoom()">
   <div class="zcard" id="zcard"></div>
 </div>
-<footer><span>Tự cập nhật mỗi 10 giây · chỉ hiện duty có Brief trong 6 giờ tới</span><span id="lastSync">—</span></footer>
+<footer><span>Tự cập nhật mỗi 10 giây · hiện toàn bộ duty còn lại trong ngày</span><span id="lastSync">—</span></footer>
 
 <script>
 /* ================================================================
@@ -141,6 +192,8 @@ let zoomDuty=null, zoomIsAuto=false;
 let autoRotate=false, rotateTimer=null, rotateBarTimer=null, rotateIdx=0;
 const ROTATE_MS=8000;
 
+const LV_ICON={past:'✅',now:'🔴',soon:'⏰',gap:'🕐'};
+const LV_TAG={past:'ĐÃ BRIEF',now:'BRIEF NGAY',soon:'SẮP BRIEF',gap:'CHUYẾN ĐẦU'};
 const PRINT_BRIDGE='http://127.0.0.1:9173';
 const SP_HOSTS=['http://127.0.0.1:8765','http://localhost:8765'];
 const SP_SITE='https://sungroupcomvn.sharepoint.com/sites/SPQAirways/DailyOFP';
@@ -192,27 +245,48 @@ function updateCpOptions(groups){
 document.getElementById('cpFilter').onchange=e=>{ cpFilterVal=e.target.value; render(); };
 
 function visibleGroups(){
+  // Hiện TẤT CẢ duty còn lại trong ngày (không giới hạn 6 giờ nữa) — chỉ ẩn bớt
+  // những duty đã qua giờ Brief quá lâu (hơn 2 giờ) để đỡ rối, còn bao nhiêu
+  // sắp tới đều hiện đủ, dù cách xa giờ hiện tại bao nhiêu.
   if(!latest) return [];
   const now=Date.now();
-  let v=latest.filter(g=>g.brfMs-now<6*3600e3 && g.brfMs-now>-20*60e3);
+  let v=latest.filter(g=>g.brfMs-now>-2*3600e3);
   if(cpFilterVal) v=v.filter(g=>g.flights.some(f=>f.cpId===cpFilterVal));
   return v.sort((a,b)=>a.brfMs-b.brfMs);
 }
+function progressPct(ms){
+  // Thanh tiến trình: đầy dần trong 3 giờ trước giờ Brief, đầy 100% khi tới giờ/đã qua.
+  const LOOKBACK=3*3600e3;
+  if(ms<=0) return 100;
+  const pct=100-Math.min(100,Math.max(0, ms/LOOKBACK*100));
+  return Math.round(pct);
+}
 function cardInner(g, now, big){
   const ms=g.brfMs-now, lv=level(ms);
-  const flts=g.flights.map(f=>`<div class="${big?'zflt-row':'flt-row'}"><span class="flt-main">FLT ${esc(f.flt)}<span class="${big?'zflt-route':'flt-route'}">${esc(f.dep||'')}→${esc(f.arr||'')} · ${esc(f.localTime||'')}${f.cp?' · '+esc(f.cp):''}</span></span>
+  const first=g.flights[0]||{};
+  const rest=g.flights.slice(1);
+  const restRows=rest.map((f,i)=>`<div class="tl-row"><span class="flt-main">FLT ${esc(f.flt)}<span class="flt-route">${esc(f.dep||'')}→${esc(f.arr||'')} · ${esc(f.localTime||'')}</span></span>
     <span><span class="pill ${f.ofp?'ok':'missing'}">OFP</span><span class="pill ${f.gd?'ok':'missing'}">GD</span></span></div>`).join('');
   const hasAny=g.flights.some(f=>f.ofp||f.gd);
-  // brfMs giờ đã được tab chính tính đúng theo giờ VN (toLocal+formatTime) — dùng thẳng
-  // g.brfDisplay thay vì tự cộng giờ lại ở đây, tránh cộng nhầm hai lần.
-  const brfStr = g.brfDisplay || '';
+  const brfStr=g.brfDisplay||'';
   const cpLabel=groupCpLabel(g);
+  const pct=progressPct(ms);
+  const heroBlock=`<div class="hero">
+      <div class="hero-tag">${esc(LV_TAG[lv])}</div>
+      <div class="hero-flt">✈ FLT ${esc(first.flt||'')} <span class="pill ${first.ofp?'ok':'missing'}">OFP</span><span class="pill ${first.gd?'ok':'missing'}">GD</span></div>
+      <div class="hero-route"><span class="ap">${esc(first.dep||'')}</span><span class="arrow"><span class="line"></span><span class="plane">✈</span></span><span class="ap">${esc(first.arr||'')}</span></div>
+      <div class="hero-std">STD ${esc(first.localTime||'')} · Brief lúc <b>${esc(brfStr)}</b></div>
+    </div>`;
+  const timelineBlock = rest.length ? `<div class="next-label">Chặng nối tiếp</div><div class="timeline">${restRows}</div>` : '';
+  const progBlock = `<div class="prog"><i style="width:${pct}%"></i></div>`;
   if(big){
     return {lv, html:`<button class="zclose" onclick="closeZoom()">✕</button>
       <div class="zduty">Duty #${g.duty} · ${g.flights.length} chuyến</div>
       ${cpLabel?`<div class="zcp">${esc(cpLabel)}</div>`:''}
-      <div class="zcd lv-${lv}">${ms<0?'Đã qua ':'Còn '}${fmtCd(ms)}<small>BRF ${brfStr} (giờ VN)</small></div>
-      <div class="zflts">${flts}</div>
+      <div class="zcd lv-${lv}"><span class="ic">${LV_ICON[lv]}</span>${ms<0?'Đã qua ':'Còn '}${fmtCd(ms)}<small>BRF ${esc(brfStr)} (giờ VN)</small></div>
+      ${progBlock}
+      ${heroBlock}
+      ${timelineBlock}
       <div class="actions">
         <button class="primary" ${hasAny?'':'disabled'} onclick="doPrint(${g.duty},this)">🖨 In toàn bộ (${g.flights.length})</button>
         <button ${hasAny?'':'disabled'} onclick="doDownload(${g.duty},this)">⬇ Tải toàn bộ</button>
@@ -220,9 +294,11 @@ function cardInner(g, now, big){
       <div class="busy-msg" id="zmsg-${g.duty}"></div>
       <div class="auto-info" id="zauto" style="display:none"><span>Tự chuyển thẻ tiếp theo…</span><div class="auto-bar"><i id="zautoBar"></i></div></div>`};
   }
-  return {lv, html:`<div class="row1"><div><div class="duty-tag">Duty #${g.duty} · ${g.flights.length} chuyến</div>${cpLabel?`<div class="cp-name" style="font-size:.78rem;color:var(--muted);margin-top:2px">${esc(cpLabel)}</div>`:''}</div>
-      <div><div class="cd lv-${lv}">${ms<0?'Đã qua ':'Còn '}${fmtCd(ms)}<small>BRF ${brfStr}</small></div></div></div>
-    <div class="flts">${flts}</div>
+  return {lv, html:`<div class="row1"><div><div class="duty-tag">✈ Duty #${g.duty} · ${g.flights.length} chuyến</div>${cpLabel?`<div class="cp-name">${esc(cpLabel)}</div>`:''}</div>
+      <div><div class="cd lv-${lv}"><span class="ic">${LV_ICON[lv]}</span>${ms<0?'Đã qua ':'Còn '}${fmtCd(ms)}<small>BRF ${esc(brfStr)}</small></div></div></div>
+    ${progBlock}
+    ${heroBlock}
+    ${timelineBlock}
     <div class="actions">
       <button class="primary" ${hasAny?'':'disabled'} onclick="doPrint(${g.duty},this)">🖨 In toàn bộ (${g.flights.length})</button>
       <button ${hasAny?'':'disabled'} onclick="doDownload(${g.duty},this)">⬇ Tải toàn bộ</button>
@@ -230,21 +306,6 @@ function cardInner(g, now, big){
     <div class="busy-msg" id="msg-${g.duty}"></div>`};
 }
 
-function emptyStateHtml(){
-  if(cpFilterVal) return '<div class="empty"><h2>CP này không có chuyến sắp Brief</h2><p>Trong 6 giờ tới CP đã chọn chưa có chuỗi duty nào. Thử chọn "Tất cả CP".</p></div>';
-  const d=lastDebug;
-  if(d && d.error) return `<div class="empty"><h2>⚠ Lỗi khi tính duty</h2><p>Tab chính báo lỗi: <code>${esc(d.error)}</code><br>Mở Console (F12) ở tab chính <b>index.html</b> để xem chi tiết, rồi gửi lỗi này cho người hỗ trợ.</p></div>`;
-  if(d && d.rawFlightsLen===0) return '<div class="empty"><h2>Chưa có crewlist nào được tải</h2><p>Ở tab chính, vào <b>Check PIB &amp; MET</b> (hoặc Lọc chuyến bay) và tải crewlist lên trước.</p></div>';
-  if(d && d.chainsFound===0 && d.rawFlightsLen>0) return `<div class="empty"><h2>Không tìm thấy chuỗi duty nào</h2><p>Đã có ${d.rawFlightsLen} chuyến trong crewlist, nhưng không chuỗi nào bắt đầu từ PQC với CP+/FO hợp lệ.<br>Kiểm tra lại file crewlist đã tải ở tab chính.</p></div>`;
-  if(d && d.chainsFound>0 && d.chainsWithFutureBrf===0) return `<div class="empty"><h2>Mọi chuỗi duty đã qua giờ Brief</h2><p>Tìm thấy ${d.chainsFound} chuỗi duty, nhưng tất cả đều đã qua giờ brief so với thời điểm hiện tại.</p></div>`;
-  if(d && d.samples && d.samples.length){
-    const rows=d.samples.map(x=>`<tr><td style="padding:3px 10px;text-align:left">${esc(x.cp||'')}</td><td style="padding:3px 10px">FLT ${esc(x.flt||'')}</td><td style="padding:3px 10px">BRF ${esc(x.brfVnTime)}</td><td style="padding:3px 10px;font-weight:800;color:${x.diffMin<-20||x.diffMin>360?'#fca5a5':'#34d399'}">${x.diffMin>=0?'còn':'đã qua'} ${Math.abs(x.diffMin)} phút</td></tr>`).join('');
-    return `<div class="empty"><h2>Có ${d.chainsFound} chuỗi, nhưng không cái nào lọt khung 6 giờ</h2>
-      <p style="margin-bottom:10px">Trang chỉ hiện duty có BRF từ -20 phút đến +6 giờ so với giờ hiện tại. Dưới đây là các chuỗi gần nhất để đối chiếu:</p>
-      <table style="margin:0 auto;font-size:.82rem;border-collapse:collapse">${rows}</table></div>`;
-  }
-  return '<div class="empty"><h2>Không có duty nào sắp Brief</h2><p>Trong 6 giờ tới chưa có chuyến nào cần chuẩn bị 🎉</p></div>';
-}
 function render(onlyCountdown){
   const grid=document.getElementById('grid');
   if(latest) updateCpOptions(latest);
