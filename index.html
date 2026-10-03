@@ -8887,11 +8887,19 @@ function brfComputeGroups(){
   // thẻ là MỘT chuỗi của MỘT CP, đếm giờ brief theo chặng đầu (vd FLT 1206),
   // nhưng vẫn liệt kê đủ các chặng tiếp nối (1225, 1224…). Tự đứng độc lập,
   // không phụ thuộc trang Lọc chuyến bay có đang mở/đã tìm hay chưa.
-  BRF_DEBUG={ rawFlightsLen: (typeof rawFlights!=='undefined'?rawFlights.length:-1), hasFn: typeof computeDutyChains==='function', error:null, chainsFound:0, chainsWithFutureBrf:0 };
-  if(typeof rawFlights==='undefined'||!rawFlights.length||typeof computeDutyChains!=='function') return [];
+  BRF_DEBUG={ rawFlightsLen: (typeof rawFlights!=='undefined'?rawFlights.length:-1), hasFn: typeof computeDutyChains==='function', error:null, chainsFound:0, chainsWithFutureBrf:0, source:'' };
+  if(typeof rawFlights==='undefined'||!rawFlights.length) return [];
   let chains=[];
-  try{ chains=computeDutyChains('CP').results||[]; }
-  catch(e){ BRF_DEBUG.error=(e && e.message)||String(e); console.error('[BRF monitor] computeDutyChains lỗi:',e); return []; }
+  // Ưu tiên dùng ĐÚNG kết quả đã tìm trên trang Lọc chuyến bay (lastResults) — đây là nguồn
+  // "chuẩn" admin đang tin tưởng (vd xuất ra bảng Chụp). Chỉ khi chưa tìm lần nào (lastResults
+  // rỗng) mới tự tính lại trực tiếp từ rawFlights để tránh màn hình trống hoàn toàn.
+  try{
+    if(typeof lastResults!=='undefined' && lastResults && lastResults.length){
+      chains=lastResults; BRF_DEBUG.source='lastResults (đã tìm trên trang Lọc chuyến bay)';
+    } else if(typeof computeDutyChains==='function'){
+      chains=computeDutyChains('CP').results||[]; BRF_DEBUG.source='computeDutyChains (tự tính, CHƯA tìm trên trang Lọc chuyến bay)';
+    }
+  }catch(e){ BRF_DEBUG.error=(e && e.message)||String(e); console.error('[BRF monitor] lỗi lấy chuỗi duty:',e); return []; }
   BRF_DEBUG.chainsFound=chains.length;
   const pibByKey=new Map();
   try{ (pibFlights||[]).forEach(f=>{ if(f.stdDt) pibByKey.set(f.flt+'|'+f.stdDt.getTime(), f); }); }catch(e){}

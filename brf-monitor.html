@@ -174,7 +174,7 @@ function tickClock(){
   const age=Date.now()-lastMsgAt, box=document.getElementById('statusBox'), txt=document.getElementById('statusText');
   box.className='status '+(!lastMsgAt?'dead':age<25000?'live':age<120000?'stale':'dead');
   txt.textContent = !lastMsgAt ? 'Chưa nhận dữ liệu' : age<25000 ? 'Đang nhận trực tiếp' : age<120000 ? 'Dữ liệu hơi cũ ('+Math.round(age/1000)+'s)' : 'Mất kết nối tab chính';
-  document.getElementById('lastSync').textContent = lastMsgAt ? 'Cập nhật lúc '+new Date(lastMsgAt).toLocaleTimeString('vi-VN')+(lastDebug?(' · '+lastDebug.rawFlightsLen+' chuyến · '+lastDebug.chainsFound+' chuỗi'):'') : '';
+  document.getElementById('lastSync').textContent = lastMsgAt ? 'Cập nhật lúc '+new Date(lastMsgAt).toLocaleTimeString('vi-VN')+(lastDebug?(' · '+lastDebug.rawFlightsLen+' chuyến · '+lastDebug.chainsFound+' chuỗi · nguồn: '+(lastDebug.source||'?')):'') : '';
   if(latest) render(true); // chỉ cập nhật đếm ngược, không build lại DOM
 }
 setInterval(tickClock,1000); tickClock();
