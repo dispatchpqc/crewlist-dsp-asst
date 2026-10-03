@@ -338,27 +338,7 @@
       top: 0;
       white-space: nowrap;
     }
-    tr:hover td { background: var(--hover); }
-    /* Mobile card: không tô đỏ cả thẻ khi bấm/hover */
-    #page-filter #resultTable tr.flight-row:hover td,
-    #page-filter #resultTable tr.flight-row:active td,
-    #page-filter #resultTable tr.flight-row:focus td,
-    #page-filter #resultTable tr.flight-row td:hover,
-    #page-filter #resultTable tr.flight-row td:active {
-      background: transparent !important;
-    }
-    #page-filter #resultTable tr.flight-row:hover,
-    #page-filter #resultTable tr.flight-row:active,
-    #page-filter #resultTable tr.flight-row:focus {
-      background: var(--card) !important;
-      outline: none;
-      box-shadow: var(--shadow);
-    }
-    #page-filter #resultTable tr.flight-row,
-    #page-filter #resultTable tr.flight-row td {
-      -webkit-tap-highlight-color: transparent;
-      user-select: text;
-    }
+    tr:hover td { background: var(--red-soft); }
     .group-header {
       background: linear-gradient(90deg, var(--gold-soft), transparent);
       font-weight: 600;
@@ -418,75 +398,10 @@
       line-height: 1.55;
     }
     .cp-name { font-size: 0.8rem; color: var(--muted); }
-    /* Dấu * brief — badge vuông cân đối, căn giữa glyph */
-    .brief-star {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff !important;
-      background: var(--red);
-      font-weight: 800;
-      font-size: 0.72em;
-      line-height: 1;
-      width: 1.35em;
-      height: 1.35em;
-      min-width: 1.35em;
-      padding: 0;
-      margin: 0 0 0 4px;
-      border-radius: 3px;
-      vertical-align: middle;
-      box-shadow: 0 1px 2px rgba(227, 6, 19, 0.3);
-      flex-shrink: 0;
-      /* Glyph * thường nằm cao trong em-box — kéo nhẹ xuống để cân giữa badge */
-      transform: translateY(0.06em);
-    }
-    html.dark .brief-star {
-      background: var(--red);
-      color: #fff !important;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-    }
-    /* TIME BRF cột: cùng style cân đối */
-    .c-brf .brief-star,
-    td.c-brf span.brief-star,
-    td.c-brf span[title*="brief"] {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff !important;
-      background: var(--red);
-      font-weight: 800;
-      font-size: 0.72em;
-      line-height: 1;
-      width: 1.35em;
-      height: 1.35em;
-      min-width: 1.35em;
-      padding: 0;
-      margin: 0 0 0 4px;
-      border-radius: 3px;
-      vertical-align: middle;
-      box-shadow: 0 1px 2px rgba(227, 6, 19, 0.3);
-      transform: translateY(0.06em);
-    }
     .c-dep .route-full { display: none; }
     .c-dep .dep-only { display: inline; }
     .c-crew .marquee-track { display: contents; }
     .c-crew .marquee-inner { display: inline; animation: none !important; white-space: normal; padding-right: 0; }
-    .c-crew .crew-block { display: flex; flex-direction: column; gap: 6px; width: 100%; }
-    /* Desktop: ẩn nút, luôn hiện đủ tổ bay */
-    .c-crew .crew-head,
-    .c-crew .crew-toggle { display: none !important; }
-    .c-crew .crew-text {
-      display: block; width: 100%; line-height: 1.45; word-break: break-word;
-      white-space: pre-line; overflow: visible; max-height: none;
-    }
-    .c-crew .crew-text.is-collapsed,
-    .c-crew .crew-text.is-expanded {
-      display: block !important;
-      -webkit-line-clamp: unset !important;
-      overflow: visible !important;
-      max-height: none !important;
-      white-space: pre-line;
-    }
 
     #fileInfo { color: var(--muted); font-size: 0.9rem; margin-top: 12px; }
 
@@ -653,21 +568,9 @@
         display: flex; flex-wrap: wrap; align-items: baseline;
         background: var(--card); border: 1px solid var(--border); border-radius: 14px;
         padding: 12px 14px; margin-bottom: 8px; box-shadow: var(--shadow);
-        -webkit-tap-highlight-color: transparent;
-      }
-      #page-filter #resultTable tr.flight-row:hover,
-      #page-filter #resultTable tr.flight-row:active,
-      #page-filter #resultTable tr.flight-row:focus {
-        background: var(--card) !important;
-        box-shadow: var(--shadow);
-      }
-      #page-filter #resultTable tr.flight-row td,
-      #page-filter #resultTable tr.flight-row:hover td,
-      #page-filter #resultTable tr.flight-row:active td {
-        background: transparent !important;
       }
       #page-filter #resultTable tr.flight-row.first {
-        border-color: rgba(227, 6, 19, 0.45); border-left: 3px solid var(--red);
+        border-color: var(--red); border-left: 4px solid var(--red);
       }
       #page-filter #resultTable tr.flight-row.cont {
         margin-left: 16px; width: calc(100% - 16px); border-style: dashed; opacity: 0.94;
@@ -718,60 +621,29 @@
         border-top: 1px dashed var(--border);
         font-size: 0.78rem !important; color: var(--text);
         max-width: none !important;
-        overflow: visible !important;
+        overflow: hidden;
       }
       #page-filter #resultTable .c-crew::before {
         content: attr(data-label); display: block; font-size: 0.65rem; font-weight: 700;
         color: var(--muted); letter-spacing: 0.04em; margin-bottom: 3px;
       }
       #page-filter #resultTable .c-crew:empty { display: none; }
-      #page-filter #resultTable .c-crew .crew-block {
-        display: flex; flex-direction: column; gap: 6px; width: 100%;
+      #page-filter #resultTable .c-crew .marquee-track {
+        display: block; overflow: hidden; width: 100%;
+        mask-image: linear-gradient(90deg, transparent 0, #000 8px, #000 calc(100% - 8px), transparent 100%);
+        -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 8px, #000 calc(100% - 8px), transparent 100%);
       }
-      #page-filter #resultTable .c-crew .crew-head {
-        display: flex !important; justify-content: flex-end;
+      #page-filter #resultTable .c-crew .marquee-inner {
+        display: inline-block; white-space: nowrap; padding-right: 2.5em;
+        animation: crewMarquee 14s linear infinite;
+        font-weight: 700; color: var(--text);
       }
-      #page-filter #resultTable .c-crew .crew-text {
-        display: block; width: 100%;
-        font-weight: 700; color: var(--text); line-height: 1.45;
-        word-break: break-word; white-space: normal;
-        overflow: visible; max-height: none;
+      #page-filter #resultTable .c-crew .marquee-inner.no-scroll {
+        animation: none; padding-right: 0;
       }
-      /* Thu gọn: chỉ ~2 dòng — !important để thắng rule desktop */
-      #page-filter #resultTable .c-crew .crew-text.is-collapsed {
-        display: -webkit-box !important;
-        -webkit-box-orient: vertical !important;
-        -webkit-line-clamp: 2 !important;
-        overflow: hidden !important;
-        max-height: 2.7em !important;
-        white-space: normal !important;
-        text-overflow: ellipsis;
-      }
-      #page-filter #resultTable .c-crew .crew-text.is-expanded {
-        display: block !important;
-        -webkit-line-clamp: unset !important;
-        -webkit-box-orient: unset !important;
-        overflow: visible !important;
-        max-height: none !important;
-        white-space: pre-line !important;
-      }
-      #page-filter #resultTable .c-crew .crew-toggle {
-        display: inline-flex !important;
-        flex: 0 0 auto;
-        border: 1px solid var(--border);
-        background: var(--hover);
-        color: var(--red);
-        font-size: 0.68rem;
-        font-weight: 700;
-        padding: 4px 8px;
-        border-radius: 99px;
-        cursor: pointer;
-        white-space: nowrap;
-        line-height: 1.2;
-      }
-      #page-filter #resultTable .c-crew .crew-toggle:hover {
-        border-color: var(--red);
-        background: var(--red-soft);
+      @keyframes crewMarquee {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
       }
       #page-filter #exportBar { position: sticky; bottom: 10px; z-index: 30; }
     }
@@ -1367,8 +1239,7 @@
       font-style: italic;
     }
   </style>
-
-<style>#brfOpenBtn{position:fixed;left:16px;bottom:16px;z-index:220;background:#111827cc;color:#fff;border:none;border-radius:999px;padding:10px 16px;font-weight:700;font-size:.82rem;cursor:pointer;box-shadow:0 8px 20px rgba(0,0,0,.25)}</style></head>
+</head>
 <body class="logged-out">
   <div id="loginScreen">
     <div class="login-card">
@@ -1577,12 +1448,7 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
             <button class="btn" id="ofpPrintBtn">🖨 In tất cả</button>
             <button class="btn export-btn" id="ofpClearBtn" style="background:linear-gradient(135deg,#6B7280,#4B5563);color:#fff;">Xóa danh sách</button>
           </div>
-          <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
-            <p id="bridgeStatus" style="margin:0;font-weight:700;font-size:0.95rem;flex:1 1 auto;"></p>
-            <button type="button" class="btn" id="printBridgeStartBtn" style="background:linear-gradient(135deg,#059669,#047857);">▶ Bật Print Bridge</button>
-            <button type="button" class="btn" id="printBridgeStopBtn" style="background:linear-gradient(135deg,#6B7280,#4B5563);">⏹ Tắt Bridge</button>
-          </div>
-          <p style="margin-top:8px;font-size:0.8rem;color:var(--muted);line-height:1.4;">Print Bridge (cổng 9173) — cần để in OFP/GD im lặng. Nếu chưa đăng ký protocol <code>sunpq://</code>, chạy <code>print_bridge.py</code> trong CMD.</p>
+          <p id="bridgeStatus" style="margin-top:14px;font-weight:700;font-size:0.95rem;"></p>
         </div>
       </div>
 
@@ -1599,11 +1465,7 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
             </div>
           </div>
           <div id="pibCrewInfo" style="margin-top:12px;color:var(--muted);font-size:0.9rem;"></div>
-          <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
-            <div id="pibBridgeStatusTop" style="font-weight:700;font-size:0.9rem;flex:1 1 auto;"></div>
-            <button type="button" class="btn" id="pibStartBridgeBtnTop" style="background:linear-gradient(135deg,#059669,#047857);">▶ Bật SharePoint Bridge</button>
-          </div>
-          <p style="margin-top:8px;font-size:0.8rem;color:var(--muted);line-height:1.4;">SharePoint Bridge (cổng 8765) — cần để kiểm tra OFP/GD/PIB/MET. Nếu protocol chưa đăng ký, chạy <code>py sharepoint_bridge.py</code>.</p>
+          <div id="pibBridgeStatusTop" style="margin-top:10px;font-weight:700;font-size:0.9rem;"></div>
         </div>
 
         <div class="card" id="pibMainCard" style="display:none;">
@@ -1612,7 +1474,7 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
               <button class="btn" type="button" id="pibCheckSpBtn">🔄 Kiểm tra SharePoint</button>
               <button class="btn export-btn" type="button" id="pibExportBtn">⬇ Xuất Excel</button>
               <button class="btn" type="button" id="pibRefreshBtn" style="background:linear-gradient(135deg,#6B7280,#4B5563);">↻ Làm mới</button>
-              <button class="btn" type="button" id="pibStartBridgeBtn" style="background:linear-gradient(135deg,#059669,#047857);">▶ Bật Bridge</button>
+              <button class="btn" type="button" id="pibStartBridgeBtn" style="background:linear-gradient(135deg,#059669,#047857);display:none;">▶ Chạy Bridge</button>
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
               <div id="pibBridgeStatus" style="font-weight:700;font-size:0.9rem;">
@@ -2263,36 +2125,22 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
 
     async function refreshBridgeStatus() {
       const el = document.getElementById('bridgeStatus');
-      const startBtn = document.getElementById('printBridgeStartBtn');
-      const stopBtn = document.getElementById('printBridgeStopBtn');
       const st = await checkBridge();
       if (st && st.ok) {
         bridgeStartAttempted = false;
         if (el) {
-          el.innerHTML = '<span style="color:#059669;">● Print Bridge online · có thể in</span>'
+          el.innerHTML = '<span style="color:#059669;">● Có thể in</span>'
             + (st.demo ? ' <span style="color:var(--muted);font-weight:500;">(DEMO)</span>' : '')
             + (!st.sumatra || !st.qpdf || !st.pdftotext ? ' <span style="color:#E30613;">· thiếu tool</span>' : '');
         }
-        if (startBtn) {
-          startBtn.textContent = '✓ Bridge đang chạy';
-          startBtn.style.background = 'linear-gradient(135deg,#6B7280,#4B5563)';
-          startBtn.disabled = true;
-        }
-        if (stopBtn) stopBtn.disabled = false;
       } else {
         if (el) {
-          el.innerHTML = '<span style="color:#E30613;">● Print Bridge offline</span>'
-            + ' <span style="color:var(--muted);font-weight:500;font-size:0.85rem;">— bấm «Bật Print Bridge»</span>';
+          el.innerHTML = '<span style="color:#E30613;">● Không thể in</span>';
         }
-        if (startBtn) {
-          startBtn.textContent = '▶ Bật Print Bridge';
-          startBtn.style.background = 'linear-gradient(135deg,#059669,#047857)';
-          startBtn.disabled = false;
-        }
-        if (stopBtn) stopBtn.disabled = true;
         if (!bridgeStartAttempted) {
           bridgeStartAttempted = true;
           triggerBridgeStart();
+          // thử lại status sau 2s
           setTimeout(refreshBridgeStatus, 2000);
         }
       }
@@ -2300,36 +2148,15 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
     setInterval(refreshBridgeStatus, 4000);
     setTimeout(refreshBridgeStatus, 400);
 
-    document.getElementById('printBridgeStartBtn')?.addEventListener('click', async () => {
-      const btn = document.getElementById('printBridgeStartBtn');
-      if (btn) { btn.disabled = true; btn.textContent = '⏳ Đang bật…'; }
-      bridgeStartAttempted = false;
-      showToast('Đang khởi động Print Bridge (sunpq://start)…', 'info');
-      triggerBridgeStart();
-      for (let i = 0; i < 6; i++) {
-        await new Promise(r => setTimeout(r, 1000));
-        const st = await checkBridge();
-        if (st && st.ok) {
-          showToast('Print Bridge đã sẵn sàng', 'success');
-          refreshBridgeStatus();
-          return;
-        }
-      }
-      showToast('Chưa thấy bridge. Chạy print_bridge.py trong CMD hoặc kiểm tra protocol sunpq://', 'info');
-      refreshBridgeStatus();
-    });
-    document.getElementById('printBridgeStopBtn')?.addEventListener('click', () => {
-      triggerBridgeStop();
-      showToast('Đã gửi lệnh tắt Print Bridge', 'info');
-      setTimeout(refreshBridgeStatus, 1200);
-    });
-
-    // Mở/F5 trang → thử bật bridge nếu chưa chạy
-    // Không tắt bridge khi F5/beforeunload (tránh in bị ngắt giữa chừng)
-    // Chỉ tắt khi bấm nút «Tắt Bridge»
+    // Mở trang → start bridge; đóng tab/trình duyệt → stop
     window.addEventListener('load', () => {
       setTimeout(triggerBridgeStart, 300);
     });
+    window.addEventListener('beforeunload', () => {
+      triggerBridgeStop();
+      // beacon không gọi được protocol; iframe ở trên là chính
+    });
+    // Khi user rời tab lâu vẫn giữ bridge; chỉ stop khi unload
 
     /* ========== CREWLIST LOGIC ========== */
     let rawFlights = [];
@@ -2634,66 +2461,23 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
     }
 
 
-    function formatCrewList(f, opts) {
-      const multiline = !!(opts && opts.multiline);
-      const sep = multiline ? '\n' : ' · ';
-      // Set id cần đánh dấu * (sẽ ghé phòng brief)
-      const briefIds = (opts && opts.briefIds instanceof Set) ? opts.briefIds : null;
+    function formatCrewList(f) {
       const list = (f && f.crewMembers) ? f.crewMembers : [];
       if (!list.length) {
+        // fallback từ các field đã parse
         const parts = [];
-        const mark = (id) => (briefIds && briefIds.has(String(id)) ? '*' : '');
-        if (f.cpPlusId) parts.push('CP+ ' + (f.cpPlusName || '') + ' (' + f.cpPlusId + ')' + mark(f.cpPlusId));
-        if (f.foId) parts.push('FO ' + (f.foName || '') + ' (' + f.foId + ')' + mark(f.foId));
-        if (f.cmId) parts.push('CM ' + (f.cmName || '') + ' (' + f.cmId + ')' + mark(f.cmId));
-        if (f.caId) parts.push('CA ' + (f.caName || '') + ' (' + f.caId + ')' + mark(f.caId));
-        if (f.bmId) parts.push('BM ' + (f.bmName || '') + ' (' + f.bmId + ')' + mark(f.bmId));
-        return parts.join(sep);
+        if (f.cpPlusId) parts.push('CP+ ' + (f.cpPlusName || '') + ' (' + f.cpPlusId + ')');
+        if (f.foId) parts.push('FO ' + (f.foName || '') + ' (' + f.foId + ')');
+        if (f.cmId) parts.push('CM ' + (f.cmName || '') + ' (' + f.cmId + ')');
+        if (f.caId) parts.push('CA ' + (f.caName || '') + ' (' + f.caId + ')');
+        if (f.bmId) parts.push('BM ' + (f.bmName || '') + ' (' + f.bmId + ')');
+        return parts.join(' · ');
       }
-      const seen = new Set();
-      const parts = [];
-      list.forEach(c => {
-        const key = String(c.id || '') + '|' + String(c.roleBase || '');
-        if (seen.has(key)) return;
-        seen.add(key);
+      return list.map(c => {
         const tag = c.dhc ? (c.roleBase + ',DHC') : c.roleBase;
-        const star = (briefIds && briefIds.has(String(c.id))) ? '*' : '';
-        parts.push(tag + ' ' + (c.name || '') + ' (' + c.id + ')' + star);
-      });
-      return parts.join(sep);
+        return tag + ' ' + (c.name || '') + ' (' + c.id + ')';
+      }).join(' · ');
     }
-
-    // Nút thu gọn / xem đầy đủ (chỉ hiện mobile). Nội dung luôn FULL; chỉ đổi class.
-    document.getElementById('resultTable')?.addEventListener('click', (e) => {
-      const btn = e.target.closest('.crew-toggle');
-      if (!btn) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const block = btn.closest('.crew-block');
-      const textEl = block && block.querySelector('.crew-text');
-      if (!textEl) return;
-      const full = textEl.dataset.full || '';
-      const expanded = btn.dataset.expanded === '1';
-      if (expanded) {
-        textEl.classList.add('is-collapsed');
-        textEl.classList.remove('is-expanded');
-        if (full) {
-          textEl.innerHTML = escapeHtml(full).replace(/\*/g, '<span class="brief-star" title="Sẽ ghé phòng brief">*</span>');
-        }
-        btn.dataset.expanded = '0';
-        btn.textContent = 'Xem đầy đủ';
-        btn.title = 'Xem đầy đủ tổ bay';
-      } else {
-        textEl.classList.remove('is-collapsed');
-        textEl.classList.add('is-expanded');
-        if (full) {
-          textEl.innerHTML = escapeHtml(full).replace(/\*/g, '<span class="brief-star" title="Sẽ ghé phòng brief">*</span>');
-        }
-        btn.dataset.expanded = '1';
-        btn.textContent = 'Thu gọn';
-        btn.title = 'Thu gọn tổ bay';
-      }
-    });
 
     let filterMode = 'CP'; // 'CP' = lọc theo CP+ (cơ trưởng), 'CM' = lọc theo CM (tiếp viên trưởng)
 
@@ -2705,7 +2489,7 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       sw.classList.toggle('mode-cm', mode === 'CM');
       document.getElementById('modeBtnCP').classList.toggle('active', mode === 'CP');
       document.getElementById('modeBtnCM').classList.toggle('active', mode === 'CM');
-      document.getElementById('resultRoleHeader').textContent = mode === 'CM' ? 'Tổ bay (CM/CA/BA…)' : 'CP+ / FO';
+      document.getElementById('resultRoleHeader').textContent = mode === 'CM' ? 'Tổ bay (CM/CA/BM…)' : 'CP+';
 
       const card = document.getElementById('resultCard');
       if (rawFlights.length) {
@@ -2715,78 +2499,24 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
         card.classList.add('switching');
         setTimeout(() => processData(filterMode), 170);
       }
-      showToast('Đã chuyển sang lọc theo ' + (mode === 'CM' ? 'CM/CA/BA' : 'CP+/FO'), 'info');
+      showToast('Đã chuyển sang lọc theo ' + (mode === 'CM' ? 'CM' : 'CP+'), 'info');
     }
 
     document.getElementById('modeBtnCP').addEventListener('click', () => setFilterMode('CP'));
     document.getElementById('modeBtnCM').addEventListener('click', () => setFilterMode('CM'));
 
-    /** Vai trò liên quan theo chế độ lọc (kể cả DHC) */
-    function relevantRoleBases(mode) {
-      if (mode === 'CM') return new Set(['CM', 'CA', 'BA', 'BM']);
-      return new Set(['CP+', 'CP', 'CPT', 'CPT+', 'FO']);
-    }
-
-    function memberRoleMatches(member, mode) {
-      const bases = relevantRoleBases(mode);
-      const rb = String(member.roleBase || member.role || '').replace(/\s+/g, '').toUpperCase();
-      if (bases.has(rb)) return true;
-      // CP+ variants
-      if (mode !== 'CM' && (rb.indexOf('CP') === 0 || rb === 'FO')) return true;
-      return false;
-    }
-
-    /** Lấy danh sách thành viên liên quan trên chuyến (CM: CM/CA/BA/BM · CP: CP+/FO) — gồm DHC */
-    function getRelevantMembers(f, mode) {
-      const list = (f && f.crewMembers) ? f.crewMembers : [];
-      const out = [];
-      const seen = new Set();
-      list.forEach(c => {
-        if (!memberRoleMatches(c, mode)) return;
-        const key = String(c.id || '') + '|' + String(c.roleBase || '');
-        if (seen.has(key)) return;
-        seen.add(key);
-        out.push(c);
-      });
-      // Fallback từ field cũ nếu chưa có crewMembers
-      if (!out.length) {
-        if (mode === 'CM') {
-          if (f.cmId) out.push({ id: f.cmId, name: f.cmName || '', roleBase: 'CM', dhc: false });
-          if (f.caId) out.push({ id: f.caId, name: f.caName || '', roleBase: 'CA', dhc: false });
-          if (f.bmId) out.push({ id: f.bmId, name: f.bmName || '', roleBase: 'BM', dhc: false });
-        } else {
-          if (f.cpPlusId) out.push({ id: f.cpPlusId, name: f.cpPlusName || '', roleBase: 'CP+', dhc: false });
-          if (f.foId) out.push({ id: f.foId, name: f.foName || '', roleBase: 'FO', dhc: false });
-        }
-      }
-      return out;
-    }
-
-    /** Người đó có đang bắt đầu duty tại chuyến f? (chuyến đầu hoặc rest > 6h) */
-    function staffStartsAtFlight(staffId, f, byStaff, REST) {
-      if (!staffId || !f) return false;
-      const flist = byStaff[String(staffId)] || [];
-      let idx = -1;
-      for (let i = 0; i < flist.length; i++) {
-        if (flist[i].flt === f.flt && flist[i].stdDt && f.stdDt &&
-            flist[i].stdDt.getTime() === f.stdDt.getTime()) { idx = i; break; }
-      }
-      if (idx === -1) idx = flist.findIndex(ff => ff.flt === f.flt);
-      if (idx === -1) return false;
-      if (idx === 0) return true;
-      const prev = flist[idx - 1];
-      if (prev.staDt && f.stdDt) return (f.stdDt - prev.staDt > REST);
-      return true;
-    }
-
-    /** Tính các chuỗi duty bắt đầu từ PQC (CP+/FO hoặc CM) — hàm THUẦN, không đụng DOM/lastResults.
-     * Dùng lại nguyên logic của processData() để trang theo dõi Brief luôn ra đúng kết quả
-     * như bảng Lọc chuyến bay, mà không phụ thuộc trạng thái tìm kiếm hiện tại trên trang đó. */
-    function computeDutyChains(mode) {
+    function processData(mode, opts) {
       mode = mode || filterMode;
+      const silent = !!(opts && opts.silent);
       const idField = mode === 'CM' ? 'cmId' : 'cpPlusId';
       const nameField = mode === 'CM' ? 'cmName' : 'cpPlusName';
-      const roleLabel = mode === 'CM' ? 'CM/CA/BA' : 'CP+/FO';
+      const roleLabel = mode === 'CM' ? 'CM' : 'CP+';
+      // Vai trò phụ dùng để "gỡ" điều kiện rest khi chính CP+/CM không đủ rest
+      // (ví dụ do DHC ở chuyến trước): nếu FO (bên CP+) / CA (bên CM) trên CHÍNH
+      // chuyến đó đang bắt đầu chuyến đầu tiên của họ tại PQC, vẫn xuất kết quả.
+      const secField = mode === 'CM' ? 'caId' : 'foId';
+      const secLabel = mode === 'CM' ? 'CA' : 'FO';
+
       const restH = 6;
       const REST = restH * 3600 * 1000;
 
@@ -2803,117 +2533,86 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
 
       const results = [];
       let pqcTotal = 0, excluded = 0;
-      // PQC + có ít nhất 1 thành viên liên quan (CM/CA/BA hoặc CP+/FO), kể cả DHC
-      const pqcFlights = rawFlights.filter(f => f.dep === 'PQC' && getRelevantMembers(f, mode).length);
+      const pqcFlights = rawFlights.filter(f => f.dep === 'PQC' && f[idField]);
 
+      // ---- Chẩn đoán nhanh khi ra 0 kết quả ----
       const depPqcCount = rawFlights.filter(f => f.dep === 'PQC').length;
-      const roleCount = pqcFlights.length;
+      const roleCount = rawFlights.filter(f => f[idField]).length;
       const uniqueDeps = [...new Set(rawFlights.map(f => f.dep))];
       console.log('[Chẩn đoán lọc PQC · ' + roleLabel + ']', {
         tongChuyen: rawFlights.length,
         soChuyenDepPQC: depPqcCount,
-        soChuyenCoVaiLienQuan: roleCount,
+        ['soChuyenCo' + roleLabel]: roleCount,
         cacGiaTriDEPTimThay: uniqueDeps,
+        vaiChuyenMauDEP: rawFlights.slice(0, 3).map(f => ({ flt: f.flt, dep: f.dep, crewLines: f.crewLines })),
       });
       window.__lastDiagnostic = { depPqcCount, roleCount, roleLabel, uniqueDeps, total: rawFlights.length };
 
-      // Tránh trùng cùng chuyến PQC (nhiều CM/CA cùng thỏa) — và tránh 1 chuyến
-      // đã nằm trong 1 chuỗi duty khác bị tách ra thành 1 kết quả riêng nữa
-      // (VD: FLT 1244 đã là chặng cuối trong chuỗi bắt đầu từ 1224, không nên
-      // xuất hiện lần 2 chỉ vì có người mới ghép vào đủ rest ≥6h tại đó).
-      const seenFltKey = new Set();
-      const fltKeyOf = (ff) => String(ff.flt) + '|' + (ff.stdDt ? ff.stdDt.getTime() : '');
-
-      // Xử lý theo thứ tự thời gian để chuỗi bắt đầu SỚM HƠN luôn được dựng trước,
-      // nhờ đó các chặng tiếp nối phía sau (như 1244) được gộp đúng vào chuỗi đó
-      // thay vì bị coi là điểm bắt đầu của 1 chuỗi mới khi duyệt tới.
-      pqcFlights.sort((a, b) => (a.stdDt || 0) - (b.stdDt || 0));
-
       for (const f of pqcFlights) {
         pqcTotal++;
-        const rel = getRelevantMembers(f, mode);
-        if (!rel.length) continue;
-
-        // Chỉ người ĐANG DUTY (không DHC) mới xét bắt đầu / brief.
-        // DHC = deadhead trên chuyến này → không duty → không xuất kết quả chỉ vì DHC,
-        // không gắn * brief (vd BA,DHC trên 1206 không được tính).
-        const operating = rel.filter(m => !m.dhc);
-        if (!operating.length) { excluded++; continue; }
-
-        // Ai trong nhóm đang duty BẮT ĐẦU (rest ≥6h hoặc chuyến đầu)?
-        const starters = operating.filter(m => staffStartsAtFlight(m.id, f, byStaff, REST));
-        if (!starters.length) { excluded++; continue; }
-
-        const fltKey = fltKeyOf(f);
-        // Chuyến này đã thuộc về 1 chuỗi duty khác rồi (là chặng tiếp nối hoặc đã
-        // được xử lý) → KHÔNG tách thành 1 kết quả riêng nữa. Người mới ghép vào
-        // giữa chuỗi (đủ rest ≥6h) sẽ được đánh dấu * ngay trên chặng đó bên dưới,
-        // thay vì bị hiển thị thành 1 chuỗi "bắt đầu" riêng gây trùng lặp.
-        if (seenFltKey.has(fltKey)) continue;
-
-        // Leader: ưu tiên CM/CP+ đang duty, rồi starter
-        const primaryPref = mode === 'CM'
-          ? (operating.find(m => m.roleBase === 'CM') || starters.find(m => m.roleBase === 'CM') || starters[0])
-          : (operating.find(m => m.roleBase === 'CP+' || m.roleBase === 'CP') || starters.find(m => m.roleBase === 'CP+' || m.roleBase === 'CP') || starters[0]);
-        const cid = primaryPref ? primaryPref.id : (f[idField] || starters[0].id);
-        const cname = primaryPref ? (primaryPref.name || primaryPref.id) : (f[nameField] || cid);
-
-        // Chuỗi duty theo leader
-        const flist = byStaff[String(cid)] || [];
+        const cid = f[idField];
+        const flist = byStaff[cid] || [];
         let idx = -1;
         for (let i = 0; i < flist.length; i++) {
           if (flist[i].flt === f.flt && flist[i].stdDt && f.stdDt &&
               flist[i].stdDt.getTime() === f.stdDt.getTime()) { idx = i; break; }
         }
         if (idx === -1) idx = flist.findIndex(ff => ff.flt === f.flt);
-        if (idx === -1) idx = 0;
+        if (idx === -1) continue;
 
-        const seq = [f];
-        // legStarters[i] = những người BẮT ĐẦU duty đúng tại chặng seq[i] (đủ rest
-        // ≥6h hoặc đây là chuyến đầu của họ) — tính riêng cho từng chặng, để phát
-        // hiện việc đổi ca 1 phần tổ bay ngay GIỮA chuỗi (không chỉ ở chặng đầu).
-        const legStarters = [starters];
-        if (flist.length && idx >= 0) {
-          let j = idx + 1;
-          while (j < flist.length) {
-            const curr = flist[j], prevf = flist[j - 1];
-            if (prevf.staDt && curr.stdDt && (curr.stdDt - prevf.staDt > REST)) break;
-            seq.push(curr);
-            const currRel = getRelevantMembers(curr, mode).filter(m => !m.dhc);
-            const currStarters = currRel.filter(m => staffStartsAtFlight(m.id, curr, byStaff, REST));
-            legStarters.push(currStarters);
-            j++;
+        let isStart = false;
+        if (idx === 0) isStart = true;
+        else {
+          const prev = flist[idx - 1];
+          if (prev.staDt && f.stdDt) {
+            if (f.stdDt - prev.staDt > REST) isStart = true;
+          } else isStart = true;
+        }
+
+        if (!isStart) {
+          // Điều kiện bổ sung: nếu FO (CP+)/CA (CM) trên chính chuyến này đang
+          // bắt đầu chuyến đầu tiên của HỌ tại PQC (rest của họ đủ hoặc là
+          // chuyến đầu tiên), thì bỏ qua rest thiếu của CP+/CM và vẫn xuất kết quả.
+          const secId = f[secField];
+          if (secId) {
+            const secList = byStaff[secId] || [];
+            let sidx = -1;
+            for (let i = 0; i < secList.length; i++) {
+              if (secList[i].flt === f.flt && secList[i].stdDt && f.stdDt &&
+                  secList[i].stdDt.getTime() === f.stdDt.getTime()) { sidx = i; break; }
+            }
+            if (sidx === -1) sidx = secList.findIndex(ff => ff.flt === f.flt);
+            if (sidx !== -1) {
+              let secIsStart = false;
+              if (sidx === 0) secIsStart = true;
+              else {
+                const sprev = secList[sidx - 1];
+                if (sprev.staDt && f.stdDt) {
+                  if (f.stdDt - sprev.staDt > REST) secIsStart = true;
+                } else secIsStart = true;
+              }
+              if (secIsStart) {
+                isStart = true;
+                console.log(`[Bỏ qua rest ${roleLabel}] FLT ${f.flt}: ${secLabel} ${secId} bắt đầu chuyến đầu tại PQC → vẫn xuất kết quả.`);
+              }
+            }
           }
         }
 
-        // Đánh dấu MỌI chặng trong chuỗi này là "đã dùng" — không chỉ chặng neo —
-        // để các chặng phía sau (như 1244) không bị duyệt lại thành 1 chuỗi mới.
-        for (const sf of seq) seenFltKey.add(fltKeyOf(sf));
+        if (!isStart) { excluded++; continue; }
 
-        results.push({
-          cp: cname,
-          cpId: cid,
-          seq,
-          legStarters,
-          // Giữ lại để tương thích ngược: người cần ghé phòng brief ở chặng đầu
-          briefMembers: starters.map(m => ({
-            id: m.id,
-            name: m.name || '',
-            roleBase: m.roleBase || '',
-            dhc: !!m.dhc
-          }))
-        });
+        const seq = [f];
+        let j = idx + 1;
+        while (j < flist.length) {
+          const curr = flist[j], prevf = flist[j - 1];
+          if (prevf.staDt && curr.stdDt && (curr.stdDt - prevf.staDt > REST)) break;
+          if (curr[idField] === cid) seq.push(curr);
+          j++;
+        }
+        results.push({ cp: f[nameField] || cid, cpId: cid, seq });
       }
 
       results.sort((a, b) => (a.seq[0].stdDt || 0) - (b.seq[0].stdDt || 0));
-      return { results, roleLabel };
-    }
-
-    function processData(mode, opts) {
-      mode = mode || filterMode;
-      const silent = !!(opts && opts.silent);
-      const { results, roleLabel } = computeDutyChains(mode);
-
       lastResults = results;
       lastRoleLabel = roleLabel;
 
@@ -2929,24 +2628,13 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
         }
         tbody.innerHTML = `<tr><td colspan="8" class="empty">${hint}</td></tr>`;
       } else {
-        // Chú thích chung cho dấu * — chỉ 1 dòng duy nhất cho toàn bộ kết quả
-        // (thay vì lặp lại danh sách tên ở mỗi chặng/nhóm). Chỉ áp dụng cho CM,
-        // vì bên lọc CP+ /FO không cần đánh dấu *.
-        if (filterMode === 'CM') {
-          const legend = document.createElement('tr');
-          legend.className = 'brief-legend-row';
-          legend.innerHTML = '<td colspan="8" style="padding:6px 12px 12px;font-size:0.78rem;color:var(--muted);">'
-            + '<span style="color:var(--red);font-weight:800;">*</span> : Sẽ ghé phòng brief</td>';
-          tbody.appendChild(legend);
-        }
         for (const r of results) {
           const hr = document.createElement('tr');
           hr.className = 'group-header';
           {
             const ghText = '✈ ' + (r.cp || '') + (r.cpId ? ' (' + r.cpId + ')' : '') + ' · ' + roleLabel + ' · ' + r.seq.length + ' chuyến · bắt đầu PQC FLT ' + (r.seq[0] && r.seq[0].flt ? r.seq[0].flt : '');
-            // Chỉ nhân đôi nội dung khi mobile (marquee); desktop hiện 1 lần, không lặp
-            const isMobileView = typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 680px)').matches;
-            const needScroll = isMobileView && ghText.length > 36;
+            // Chữ dài → marquee chạy phải → trái để thấy hết (mobile card header)
+            const needScroll = ghText.length > 36;
             const inner = needScroll
               ? ('<span class="gh-marquee-track"><span class="gh-marquee-inner">' + ghText + '   ·   ' + ghText + '</span></span>')
               : ('<span class="gh-marquee-track"><span class="gh-marquee-inner no-scroll">' + ghText + '</span></span>');
@@ -2962,77 +2650,18 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
               brf = formatTime(brfDt);
             }
             const isFirst = idx === 0;
-            // Người bắt đầu duty riêng tại CHẶNG NÀY (đổi ca giữa chuỗi cũng được
-            // đánh dấu, không chỉ chặng đầu) — dữ liệu cũ (chưa có legStarters) sẽ
-            // fallback về hành vi cũ (chỉ đánh dấu chặng đầu).
-            // Bên lọc CP (CP+/FO) không cần đánh dấu * — chỉ áp dụng cho CM.
-            const rowStarterList = filterMode === 'CM'
-              ? ((r.legStarters && r.legStarters[idx]) || (isFirst ? (r.briefMembers || []) : []))
-              : [];
-            const briefIds = new Set(rowStarterList.map(m => String(m.id)));
-            // CM: chỉ hiện danh sách tổ bay ở chặng đầu, hoặc chặng có người mới
-            // ghép vào (đổi ca giữa chuỗi) — chặng tiếp nối không đổi tổ bay
-            // (như 511 sau 510) không cần lặp lại y hệt danh sách phía trên.
-            // CP: hiện CP+/FO ở chuyến đầu (hoặc chặng có đổi ca), * nếu họ cần brief
-            let crewText = '';
-            if (filterMode === 'CM') {
-              if (isFirst || briefIds.size) {
-                crewText = formatCrewList(f, {
-                  multiline: true,
-                  briefIds: briefIds.size ? briefIds : null
-                });
-              }
-            } else if (isFirst || briefIds.size) {
-              const rel = getRelevantMembers(f, 'CP');
-              if (rel.length) {
-                crewText = rel.map(m => {
-                  const tag = m.dhc ? (m.roleBase + ',DHC') : m.roleBase;
-                  const star = briefIds.has(String(m.id)) ? '*' : '';
-                  return tag + ' ' + (m.name || '') + ' (' + m.id + ')' + star;
-                }).join('\n');
-              } else if (isFirst) {
-                crewText = (r.cp || '') + (r.cpId ? ' (' + r.cpId + ')' : '')
-                  + (briefIds.has(String(r.cpId)) ? '*' : '');
-              }
-            }
-            const crewLabel = filterMode === 'CM' ? 'Tổ bay' : 'CP+ / FO';
-            const memberLines = crewText ? crewText.split('\n').filter(Boolean) : [];
-            const memberCount = (f.crewMembers && f.crewMembers.length) || memberLines.length;
-            const needCollapse = filterMode === 'CM' && crewText && (crewText.length > 36 || memberCount > 2);
-            // Nút "Xem đầy đủ / Thu gọn" luôn được dựng sẵn trong HTML khi cần thu
-            // gọn; việc CHỈ HIỆN nút này khi xem trên điện thoại là do CSS
-            // (@media max-width:680px) xử lý — không phụ thuộc vào thiết bị lúc
-            // dựng bảng, nên đúng trên mọi màn hình kể cả khi xoay/resize sau đó.
-            let crewCell = '';
-            if (crewText) {
-              // Luôn ghi FULL list vào ô (desktop hiện đủ; mobile CSS clamp 2 dòng khi collapsed).
-              // Trước đây ghi preview → desktop chỉ thấy 2 dòng đầu (thường chỉ CP+/FO).
-              const fullHtml = escapeHtml(crewText).replace(/\*/g, '<span class="brief-star" title="Sẽ ghé phòng brief">*</span>');
-              if (needCollapse) {
-                const preview = memberLines.slice(0, 2).join(' · ') + (memberLines.length > 2 ? '…' : '');
-                crewCell =
-                  '<div class="crew-block">'
-                  + '<div class="crew-head"><button type="button" class="crew-toggle" data-expanded="0" title="Xem đầy đủ tổ bay">Xem đầy đủ</button></div>'
-                  + '<span class="crew-text is-collapsed"'
-                  + ' data-full="' + escapeHtml(crewText).replace(/"/g, '&quot;') + '"'
-                  + ' data-preview="' + escapeHtml(preview).replace(/"/g, '&quot;') + '">'
-                  + fullHtml
-                  + '</span>'
-                  + '</div>';
-              } else {
-                crewCell = '<span class="crew-text is-expanded">' + fullHtml + '</span>';
-              }
-            } else if (!isFirst) {
-              // Chặng tiếp nối, tổ bay không đổi so với chặng trước trong chuỗi
-              crewCell = '<span class="crew-text is-expanded" style="color:var(--muted);font-style:italic;">— tiếp nối, không đổi tổ bay</span>';
-            }
-            // Ghi chú briefing cạnh TIME BRF nếu chặng này có người *
-            let brfCell = (isFirst || briefIds.size) ? brf : '';
-            if (briefIds.size) {
-              brfCell = (brf || '—') + ' <span class="brief-star" title="Người đánh dấu * sẽ ghé phòng brief">*</span>';
-            }
+            const crewText = (filterMode === 'CM')
+              ? formatCrewList(f)
+              : ((r.cp || '') + (r.cpId ? ' (' + r.cpId + ')' : ''));
+            const crewLabel = filterMode === 'CM' ? 'Tổ bay' : 'Cơ trưởng (CP+)';
+            // Chữ chạy khi tên dài; nhân đôi nội dung để loop mượt
+            const needScroll = crewText && crewText.length > 28;
+            const crewCell = crewText
+              ? ('<span class="marquee-track"><span class="marquee-inner' + (needScroll ? '' : ' no-scroll') + '">'
+                  + (needScroll ? (crewText + '   ·   ' + crewText) : crewText)
+                  + '</span></span>')
+              : '';
             tr.className = 'flight-row ' + (isFirst ? 'first' : 'cont');
-            if (f.stdDt) tr.dataset.utc = Date.UTC(f.stdDt.getFullYear(), f.stdDt.getMonth(), f.stdDt.getDate(), f.stdDt.getHours(), f.stdDt.getMinutes());
             tr.innerHTML = `
               <td class="c-date" data-label="Ngày">${formatDate(local.date)}</td>
               <td class="c-flt ${isFirst ? 'first-of-duty' : ''}" data-label="Chuyến">${f.flt}</td>
@@ -3040,8 +2669,8 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
               <td class="c-dep" data-label="Đi"><span class="dep-only">${f.dep}</span><span class="route-full">${f.dep}<span class="arrow">→</span>${f.arr}</span></td>
               <td class="c-arr" data-label="Đến">${f.arr}</td>
               <td class="c-std" data-label="Giờ cất cánh">${local.timeStr}</td>
-              <td class="c-brf" data-label="Briefing">${brfCell}</td>
-              <td class="cp-name c-crew" data-label="${crewLabel}" style="font-size:0.78rem;line-height:1.4;min-width:220px;max-width:520px;white-space:pre-line;">${crewCell}</td>`;
+              <td class="c-brf" data-label="Briefing">${isFirst ? brf : ''}</td>
+              <td class="cp-name c-crew" data-label="${crewLabel}" style="font-size:0.78rem;line-height:1.35;max-width:420px;">${crewCell}</td>`;
             tbody.appendChild(tr);
           });
           const sep = document.createElement('tr');
@@ -3243,21 +2872,12 @@ function exportExcel() {
       const now = new Date();
       const timeStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
       pibActivity.unshift({ time: timeStr, text, type: type || 'info' });
-      if (pibActivity.length > 30) pibActivity.length = 30;
+      if (pibActivity.length > 40) pibActivity.length = 40;
       renderPibActivity();
-      // Cross-tab: chỉ text ngắn, tối đa 8 dòng — tránh phình localStorage
+      // Cross-tab live update
       try {
-        localStorage.setItem('sunpq_pib_activity', JSON.stringify({
-          at: Date.now(),
-          items: pibActivity.slice(0, 8).map(a => ({
-            time: a.time,
-            text: String(a.text || '').slice(0, 100),
-            type: a.type || 'info'
-          }))
-        }));
-      } catch (e) {
-        try { localStorage.removeItem('sunpq_pib_activity'); } catch (e2) {}
-      }
+        localStorage.setItem('sunpq_pib_activity', JSON.stringify({ at: Date.now(), items: pibActivity.slice(0, 15) }));
+      } catch (e) {}
     }
 
     /* ========== Push / Desktop Notification ========== */
@@ -3397,21 +3017,11 @@ function exportExcel() {
         String(now.getMinutes()).padStart(2,'0') + ':' +
         String(now.getSeconds()).padStart(2,'0');
       pibActivity.unshift({ time: timeStr, text: text || '', html: html, type: type || 'info' });
-      if (pibActivity.length > 30) pibActivity.length = 30;
+      if (pibActivity.length > 50) pibActivity.length = 50;
       renderPibActivity();
-      // Không lưu html vào localStorage (rất nặng) — chỉ text ngắn
       try {
-        localStorage.setItem('sunpq_pib_activity', JSON.stringify({
-          at: Date.now(),
-          items: pibActivity.slice(0, 8).map(a => ({
-            time: a.time,
-            text: String(a.text || '').slice(0, 100),
-            type: a.type || 'info'
-          }))
-        }));
-      } catch (e) {
-        try { localStorage.removeItem('sunpq_pib_activity'); } catch (e2) {}
-      }
+        localStorage.setItem('sunpq_pib_activity', JSON.stringify({ at: Date.now(), items: pibActivity.slice(0, 15) }));
+      } catch (e) {}
     }
 
     function statusPill(ok, docType, flightKey) {
@@ -3892,12 +3502,12 @@ function exportExcel() {
           : (skipped ? `Không có file hợp lệ (bỏ qua ${skipped})` : '');
       }
       if (accepted) showToast(`Đã cập nhật ${accepted} tài liệu`, 'success');
-      // Cross-tab status: sessionStorage (không chiếm quota localStorage)
+      // Broadcast status for other tabs
       try {
-        sessionStorage.setItem('sunpq_pib_status', JSON.stringify({
+        localStorage.setItem('sunpq_pib_status', JSON.stringify({
           at: Date.now(),
           flights: pibFlights.map(f => ({
-            k: f.key, o: f.ofp ? 1 : 0, g: f.gd ? 1 : 0, p: f.pib ? 1 : 0, m: f.met ? 1 : 0
+            key: f.key, ofp: f.ofp, gd: f.gd, pib: f.pib, met: f.met
           }))
         }));
       } catch (e) {}
@@ -4006,30 +3616,17 @@ function exportExcel() {
       const htmlOnline = '<span style="color:#059669;">● Bridge SharePoint đang hoạt động</span>'
         + (detail ? ' <span style="color:var(--muted);font-weight:500;font-size:0.8rem;">' + detail + '</span>' : '');
       const htmlOffline = '<span style="color:#E30613;">● Bridge offline</span>'
-        + ' <span style="color:var(--muted);font-weight:500;font-size:0.8rem;">— bấm «Bật SharePoint Bridge»</span>';
+        + ' <span style="color:var(--muted);font-weight:500;font-size:0.8rem;">— chạy: py sharepoint_bridge.py</span>';
       const html = online ? htmlOnline : htmlOffline;
       const el1 = document.getElementById('pibBridgeStatus');
       const el2 = document.getElementById('pibBridgeStatusTop');
       if (el1) el1.innerHTML = html;
       if (el2) el2.innerHTML = html;
-      // Nút luôn hiện — đổi nhãn theo trạng thái
-      ['pibStartBridgeBtn', 'pibStartBridgeBtnTop'].forEach(id => {
-        const btn = document.getElementById(id);
-        if (!btn) return;
-        btn.style.display = 'inline-flex';
-        if (online) {
-          btn.textContent = id === 'pibStartBridgeBtnTop' ? '✓ Bridge đang chạy' : '✓ Đang chạy';
-          btn.style.background = 'linear-gradient(135deg,#6B7280,#4B5563)';
-          btn.disabled = true;
-        } else {
-          btn.textContent = id === 'pibStartBridgeBtnTop' ? '▶ Bật SharePoint Bridge' : '▶ Bật Bridge';
-          btn.style.background = 'linear-gradient(135deg,#059669,#047857)';
-          btn.disabled = false;
-        }
-      });
+      const startBtn = document.getElementById('pibStartBridgeBtn');
+      if (startBtn) startBtn.style.display = online ? 'none' : 'inline-flex';
       const checkBtn = document.getElementById('pibCheckSpBtn');
       if (checkBtn) {
-        checkBtn.disabled = false;
+        checkBtn.disabled = false; // vẫn cho bấm; sẽ báo offline nếu cần
         checkBtn.title = online ? 'Gọi SharePoint qua bridge' : 'Bridge offline — kết quả có thể không lấy được';
       }
     }
@@ -4114,21 +3711,14 @@ function exportExcel() {
     setInterval(checkPibBridgeHealth, 4000);
     setTimeout(checkPibBridgeHealth, 400);
 
-    async function onPibStartBridgeClick() {
+    document.getElementById('pibStartBridgeBtn')?.addEventListener('click', async () => {
       pibBridgeStartTried = false;
-      ['pibStartBridgeBtn', 'pibStartBridgeBtnTop'].forEach(id => {
-        const b = document.getElementById(id);
-        if (b) { b.disabled = true; b.textContent = '⏳ Đang bật…'; }
-      });
-      showToast('Đang khởi động SharePoint Bridge…', 'info');
+      showToast('Đang khởi động bridge...', 'info');
       const ok = await ensurePibBridge();
       if (!ok) {
-        showToast('Chưa thấy bridge. Chạy trong CMD: py sharepoint_bridge.py (hoặc đăng ký protocol sunpq://)', 'info');
+        showToast('Chưa thấy bridge. Chạy trong CMD: py sharepoint_bridge.py', 'info');
       }
-      await checkPibBridgeHealth();
-    }
-    document.getElementById('pibStartBridgeBtn')?.addEventListener('click', onPibStartBridgeClick);
-    document.getElementById('pibStartBridgeBtnTop')?.addEventListener('click', onPibStartBridgeClick);
+    });
 
     // Khi chuyển sang tab PIB → ensure bridge
     document.querySelectorAll('.nav-item').forEach(btn => {
@@ -4254,451 +3844,8 @@ function exportExcel() {
           { tag: 'pib-complete-' + Date.now(), renotify: true, requireInteraction: true }
         );
       }
-
-      // Khi duty #1 (hoặc #2 cùng giờ) vừa có OFP/GD → hỏi in tài liệu
-      try { offerDuty1PrintIfNeeded(newlyFile); } catch (e) { console.warn('offerDuty1Print', e); }
-
       return { changed, newlyOk, newlyFile };
     }
-
-    /** Tránh hỏi in lặp lại trong phiên + lịch sử đã in (localStorage, theo ngày+FLT) */
-    const _pibDuty1Offered = new Set();
-    let _pibDuty1Ctx = null; // { flights: [...] }
-    const PIB_PRINTED_KEY = 'sunpq_pib_printed_v1';
-
-    function pibSameStdKey(f) {
-      const t = f.localTime || '';
-      const d = f.ngayVN ? formatDate(f.ngayVN) : '';
-      return d + '|' + t;
-    }
-
-    /**
-     * Khóa lịch sử gọn: ddmmyy|FLT|HHmm (vd: 250926|510|1130)
-     * Hôm nay 510 ≠ mai 510; tiết kiệm ~40% so với dd/mm/yyyy|FLT|HH:MM
-     */
-    function pibPrintHistoryKey(f) {
-      let day = '0';
-      if (f.ngayVN && isValidDate && isValidDate(f.ngayVN)) {
-        const d = f.ngayVN;
-        day = String(d.getDate()).padStart(2,'0')
-          + String(d.getMonth()+1).padStart(2,'0')
-          + String(d.getFullYear()).slice(-2);
-      } else if (f.ngayVN) {
-        // formatDate có thể trả dd/mm/yyyy
-        const s = formatDate(f.ngayVN);
-        const m = String(s).match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
-        if (m) {
-          day = m[1].padStart(2,'0') + m[2].padStart(2,'0') + m[3].slice(-2);
-        }
-      }
-      const flt = String(f.flt || '').trim();
-      const std = String(f.localTime || '').replace(/\D/g, '').slice(0, 4);
-      return day + '|' + flt + '|' + std;
-    }
-
-    /**
-     * Lịch sử in: { "key": timestamp }
-     * Chỉ giữ 2 ngày + tối đa 60 bản ghi
-     */
-    function prunePibPrintedMap(map) {
-      const out = {};
-      const now = Date.now();
-      const MAX_AGE_MS = 2 * 24 * 3600 * 1000;
-      Object.entries(map || {}).forEach(([k, v]) => {
-        const at = (typeof v === 'number') ? v : (v && typeof v.at === 'number' ? v.at : 0);
-        if (!at || (now - at) > MAX_AGE_MS) return;
-        // Chuẩn hóa key cũ (có / hoặc :) sang dạng gọn nếu parse được
-        out[k] = at;
-      });
-      const keys = Object.keys(out);
-      if (keys.length > 60) {
-        keys.sort((a, b) => out[b] - out[a]);
-        const slim = {};
-        keys.slice(0, 50).forEach(k => { slim[k] = out[k]; });
-        return slim;
-      }
-      return out;
-    }
-
-    function loadPibPrintedMap() {
-      try {
-        const raw = localStorage.getItem(PIB_PRINTED_KEY);
-        if (!raw) return {};
-        const obj = JSON.parse(raw);
-        if (!obj || typeof obj !== 'object') return {};
-        return prunePibPrintedMap(obj);
-      } catch (e) { return {}; }
-    }
-
-    function savePibPrintedMap(map) {
-      try {
-        const slim = prunePibPrintedMap(map);
-        if (!Object.keys(slim).length) {
-          localStorage.removeItem(PIB_PRINTED_KEY);
-          return;
-        }
-        localStorage.setItem(PIB_PRINTED_KEY, JSON.stringify(slim));
-      } catch (e) {
-        try {
-          localStorage.removeItem(PIB_PRINTED_KEY);
-          const slim = prunePibPrintedMap(map);
-          const keys = Object.keys(slim).sort((a, b) => slim[b] - slim[a]).slice(0, 25);
-          const tiny = {};
-          keys.forEach(k => { tiny[k] = slim[k]; });
-          if (keys.length) localStorage.setItem(PIB_PRINTED_KEY, JSON.stringify(tiny));
-        } catch (e2) {}
-      }
-    }
-
-    function isFlightAlreadyPrinted(f) {
-      const map = loadPibPrintedMap();
-      const k = pibPrintHistoryKey(f);
-      if (map[k]) return true;
-      // Tương thích key cũ: dd/mm/yyyy|FLT|HH:MM
-      if (f.ngayVN && f.flt) {
-        const old = formatDate(f.ngayVN) + '|' + String(f.flt).trim() + '|' + String(f.localTime || '').trim();
-        if (map[old]) return true;
-      }
-      return false;
-    }
-
-    function markFlightsPrinted(flights, how) {
-      if (!flights || !flights.length) return;
-      const map = loadPibPrintedMap();
-      const at = Date.now();
-      flights.forEach(f => {
-        map[pibPrintHistoryKey(f)] = at;
-      });
-      savePibPrintedMap(map);
-    }
-
-    /** Ước lượng dung lượng localStorage (ký tự ≈ bytes UTF-16/2 gần đúng cho ASCII) */
-    function estimateLocalStorageBytes() {
-      let n = 0;
-      try {
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          if (!k) continue;
-          const v = localStorage.getItem(k) || '';
-          n += k.length + v.length;
-        }
-      } catch (e) {}
-      return n * 2; // UTF-16
-    }
-
-    /**
-     * Dọn localStorage thừa — chạy lúc load + khi gần đầy
-     * - Lịch sử in: 2 ngày, ≤50 key
-     * - Activity: ≤8 item, bỏ html, xóa nếu >12h
-     * - Status cross-tab: chuyển sang sessionStorage / xóa local
-     * - Roster cache: xóa hết prefix cũ
-     */
-    function optimizeLocalStorage() {
-      try {
-        savePibPrintedMap(loadPibPrintedMap());
-
-        // Activity: bản nhẹ, không lưu html
-        try {
-          const raw = localStorage.getItem('sunpq_pib_activity');
-          if (raw) {
-            if (raw.length > 8000 || !raw) {
-              localStorage.removeItem('sunpq_pib_activity');
-            } else {
-              const data = JSON.parse(raw);
-              if (!data || !data.at || (Date.now() - data.at) > 12 * 3600 * 1000) {
-                localStorage.removeItem('sunpq_pib_activity');
-              } else if (Array.isArray(data.items)) {
-                data.items = data.items.slice(0, 8).map(it => ({
-                  time: it.time || '',
-                  text: String(it.text || '').slice(0, 120),
-                  type: it.type || 'info'
-                }));
-                localStorage.setItem('sunpq_pib_activity', JSON.stringify(data));
-              }
-            }
-          }
-        } catch (e) { try { localStorage.removeItem('sunpq_pib_activity'); } catch (e2) {} }
-
-        // Status: không cần persist — xóa khỏi localStorage (dùng session nếu cần)
-        try { localStorage.removeItem('sunpq_pib_status'); } catch (e) {}
-
-        // Roster + meta + key rác
-        try {
-          const drop = [];
-          for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i);
-            if (!k) continue;
-            if (
-              k.indexOf('sunpq_roster_v1_') === 0 ||
-              k === 'sunpq_roster_meta' ||
-              k.indexOf('sunpq_roster_shell_') === 0
-            ) drop.push(k);
-          }
-          drop.forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
-        } catch (e) {}
-
-        // Nếu vẫn lớn (>1.5MB ước lượng) → xóa activity + in cũ hơn
-        try {
-          if (estimateLocalStorageBytes() > 1.5 * 1024 * 1024) {
-            localStorage.removeItem('sunpq_pib_activity');
-            localStorage.removeItem(PIB_PRINTED_KEY);
-          }
-        } catch (e) {}
-      } catch (e) {}
-    }
-    try { optimizeLocalStorage(); } catch (e) {}
-    // Dọn lại mỗi 10 phút khi tab còn mở
-    setInterval(() => { try { optimizeLocalStorage(); } catch (e) {} }, 10 * 60 * 1000);
-
-    /**
-     * Khi phát hiện OFP/GD mới trên chuyến duty #1:
-     * - Popup hỏi in tài liệu tất cả #1
-     * - Nếu có #2 cùng giờ STD → gộp cả #2
-     * - Có GD → in OFP+GD; chưa GD → báo và chỉ OFP
-     * - Đã in (cùng ngày+FLT+STD) → bỏ qua, không hỏi lại sau F5
-     */
-    function offerDuty1PrintIfNeeded(newlyFile) {
-      if (!newlyFile || !newlyFile.length || !pibFlights.length) return;
-
-      // Chuyến vừa nhận OFP hoặc GD
-      const triggered = [];
-      newlyFile.forEach(item => {
-        if (!item.gains || !item.gains.some(g => g === 'OFP' || g === 'GD')) return;
-        const f = pibFlights.find(x => String(x.flt) === String(item.flt));
-        if (!f) return;
-        const duty = dutyNoForPibFlight(f);
-        if (duty !== 1 && duty !== 2) return;
-        triggered.push(f);
-      });
-      if (!triggered.length) return;
-
-      // Tập chuyến cần in: mọi #1 liên quan + #2 cùng giờ với #1
-      const bundle = new Map(); // key -> flight
-      function addFlight(f) {
-        if (!f || !f.key) return;
-        bundle.set(f.key, f);
-      }
-
-      triggered.forEach(f => {
-        const duty = dutyNoForPibFlight(f);
-        if (duty === 1) {
-          addFlight(f);
-          // #2 (và #1 khác) cùng giờ STD
-          const sk = pibSameStdKey(f);
-          pibFlights.forEach(other => {
-            if (pibSameStdKey(other) !== sk) return;
-            const d = dutyNoForPibFlight(other);
-            if (d === 1 || d === 2) addFlight(other);
-          });
-        } else if (duty === 2) {
-          // #2 vừa có file: chỉ gộp nếu có #1 cùng giờ
-          const sk = pibSameStdKey(f);
-          const peers = pibFlights.filter(o => pibSameStdKey(o) === sk);
-          const has1 = peers.some(o => dutyNoForPibFlight(o) === 1);
-          if (has1) {
-            peers.forEach(o => {
-              const d = dutyNoForPibFlight(o);
-              if (d === 1 || d === 2) addFlight(o);
-            });
-          }
-        }
-      });
-
-      let flights = [...bundle.values()].sort((a, b) => {
-        const da = dutyNoForPibFlight(a) || 99;
-        const db = dutyNoForPibFlight(b) || 99;
-        if (da !== db) return da - db;
-        return String(a.flt).localeCompare(String(b.flt));
-      });
-      if (!flights.length) return;
-
-      // Phải có ít nhất một #1 trong bundle
-      if (!flights.some(f => dutyNoForPibFlight(f) === 1)) return;
-
-      // Bỏ chuyến đã in trong ngày (theo ngày+FLT+STD)
-      const already = flights.filter(f => isFlightAlreadyPrinted(f));
-      flights = flights.filter(f => !isFlightAlreadyPrinted(f));
-      if (already.length && !flights.length) {
-        // Tất cả đã in → không hỏi
-        return;
-      }
-      if (already.length) {
-        addPibActivity(
-          'Đã in trước đó (cùng ngày): ' + already.map(f => 'FLT ' + f.flt).join(', ') + ' — bỏ qua hỏi lại',
-          'info'
-        );
-      }
-      if (!flights.length) return;
-      // Vẫn cần có #1 trong phần chưa in (nếu chỉ còn #2 thì thôi)
-      if (!flights.some(f => dutyNoForPibFlight(f) === 1)) return;
-
-      // Signature theo trạng thái OFP/GD — hỏi lại khi GD mới về sau OFP (trong phiên)
-      const sig = flights.map(f =>
-        f.key + ':' + (f.ofp === true ? 'O' : '') + (f.gd === true ? 'G' : '')
-      ).sort().join('|');
-      if (_pibDuty1Offered.has(sig)) return;
-      _pibDuty1Offered.add(sig);
-
-      openDuty1PrintModal(flights);
-    }
-
-    function openDuty1PrintModal(flights) {
-      _pibDuty1Ctx = { flights: flights.slice() };
-      const modal = document.getElementById('pibDuty1PrintModal');
-      const title = document.getElementById('pibDuty1Title');
-      const sub = document.getElementById('pibDuty1Sub');
-      const list = document.getElementById('pibDuty1List');
-      const warn = document.getElementById('pibDuty1Warn');
-      const printBtn = document.getElementById('pibDuty1PrintBtn');
-      const ofpBtn = document.getElementById('pibDuty1OfpOnlyBtn');
-      if (!modal || !list) return;
-
-      const has2 = flights.some(f => dutyNoForPibFlight(f) === 2);
-      title.textContent = has2
-        ? '🖨 In tài liệu duty #1 + #2 (cùng giờ)'
-        : '🖨 In tài liệu duty #1';
-
-      const missingGd = flights.filter(f => f.gd !== true);
-      const hasAnyOfp = flights.some(f => f.ofp === true);
-      const hasAnyGd = flights.some(f => f.gd === true);
-
-      sub.textContent = has2
-        ? 'Phát hiện OFP/GD trên chuyến đầu (#1). Có thêm chuyến #2 cùng giờ STD — sẽ kiểm tra & in cả hai.'
-        : 'Phát hiện OFP/GD trên chuyến duty #1. In tài liệu cho các chuyến #1 dưới đây?';
-
-      list.innerHTML = flights.map(f => {
-        const d = dutyNoForPibFlight(f);
-        const ofpOk = f.ofp === true;
-        const gdOk = f.gd === true;
-        const dayStr = f.ngayVN ? formatDate(f.ngayVN) : '';
-        return `<div style="display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:8px 10px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;background:var(--hover);">
-          <span style="font-weight:800;color:var(--red);">#${d || '?'}</span>
-          <strong>FLT ${escapeHtml(f.flt)}</strong>
-          <span style="color:var(--muted);">${escapeHtml(f.dep || '')}→${escapeHtml(f.arr || '')}</span>
-          <span style="color:var(--muted);">${escapeHtml(dayStr)} · STD ${escapeHtml(f.localTime || '')}</span>
-          <span class="status-pill ${ofpOk ? 'ok' : 'missing'}" style="font-size:0.72rem;padding:2px 7px;border-radius:99px;">OFP ${ofpOk ? '✓' : '✗'}</span>
-          <span class="status-pill ${gdOk ? 'ok' : 'missing'}" style="font-size:0.72rem;padding:2px 7px;border-radius:99px;">GD ${gdOk ? '✓' : '✗'}</span>
-        </div>`;
-      }).join('');
-
-      if (missingGd.length) {
-        warn.style.display = 'block';
-        warn.innerHTML = '⚠ <b>Chưa có GD</b> cho: '
-          + missingGd.map(f => 'FLT ' + escapeHtml(f.flt)).join(', ')
-          + '.<br>Có thể <b>chỉ tải/in OFP</b> cho các chuyến này. Khi có GD, hệ thống sẽ hỏi lại.';
-      } else {
-        warn.style.display = 'none';
-        warn.innerHTML = '';
-      }
-
-      if (printBtn) {
-        printBtn.disabled = !hasAnyOfp && !hasAnyGd;
-        printBtn.textContent = hasAnyGd ? '🖨 In OFP + GD' : '🖨 In OFP (chưa GD)';
-      }
-      if (ofpBtn) {
-        ofpBtn.style.display = hasAnyOfp ? '' : 'none';
-      }
-
-      modal.style.display = 'flex';
-      pushPibNotification(
-        has2 ? 'In tài liệu #1 + #2?' : 'In tài liệu duty #1?',
-        flights.map(f => 'FLT ' + f.flt + (f.ofp ? ' OFP' : '') + (f.gd ? ' GD' : '')).join(', '),
-        { tag: 'pib-duty1-print', renotify: true, requireInteraction: true }
-      );
-    }
-
-    function closeDuty1PrintModal() {
-      const modal = document.getElementById('pibDuty1PrintModal');
-      if (modal) modal.style.display = 'none';
-      _pibDuty1Ctx = null;
-    }
-
-    /** Đánh dấu đã in / bỏ qua — không hỏi lại khi F5 (cùng ngày+FLT) */
-    function markDuty1AlreadyPrinted() {
-      if (!_pibDuty1Ctx || !_pibDuty1Ctx.flights.length) {
-        closeDuty1PrintModal();
-        return;
-      }
-      const flights = _pibDuty1Ctx.flights.slice();
-      markFlightsPrinted(flights, 'manual-skip');
-      closeDuty1PrintModal();
-      addPibActivity(
-        '✓ Đã ghi nhận đã in: ' + flights.map(f => 'FLT ' + f.flt + ' (' + (f.ngayVN ? formatDate(f.ngayVN) : '') + ')').join(', '),
-        'ok'
-      );
-      showToast('Đã lưu lịch sử in — không hỏi lại hôm nay cho các chuyến này', 'success');
-    }
-
-    async function runDuty1Print(mode) {
-      // mode: 'all' = OFP+GD nếu có; 'ofp' = chỉ OFP
-      if (!_pibDuty1Ctx || !_pibDuty1Ctx.flights.length) {
-        closeDuty1PrintModal();
-        return;
-      }
-      const flights = _pibDuty1Ctx.flights.slice();
-      closeDuty1PrintModal();
-
-      for (const f of flights) {
-        const docs = [];
-        if (mode === 'ofp') {
-          if (f.ofp === true) docs.push('ofp');
-        } else {
-          if (f.ofp === true) docs.push('ofp');
-          if (f.gd === true) docs.push('gd');
-        }
-        if (!docs.length) {
-          addPibActivity('FLT ' + f.flt + ' · chưa có file để in', 'info');
-          continue;
-        }
-        try {
-          if (docs.includes('ofp') && docs.includes('gd')) {
-            await printSpDocs([f], ['ofp']);
-            await printSpDocs([f], ['gd']);
-          } else if (docs.includes('ofp')) {
-            await printSpDocs([f], ['ofp']);
-          } else if (docs.includes('gd')) {
-            await printSpDocs([f], ['gd']);
-          }
-        } catch (e) {
-          addPibActivity('Lỗi in FLT ' + f.flt + ': ' + (e.message || e), 'error');
-        }
-      }
-      // Lưu lịch sử theo ngày+FLT+STD — F5 không hỏi lại; ngày khác vẫn hỏi
-      markFlightsPrinted(flights, mode === 'ofp' ? 'print-ofp' : 'print-all');
-      showToast('Đã gửi lệnh in duty #1' + (flights.some(f => dutyNoForPibFlight(f) === 2) ? ' + #2' : ''), 'success');
-    }
-
-    // Modal HTML nằm SAU thẻ script → dùng ủy quyền sự kiện trên document
-    document.addEventListener('click', function duty1ModalClick(e) {
-      const t = e.target;
-      if (!t) return;
-      // Bấm nền overlay → đóng
-      if (t.id === 'pibDuty1PrintModal') {
-        e.preventDefault();
-        closeDuty1PrintModal();
-        return;
-      }
-      const btn = t.closest && t.closest('#pibDuty1PrintBtn, #pibDuty1OfpOnlyBtn, #pibDuty1CancelBtn, #pibDuty1DoneBtn');
-      if (!btn) return;
-      e.preventDefault();
-      e.stopPropagation();
-      if (btn.id === 'pibDuty1CancelBtn') {
-        closeDuty1PrintModal();
-        return;
-      }
-      if (btn.id === 'pibDuty1DoneBtn') {
-        markDuty1AlreadyPrinted();
-        return;
-      }
-      if (btn.id === 'pibDuty1PrintBtn') {
-        runDuty1Print('all');
-        return;
-      }
-      if (btn.id === 'pibDuty1OfpOnlyBtn') {
-        runDuty1Print('ofp');
-        return;
-      }
-    });
 
     async function runSharePointCheck({ onlyMissing = false, silent = false } = {}) {
       if (!pibFlights.length) return { ok: false };
@@ -6071,23 +5218,6 @@ function exportExcel() {
     </div>
   </div>
 
-  <!-- Modal: in tài liệu duty #1 (và #2 cùng giờ nếu có) -->
-  <div id="pibDuty1PrintModal" class="pib-modal-overlay" style="display:none;" role="dialog" aria-modal="true">
-    <div class="pib-modal" style="max-width:440px;width:100%;">
-      <div class="pib-modal-title" id="pibDuty1Title">🖨 In tài liệu duty #1</div>
-      <div class="pib-modal-sub" id="pibDuty1Sub" style="margin-bottom:10px;"></div>
-      <div id="pibDuty1List" style="font-size:0.88rem;line-height:1.5;margin-bottom:14px;max-height:240px;overflow:auto;"></div>
-      <div id="pibDuty1Warn" style="display:none;background:#FFF6E4;border:1px solid #F3D48A;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:0.84rem;color:#6B5100;line-height:1.45;"></div>
-      <div class="pib-modal-actions" style="flex-wrap:wrap;">
-        <button type="button" class="btn" id="pibDuty1PrintBtn" style="background:linear-gradient(135deg,#D97706,#B45309);">🖨 In OFP + GD</button>
-        <button type="button" class="btn" id="pibDuty1OfpOnlyBtn" style="background:linear-gradient(135deg,#0EA5E9,#0284C7);">⬇ Chỉ OFP</button>
-        <button type="button" class="btn" id="pibDuty1DoneBtn" style="background:linear-gradient(135deg,#059669,#047857);" title="Đã in rồi — lưu lịch sử, không hỏi lại hôm nay">✓ Đã in</button>
-        <button type="button" class="btn" id="pibDuty1CancelBtn" style="background:linear-gradient(135deg,#6B7280,#4B5563);">Hủy</button>
-      </div>
-      <p style="margin:10px 0 0;font-size:0.78rem;color:var(--muted);line-height:1.4;">«Đã in» hoặc sau khi in thành công sẽ được ghi nhớ theo <b>ngày + số hiệu + giờ STD</b>. F5 không hỏi lại; ngày khác (cùng FLT) vẫn hỏi.</p>
-    </div>
-  </div>
-
 
 <script>
 /* ========== LỊCH TRỰC — UI giống schedule.html + data Excel ========== */
@@ -6730,11 +5860,7 @@ function exportExcel() {
     const el = document.getElementById('rSyncStatus');
     if(!el) return;
     el.textContent = msg || '';
-    // true=ok xanh · false=lỗi đỏ · 'pending'=vàng chờ · khác=xám
-    if (ok === true) el.style.color = '#4C8C5A';
-    else if (ok === false) el.style.color = '#C0392B';
-    else if (ok === 'pending') el.style.color = '#B45309';
-    else el.style.color = '#6B5B4C';
+    el.style.color = ok === true ? '#4C8C5A' : (ok === false ? '#C0392B' : '#6B5B4C');
   }
 
   async function syncFromGithub(opts){
@@ -6952,19 +6078,19 @@ function exportExcel() {
     const y = payload.year || currentYear;
     const m = payload.month || currentMonth;
     const path = 'data/roster-' + y + '-' + String(m).padStart(2,'0') + '.json';
-    setSyncStatus('⏳ Pending · đang đẩy ' + path + '…', 'pending');
+    setSyncStatus('Đang đẩy roster JSON…');
     const result = await putGithubFile(
       path,
       JSON.stringify(payload, null, 2),
       'Update roster ' + y + '-' + String(m).padStart(2,'0') + ' from web'
     );
-    setSyncStatus('⏳ Pending · GitHub đã nhận JSON, đang xác nhận…', 'pending');
+    setSyncStatus('✓ JSON ' + path + ' · ' + new Date().toLocaleTimeString('vi-VN'), true);
     return result;
   }
 
   /** Cập nhật RAW_SHIFTS + CUSTOM_SHIFTS_EMBED trong index.html trên GitHub */
   async function pushIndexHtmlToGithub(){
-    setSyncStatus('⏳ Pending · đang cập nhật index.html…', 'pending');
+    setSyncStatus('Đang cập nhật index.html trên GitHub…');
     const apiPath = '/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/index.html';
     const existing = await githubApi(apiPath);
     if (!existing || !existing.content) throw new Error('Không đọc được index.html trên GitHub');
@@ -6989,7 +6115,7 @@ function exportExcel() {
       html,
       'Update index.html roster (NV/ca) from web · ' + currentYear + '-' + String(currentMonth).padStart(2,'0')
     );
-    setSyncStatus('⏳ Pending · GitHub đã nhận index.html…', 'pending');
+    setSyncStatus('✓ index.html + JSON · ' + new Date().toLocaleTimeString('vi-VN'), true);
   }
 
 
@@ -7001,27 +6127,17 @@ function exportExcel() {
       if(!token) return;
     }
     try {
-      setSyncStatus('⏳ Pending · chuẩn bị đẩy lên GitHub…', 'pending');
-      if(typeof showToast==='function') showToast('Pending · đang đẩy lên GitHub…', 'info');
       saveRoster();
       const payload = buildRosterPayloadFromEMP();
       await pushRosterJsonToGithub(payload);
-      let indexOk = true;
       try {
         await pushIndexHtmlToGithub();
       } catch (htmlErr) {
-        indexOk = false;
         console.warn('push index.html', htmlErr);
-        if(typeof showToast==='function') showToast('JSON đã gửi, nhưng lỗi index.html: ' + String(htmlErr.message||htmlErr).slice(0,80), 'info');
+        if(typeof showToast==='function') showToast('JSON ok, nhưng lỗi cập nhật index.html: ' + String(htmlErr.message||htmlErr).slice(0,80), 'info');
+        // vẫn coi là thành công một phần nếu JSON đã đẩy
       }
-      // Chỉ báo xong sau khi API trả về — vẫn ghi nhận pending → done
-      const t = new Date().toLocaleTimeString('vi-VN');
-      if (indexOk) {
-        setSyncStatus('✓ Đã lên GitHub · JSON + index.html · ' + t, true);
-        if(typeof showToast==='function') showToast('GitHub đã nhận: roster JSON + index.html', 'success');
-      } else {
-        setSyncStatus('✓ JSON đã lên GitHub · index.html lỗi · ' + t, true);
-      }
+      if(typeof showToast==='function') showToast('Đã đẩy GitHub: roster JSON + index.html', 'success');
     } catch(err){
       console.warn(err);
       const msg = String(err.message||err);
@@ -8582,7 +7698,8 @@ html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
     let touched = 0;
     targets.forEach(([y,m])=>{
       try {
-        // Shell tháng sau: chỉ id/name/dept (không lưu 31 ca trống — tiết kiệm localStorage)
+        // Dù ROSTER_LOCAL_DISABLED: vẫn ghi shell tháng sau để đổi tháng không mất NV
+        // (đây là dữ liệu cấu trúc NV, không phải cache ca tạm)
         const raw = localStorage.getItem(storageKey(y, m));
         let data = null;
         try { data = raw ? JSON.parse(raw) : null; } catch(e){ data = null; }
@@ -8591,16 +7708,15 @@ html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
         if(existing && existing.length){
           const have = new Set(existing.map(e=>String(e.id||'').trim()+'|'+String(e.name||'').trim().toLowerCase()));
           let changed = false;
-          // Giữ ca đã có nếu từng lưu; không pad 31 ô trống
           const next = existing.map((e,i)=>({
             id:e.id, name:e.name, dept:e.dept||'DM',
-            shifts: Array.isArray(e.shifts) && e.shifts.some(s => s) ? e.shifts.slice(0, 31) : undefined,
+            shifts:(e.shifts||[]).slice(0,31).concat(Array(31).fill('')).slice(0,31),
             key: typeof e.key==='number'?e.key:i
           }));
           roster.forEach(r=>{
             const k = String(r.id||'').trim()+'|'+String(r.name||'').trim().toLowerCase();
             if(!have.has(k)){
-              next.push({ id:r.id, name:r.name, dept:r.dept, key:next.length });
+              next.push({ id:r.id, name:r.name, dept:r.dept, shifts:Array(31).fill(''), key:next.length });
               changed = true;
             }
           });
@@ -8614,9 +7730,8 @@ html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
             touched++;
           }
         } else {
-          // Chỉ danh sách NV — không mảng ca trống
           const employees = roster.map((r,i)=>({
-            id:r.id, name:r.name, dept:r.dept, key:i
+            id:r.id, name:r.name, dept:r.dept, shifts:Array(31).fill(''), key:i
           }));
           localStorage.setItem(storageKey(y,m), JSON.stringify({
             year:y, month:m, targetHours:208, savedAt:new Date().toISOString(), employees
@@ -8798,150 +7913,5 @@ html.dark #rosterRoot .m-empty { background: #22262F; border-color: #2A2E38; }
 })();
 </script>
 
-
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<style>
-#resultBody .c-flt{cursor:pointer;text-decoration:underline dotted}
-.wx-ov{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:14px}
-.wx-box{background:var(--card,#fff);color:var(--text,#222);border-radius:14px;max-width:760px;width:100%;max-height:92vh;overflow:auto;padding:16px}
-.wx-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:640px){.wx-grid{grid-template-columns:1fr}}
-.wx-c{border:1px solid var(--border,#ddd);border-radius:10px;padding:10px;font-size:.85rem;line-height:1.5}
-.wx-r{display:inline-block;padding:1px 8px;border-radius:9px;color:#fff;font-weight:700;font-size:.75rem}
-.wx-VFR{background:#059669}.wx-MVFR{background:#2563eb}.wx-IFR{background:#dc2626}.wx-LIFR{background:#a21caf}
-#wxMap{height:230px;border-radius:10px;margin-top:10px}
-</style>
-<script>
-/* ===== Thời tiết + theo dõi chuyến bay (Worker) ===== */
-const ICAO={PQC:'VVPQ',SGN:'VVTS',HAN:'VVNB',DAD:'VVDN',CXR:'VVCR',HPH:'VVCI',VII:'VVVH',VDO:'VVVD',HUI:'VVPB',UIH:'VVPC',VCA:'VVCT',DLI:'VVDL',BMV:'VVBM',PXU:'VVPK',TBB:'VVTH',VKG:'VVRG',CAH:'VVCM',VCL:'VVCL',THD:'VVTX',DIN:'VVDB',VDH:'VVDH',BKK:'VTBS',DMK:'VTBD',SIN:'WSSS',KUL:'WMKK',ICN:'RKSI',TPE:'RCTP',HKG:'VHHH',NRT:'RJAA',KIX:'RJBB',CGK:'WIII'};
-let wxT=[],wxMap=null;
-const wxBase=()=>{let u=(window.SUNPQ_WX||localStorage.getItem('sunpq_wx')||'').trim();
-  if(!u){u=(prompt('Dán địa chỉ Worker thời tiết (https://…workers.dev):')||'').trim().replace(/\/$/,''); if(u) localStorage.setItem('sunpq_wx',u);} return u.replace(/\/$/,'');};
-const wxEsc=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const hhmm=ms=>{const d=new Date(ms+7*36e5);return String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0');};
-function wxStop(){wxT.forEach(clearInterval);wxT=[];if(wxMap){wxMap.remove();wxMap=null;}}
-function wxCard(code,m,tafs,w0,w1){
-  if(!m) return `<div class="wx-c"><b>${code}</b><br>Chưa có METAR.</div>`;
-  const fc=(tafs||[]).flatMap(t=>t.fcsts||[]).filter(f=>f.timeFrom*1e3<w1&&f.timeTo*1e3>w0)
-   .map(f=>`${hhmm(f.timeFrom*1e3)}–${hhmm(f.timeTo*1e3)}: gió ${f.wdir||'VRB'}°/${f.wspd||0}kt${f.wgst?'G'+f.wgst:''} · tầm nhìn ${f.visib||'?'} ${f.wxString?'· <b>'+wxEsc(f.wxString)+'</b>':''}`).join('<br>');
-  return `<div class="wx-c"><b>${code}</b> <span class="wx-r wx-${m.fltCat||'VFR'}">${m.fltCat||'?'}</span><br>
-   Gió ${m.wdir||'VRB'}°/${m.wspd||0}kt${m.wgst?' G'+m.wgst:''} · Nhiệt độ ${m.temp}°C · QNH ${m.altim}<br>Tầm nhìn ${m.visib} · ${wxEsc(m.wxString||'không hiện tượng')}<br>
-   <small style="color:var(--muted,#888)">${wxEsc(m.rawOb)}</small>
-   <div style="margin-top:6px"><b>Dự báo trong giờ bay (giờ VN):</b><br>${fc||'<small>Không có TAF cho khung giờ này</small>'}</div></div>`;
-}
-async function openWx(tr){
-  const c=n=>(tr.querySelector('.'+n)||{}).textContent.trim();
-  const flt=c('c-flt'),reg=c('c-reg'),dep=c('c-dep').replace(/→.*/,'').slice(0,3),arr=c('c-arr'),std=+tr.dataset.utc;
-  const base=wxBase(); if(!base||!std) return;
-  wxStop();
-  const ov=document.createElement('div');ov.className='wx-ov';ov.innerHTML=`<div class="wx-box"><div style="display:flex;justify-content:space-between"><h3 style="margin:0">${wxEsc(flt)} · ${dep}→${arr}</h3><button class="btn" id="wxX">✕</button></div><div id="wxSt" style="margin:6px 0;font-size:.85rem"></div><div class="wx-grid" id="wxG">Đang tải…</div><div id="wxMapBox"></div></div>`;
-  document.body.appendChild(ov);
-  const close=()=>{wxStop();ov.remove();};ov.onclick=e=>{if(e.target===ov)close();};ov.querySelector('#wxX').onclick=close;
-  const ids=[ICAO[dep],ICAO[arr]].filter(Boolean), st=ov.querySelector('#wxSt');
-  let end=std+150*6e4, ended=false;                       // ước tính giờ hạ cánh, sẽ tinh chỉnh theo khoảng cách
-  async function loadWx(){
-    if(ended||!ids.length){ov.querySelector('#wxG').textContent=ids.length?'':'Chưa có mã ICAO cho '+dep+'/'+arr;return;}
-    try{const d=await (await fetch(`${base}/wx?icao=${ids.join(',')}`)).json();
-      const M=k=>(d.metar||[]).find(x=>x.icaoId===k), T=k=>(d.taf||[]).filter(x=>x.icaoId===k);
-      const a=M(ids[0]),b=M(ids[1]||ids[0]);
-      if(a&&b&&a.lat!=null){const R=Math.PI/180,dl=(b.lon-a.lon)*R,x=Math.acos(Math.min(1,Math.sin(a.lat*R)*Math.sin(b.lat*R)+Math.cos(a.lat*R)*Math.cos(b.lat*R)*Math.cos(dl)))*6371;end=std+(x/720*60+30)*6e4;}
-      ov.querySelector('#wxG').innerHTML=ids.map(k=>wxCard(k,M(k),T(k),std-36e5,end+36e5)).join('');
-    }catch(e){ov.querySelector('#wxG').textContent='Không tải được thời tiết: '+e.message;}
-  }
-  let flew=false,lastSeen=0,trail=[],mk=null;
-  async function loadPos(){
-    const now=Date.now();
-    if(ended) return;
-    if(now<std-30*6e4){st.textContent='⏳ Chưa đến giờ — bắt đầu theo dõi vị trí lúc '+hhmm(std-30*6e4)+' (giờ VN). Thời tiết vẫn cập nhật.';return;}
-    if(now>std+8*36e5){finish('Đã quá thời gian bay — ngừng theo dõi.');return;}
-    try{const p=await (await fetch(`${base}/pos?reg=${encodeURIComponent(reg)}`)).json();
-      if(p.found&&p.lat!=null){
-        lastSeen=now; const gnd=p.alt==='ground'||p.alt<200&&p.gs<60;
-        if(!gnd) flew=true;
-        if(flew&&gnd){finish('🛬 Máy bay đã hạ cánh — kết thúc theo dõi.');return;}
-        st.innerHTML=`✈️ <b>${gnd?'Trên mặt đất':'Đang bay'}</b> · độ cao ${p.alt==='ground'?'0':p.alt+' ft'} · tốc độ ${Math.round(p.gs||0)} kt · hướng ${Math.round(p.trk||0)}°`;
-        if(!wxMap){document.getElementById('wxMapBox').innerHTML='<div id="wxMap"></div>';wxMap=L.map('wxMap').setView([p.lat,p.lon],7);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(wxMap);}
-        trail.push([p.lat,p.lon]); if(mk) mk.setLatLng([p.lat,p.lon]); else mk=L.marker([p.lat,p.lon]).addTo(wxMap);
-        L.polyline(trail,{color:'#e30613'}).addTo(wxMap); wxMap.panTo([p.lat,p.lon]);
-      } else if(flew&&now-lastSeen>20*6e4){finish('Mất tín hiệu > 20 phút sau khi bay — coi như đã kết thúc.');}
-      else st.textContent='📡 Chưa thấy tín hiệu ADS-B của '+reg+' (có thể chưa cất cánh hoặc ngoài vùng phủ sóng).';
-    }catch(e){st.textContent='Lỗi lấy vị trí: '+e.message;}
-  }
-  function finish(msg){ended=true;st.textContent=msg;wxT.forEach(clearInterval);wxT=[];}
-  loadWx();loadPos();
-  wxT.push(setInterval(loadWx,5*6e4),setInterval(loadPos,15e3));   // thời tiết 5 phút, vị trí 15 giây
-}
-document.addEventListener('click',e=>{const td=e.target.closest('#resultBody .c-flt');if(td)openWx(td.closest('tr'));});
-</script>
-
-  <div class="brf-body" id="brfBody"><div class="brf-empty">Đang tải…</div></div>
-</div>
-
-
-<script>
-/* ================= Phát dữ liệu cho tab "Theo dõi Brief" (brf-monitor.html) ================= */
-const BRF_CH = (typeof BroadcastChannel!=='undefined') ? new BroadcastChannel('sunpq-brf') : null;
-let BRF_DEBUG={};
-function brfComputeGroups(){
-  // Dùng ĐÚNG cách xây chuỗi duty theo CP của trang (computeDutyChains) — mỗi
-  // thẻ là MỘT chuỗi của MỘT CP, đếm giờ brief theo chặng đầu (vd FLT 1206),
-  // nhưng vẫn liệt kê đủ các chặng tiếp nối (1225, 1224…). Tự đứng độc lập,
-  // không phụ thuộc trang Lọc chuyến bay có đang mở/đã tìm hay chưa.
-  BRF_DEBUG={ rawFlightsLen: (typeof rawFlights!=='undefined'?rawFlights.length:-1), hasFn: typeof computeDutyChains==='function', error:null, chainsFound:0, chainsWithFutureBrf:0, source:'' };
-  if(typeof rawFlights==='undefined'||!rawFlights.length) return [];
-  let chains=[];
-  // Ưu tiên dùng ĐÚNG kết quả đã tìm trên trang Lọc chuyến bay (lastResults) — đây là nguồn
-  // "chuẩn" admin đang tin tưởng (vd xuất ra bảng Chụp). Chỉ khi chưa tìm lần nào (lastResults
-  // rỗng) mới tự tính lại trực tiếp từ rawFlights để tránh màn hình trống hoàn toàn.
-  try{
-    if(typeof lastResults!=='undefined' && lastResults && lastResults.length){
-      chains=lastResults; BRF_DEBUG.source='lastResults (đã tìm trên trang Lọc chuyến bay)';
-    } else if(typeof computeDutyChains==='function'){
-      chains=computeDutyChains('CP').results||[]; BRF_DEBUG.source='computeDutyChains (tự tính, CHƯA tìm trên trang Lọc chuyến bay)';
-    }
-  }catch(e){ BRF_DEBUG.error=(e && e.message)||String(e); console.error('[BRF monitor] lỗi lấy chuỗi duty:',e); return []; }
-  BRF_DEBUG.chainsFound=chains.length;
-  const pibByKey=new Map();
-  try{ (pibFlights||[]).forEach(f=>{ if(f.stdDt) pibByKey.set(f.flt+'|'+f.stdDt.getTime(), f); }); }catch(e){}
-  const groups=chains.map(r=>{
-    const first=r.seq[0]; if(!first||!first.stdDt) return null;
-    // Dùng ĐÚNG toLocal()+formatTime() có sẵn (giống hệt getDutyIndexMap() — chỗ đang
-    // chạy đúng) thay vì tự cộng/trừ giờ thủ công, để không lệch múi giờ như trước.
-    const localStd=toLocal(first.stdDt).dt; if(!localStd) return null;
-    const brfDt=new Date(localStd.getTime()-brfOffsetMinFor(first.arr)*60000);
-    const brfMs=brfDt.getTime();
-    const brfDisplay=formatTime(brfDt);
-    return { brfMs, brfDisplay, cp:r.cp||'', cpId:r.cpId||'',
-      flights: r.seq.map(f=>{
-        const key=f.flt+'|'+(f.stdDt?f.stdDt.getTime():'');
-        const pf=pibByKey.get(key);
-        const fLocal=f.stdDt?toLocal(f.stdDt):null;
-        return { flt:f.flt, dep:f.dep, arr:f.arr,
-          localTime: pf?pf.localTime:(fLocal?fLocal.timeStr:''),
-          ofp: pf?pf.ofp===true:false, gd: pf?pf.gd===true:false,
-          folderPath: pf?(pf.folderPath||''):(fLocal?spFolderPath(fLocal.dt,f.flt):''),
-          ngay: pf&&pf.ngayVN ? formatDate(pf.ngayVN) : (fLocal?formatDate(fLocal.dt):''),
-          cp:r.cp||'', cpId:r.cpId||'' };
-      }) };
-  }).filter(Boolean).sort((a,b)=>a.brfMs-b.brfMs);
-    BRF_DEBUG.chainsWithFutureBrf=groups.length;
-  BRF_DEBUG.nowMs=Date.now();
-  BRF_DEBUG.samples=groups.slice(0,6).map(g=>{
-    const diffMin=Math.round((g.brfMs-Date.now())/60000);
-    return { cp:g.cp, flt:(g.flights[0]||{}).flt, brfVnTime:g.brfDisplay, diffMin };
-  });
-    groups.forEach((g,i)=>g.duty=i+1);
-  return groups;
-}
-function brfPublish(){
-  let groups=[]; try{ groups=brfComputeGroups(); }catch(e){ return; }
-  const payload={ groups, ts:Date.now(), debug:BRF_DEBUG };
-  try{ localStorage.setItem('sunpq_brf_groups', JSON.stringify(payload)); }catch(e){}
-  if(BRF_CH) try{ BRF_CH.postMessage(payload); }catch(e){}
-}
-function openBrfMonitor(){ brfPublish(); window.open('brf-monitor.html','_blank'); }
-setInterval(brfPublish, 10000);
-(function(){ const i=setInterval(()=>{ if(typeof pibFlights!=='undefined'){ brfPublish(); } }, 3000); setTimeout(()=>clearInterval(i), 30000); })();
-</script>
-<button id="brfOpenBtn" type="button" onclick="openBrfMonitor()">🖥️ Mở tab theo dõi Brief</button></body>
+</body>
 </html>
