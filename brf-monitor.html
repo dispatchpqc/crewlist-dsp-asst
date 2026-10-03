@@ -236,6 +236,12 @@ function emptyStateHtml(){
   if(d && d.rawFlightsLen===0) return '<div class="empty"><h2>Chưa có crewlist nào được tải</h2><p>Ở tab chính, vào <b>Check PIB &amp; MET</b> (hoặc Lọc chuyến bay) và tải crewlist lên trước.</p></div>';
   if(d && d.chainsFound===0 && d.rawFlightsLen>0) return `<div class="empty"><h2>Không tìm thấy chuỗi duty nào</h2><p>Đã có ${d.rawFlightsLen} chuyến trong crewlist, nhưng không chuỗi nào bắt đầu từ PQC với CP+/FO hợp lệ.<br>Kiểm tra lại file crewlist đã tải ở tab chính.</p></div>`;
   if(d && d.chainsFound>0 && d.chainsWithFutureBrf===0) return `<div class="empty"><h2>Mọi chuỗi duty đã qua giờ Brief</h2><p>Tìm thấy ${d.chainsFound} chuỗi duty, nhưng tất cả đều đã qua giờ brief so với thời điểm hiện tại.</p></div>`;
+  if(d && d.samples && d.samples.length){
+    const rows=d.samples.map(x=>`<tr><td style="padding:3px 10px;text-align:left">${esc(x.cp||'')}</td><td style="padding:3px 10px">FLT ${esc(x.flt||'')}</td><td style="padding:3px 10px">BRF ${esc(x.brfVnTime)}</td><td style="padding:3px 10px;font-weight:800;color:${x.diffMin<-20||x.diffMin>360?'#fca5a5':'#34d399'}">${x.diffMin>=0?'còn':'đã qua'} ${Math.abs(x.diffMin)} phút</td></tr>`).join('');
+    return `<div class="empty"><h2>Có ${d.chainsFound} chuỗi, nhưng không cái nào lọt khung 6 giờ</h2>
+      <p style="margin-bottom:10px">Trang chỉ hiện duty có BRF từ -20 phút đến +6 giờ so với giờ hiện tại. Dưới đây là các chuỗi gần nhất để đối chiếu:</p>
+      <table style="margin:0 auto;font-size:.82rem;border-collapse:collapse">${rows}</table></div>`;
+  }
   return '<div class="empty"><h2>Không có duty nào sắp Brief</h2><p>Trong 6 giờ tới chưa có chuyến nào cần chuẩn bị 🎉</p></div>';
 }
 function render(onlyCountdown){

@@ -8874,7 +8874,7 @@ async function openWx(tr){
 document.addEventListener('click',e=>{const td=e.target.closest('#resultBody .c-flt');if(td)openWx(td.closest('tr'));});
 </script>
 
-  
+  <div class="brf-body" id="brfBody"><div class="brf-empty">Đang tải…</div></div>
 </div>
 
 
@@ -8912,6 +8912,13 @@ function brfComputeGroups(){
       }) };
   }).filter(Boolean).sort((a,b)=>a.brfMs-b.brfMs);
   BRF_DEBUG.chainsWithFutureBrf=groups.length;
+  BRF_DEBUG.nowMs=Date.now();
+  BRF_DEBUG.samples=groups.slice(0,6).map(g=>{
+    const d=new Date(g.brfMs+7*3600000);
+    const hh=String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0');
+    const diffMin=Math.round((g.brfMs-Date.now())/60000);
+    return { cp:g.cp, flt:(g.flights[0]||{}).flt, brfVnTime:hh, diffMin };
+  });
   groups.forEach((g,i)=>g.duty=i+1);
   return groups;
 }
