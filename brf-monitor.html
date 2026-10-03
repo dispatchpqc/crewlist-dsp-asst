@@ -203,8 +203,9 @@ function cardInner(g, now, big){
   const flts=g.flights.map(f=>`<div class="${big?'zflt-row':'flt-row'}"><span class="flt-main">FLT ${esc(f.flt)}<span class="${big?'zflt-route':'flt-route'}">${esc(f.dep||'')}→${esc(f.arr||'')} · ${esc(f.localTime||'')}${f.cp?' · '+esc(f.cp):''}</span></span>
     <span><span class="pill ${f.ofp?'ok':'missing'}">OFP</span><span class="pill ${f.gd?'ok':'missing'}">GD</span></span></div>`).join('');
   const hasAny=g.flights.some(f=>f.ofp||f.gd);
-  const brfLocal=new Date(g.brfMs+7*3600e3);
-  const brfStr=String(brfLocal.getUTCHours()).padStart(2,'0')+':'+String(brfLocal.getUTCMinutes()).padStart(2,'0');
+  // brfMs giờ đã được tab chính tính đúng theo giờ VN (toLocal+formatTime) — dùng thẳng
+  // g.brfDisplay thay vì tự cộng giờ lại ở đây, tránh cộng nhầm hai lần.
+  const brfStr = g.brfDisplay || '';
   const cpLabel=groupCpLabel(g);
   if(big){
     return {lv, html:`<button class="zclose" onclick="closeZoom()">✕</button>

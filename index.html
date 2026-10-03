@@ -8905,29 +8905,32 @@ function brfComputeGroups(){
   try{ (pibFlights||[]).forEach(f=>{ if(f.stdDt) pibByKey.set(f.flt+'|'+f.stdDt.getTime(), f); }); }catch(e){}
   const groups=chains.map(r=>{
     const first=r.seq[0]; if(!first||!first.stdDt) return null;
-    const brfMs=first.stdDt.getTime()-brfOffsetMinFor(first.arr)*60000;
-    return { brfMs, cp:r.cp||'', cpId:r.cpId||'',
+    // Dùng ĐÚNG toLocal()+formatTime() có sẵn (giống hệt getDutyIndexMap() — chỗ đang
+    // chạy đúng) thay vì tự cộng/trừ giờ thủ công, để không lệch múi giờ như trước.
+    const localStd=toLocal(first.stdDt).dt; if(!localStd) return null;
+    const brfDt=new Date(localStd.getTime()-brfOffsetMinFor(first.arr)*60000);
+    const brfMs=brfDt.getTime();
+    const brfDisplay=formatTime(brfDt);
+    return { brfMs, brfDisplay, cp:r.cp||'', cpId:r.cpId||'',
       flights: r.seq.map(f=>{
         const key=f.flt+'|'+(f.stdDt?f.stdDt.getTime():'');
         const pf=pibByKey.get(key);
-        const ngayVnDate = f.stdDt ? new Date(f.stdDt.getTime()+7*3600000) : null;
+        const fLocal=f.stdDt?toLocal(f.stdDt):null;
         return { flt:f.flt, dep:f.dep, arr:f.arr,
-          localTime: pf?pf.localTime:(ngayVnDate?formatTime(ngayVnDate):''),
+          localTime: pf?pf.localTime:(fLocal?fLocal.timeStr:''),
           ofp: pf?pf.ofp===true:false, gd: pf?pf.gd===true:false,
-          folderPath: pf?(pf.folderPath||''):(ngayVnDate?spFolderPath(ngayVnDate,f.flt):''),
-          ngay: pf&&pf.ngayVN ? formatDate(pf.ngayVN) : (ngayVnDate?formatDate(ngayVnDate):''),
+          folderPath: pf?(pf.folderPath||''):(fLocal?spFolderPath(fLocal.dt,f.flt):''),
+          ngay: pf&&pf.ngayVN ? formatDate(pf.ngayVN) : (fLocal?formatDate(fLocal.dt):''),
           cp:r.cp||'', cpId:r.cpId||'' };
       }) };
   }).filter(Boolean).sort((a,b)=>a.brfMs-b.brfMs);
-  BRF_DEBUG.chainsWithFutureBrf=groups.length;
+    BRF_DEBUG.chainsWithFutureBrf=groups.length;
   BRF_DEBUG.nowMs=Date.now();
   BRF_DEBUG.samples=groups.slice(0,6).map(g=>{
-    const d=new Date(g.brfMs+7*3600000);
-    const hh=String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0');
     const diffMin=Math.round((g.brfMs-Date.now())/60000);
-    return { cp:g.cp, flt:(g.flights[0]||{}).flt, brfVnTime:hh, diffMin };
+    return { cp:g.cp, flt:(g.flights[0]||{}).flt, brfVnTime:g.brfDisplay, diffMin };
   });
-  groups.forEach((g,i)=>g.duty=i+1);
+    groups.forEach((g,i)=>g.duty=i+1);
   return groups;
 }
 function brfPublish(){
