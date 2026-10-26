@@ -370,6 +370,24 @@
       padding-bottom: 6px;
     }
     .first-of-duty { color: var(--red); font-weight: 700; }
+    /* ===== Giao diện lọc chuyến: chọn station + bảng gọn hơn ===== */
+    .stn-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0 4px}
+    .stn-label{font-size:.78rem;font-weight:700;color:var(--muted);letter-spacing:.02em}
+    .stn-chips{display:flex;gap:8px;flex-wrap:wrap}
+    .stn-chip{display:inline-flex;align-items:baseline;gap:6px;font:inherit;font-size:.9rem;font-weight:800;padding:7px 14px;border-radius:999px;border:1.5px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;transition:background .15s,border-color .15s,color .15s,transform .1s}
+    .stn-chip small{font-size:.7rem;font-weight:600;color:var(--muted)}
+    .stn-chip:hover{border-color:var(--red)}
+    .stn-chip:active{transform:scale(.97)}
+    .stn-chip.active{background:var(--red);border-color:var(--red);color:#fff}
+    .stn-chip.active small{color:rgba(255,255,255,.8)}
+    #page-filter #resultTable{border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums}
+    #page-filter #resultTable thead th{background:var(--red);background-image:none;color:#fff;font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;padding:12px 14px}
+    #page-filter #resultTable thead th:first-child{border-top-left-radius:10px}
+    #page-filter #resultTable thead th:last-child{border-top-right-radius:10px}
+    #page-filter #resultTable tr.group-header td{background:var(--gold-soft);background-image:none;border-bottom:1px solid var(--border);border-left:4px solid var(--red);padding:12px 14px;font-size:.88rem;color:var(--text)}
+    #page-filter #resultTable tr.flight-row td{padding:11px 14px;border-bottom:1px solid var(--border)}
+    #page-filter #resultTable tr.flight-row:hover td{background:var(--hover)}
+
     .sep-row td { border: none; height: 4px; background: transparent; }
     .toolbar {
       display: flex;
@@ -1428,7 +1446,7 @@
   <!-- MAIN -->
   <div class="main">
     <div class="topbar">
-      <h2 id="pageTitle"><span>Lọc chuyến bay</span> · PQC Duty Sequences</h2>
+      <h2 id="pageTitle"><span>Lọc chuyến bay</span> · Duty Sequences</h2>
       <div class="topbar-user">
         <div class="session-badge" id="sessionBadge">
           <span>👤</span>
@@ -1450,6 +1468,7 @@
             <button type="button" class="mode-btn active" id="modeBtnCP" data-mode="CP">Lọc theo CP+</button>
             <button type="button" class="mode-btn" id="modeBtnCM" data-mode="CM">Lọc theo CM</button>
           </div>
+          <div class="stn-bar" id="stnBar" style="display:none;"><span class="stn-label">Station xuất phát</span><div class="stn-chips" id="stnChips"></div></div>
           <div class="upload-area" id="dropZone">
             <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
             <p style="font-size:1.05rem; margin-bottom:6px; font-weight:700;">📂 Chọn file CREWLIST</p>
@@ -1781,7 +1800,7 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
           const preferPage = document.getElementById('page-filter');
           if (preferPage) preferPage.classList.add('active');
           const title = document.getElementById('pageTitle');
-          if (title) title.innerHTML = '<span>Lọc chuyến bay</span> · PQC Duty Sequences';
+          if (title) title.innerHTML = '<span>Lọc chuyến bay</span> · Duty Sequences';
         }
       }
 
@@ -1920,7 +1939,7 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
 
     /* ========== NAVIGATION ========== */
     const pageTitles = {
-      filter: '<span>Lọc chuyến bay</span> · PQC Duty Sequences',
+      filter: '<span>Lọc chuyến bay</span> · Duty Sequences',
       print: '<span>Check Route</span>',
       ofp: '<span>In OFP &amp; GD</span>',
       pib: '<span>Check PIB &amp; MET</span>',
@@ -2695,6 +2714,31 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       }
     });
 
+    let filterStation = 'PQC';
+    /** Dựng nút chọn station từ các điểm đi có trong file (SGN, HAN, PQC lên đầu) */
+    function buildStationChips() {
+      const bar = document.getElementById('stnBar'), box = document.getElementById('stnChips');
+      if (!bar || !box) return;
+      const cnt = {};
+      rawFlights.forEach(f => { if (f.dep) cnt[f.dep] = (cnt[f.dep] || 0) + 1; });
+      const pri = ['SGN', 'HAN', 'PQC'];
+      const list = pri.filter(c => cnt[c]).concat(Object.keys(cnt).filter(c => !pri.includes(c)).sort((a, b) => cnt[b] - cnt[a]).slice(0, 6));
+      if (!list.length) { bar.style.display = 'none'; return; }
+      if (!cnt[filterStation]) filterStation = cnt.PQC ? 'PQC' : list[0];
+      bar.style.display = '';
+      box.innerHTML = list.map(c => '<button type="button" class="stn-chip' + (c === filterStation ? ' active' : '') + '" data-stn="' + c + '">' + c + '<small>' + cnt[c] + '</small></button>').join('');
+    }
+    document.getElementById('stnChips').addEventListener('click', ev => {
+      const b = ev.target.closest('.stn-chip');
+      if (!b || b.dataset.stn === filterStation) return;
+      filterStation = b.dataset.stn;
+      const card = document.getElementById('resultCard');
+      card.classList.remove('switching'); void card.offsetWidth; card.classList.add('switching');
+      buildStationChips();
+      setTimeout(() => processData(filterMode), 170);
+      showToast('Lọc theo station ' + filterStation, 'info');
+    });
+
     let filterMode = 'CP'; // 'CP' = lọc theo CP+ (cơ trưởng), 'CM' = lọc theo CM (tiếp viên trưởng)
 
     function setFilterMode(mode) {
@@ -2782,8 +2826,9 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
     /** Tính các chuỗi duty bắt đầu từ PQC (CP+/FO hoặc CM) — hàm THUẦN, không đụng DOM/lastResults.
      * Dùng lại nguyên logic của processData() để trang theo dõi Brief luôn ra đúng kết quả
      * như bảng Lọc chuyến bay, mà không phụ thuộc trạng thái tìm kiếm hiện tại trên trang đó. */
-    function computeDutyChains(mode) {
+    function computeDutyChains(mode, station) {
       mode = mode || filterMode;
+      station = station || 'PQC'; // trang Theo dõi Brief gọi không tham số → luôn PQC
       const idField = mode === 'CM' ? 'cmId' : 'cpPlusId';
       const nameField = mode === 'CM' ? 'cmName' : 'cpPlusName';
       const roleLabel = mode === 'CM' ? 'CM/CA/BA' : 'CP+/FO';
@@ -2804,9 +2849,9 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       const results = [];
       let pqcTotal = 0, excluded = 0;
       // PQC + có ít nhất 1 thành viên liên quan (CM/CA/BA hoặc CP+/FO), kể cả DHC
-      const pqcFlights = rawFlights.filter(f => f.dep === 'PQC' && getRelevantMembers(f, mode).length);
+      const pqcFlights = rawFlights.filter(f => f.dep === station && getRelevantMembers(f, mode).length);
 
-      const depPqcCount = rawFlights.filter(f => f.dep === 'PQC').length;
+      const depPqcCount = rawFlights.filter(f => f.dep === station).length;
       const roleCount = pqcFlights.length;
       const uniqueDeps = [...new Set(rawFlights.map(f => f.dep))];
       console.log('[Chẩn đoán lọc PQC · ' + roleLabel + ']', {
@@ -2878,6 +2923,9 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
           while (j < flist.length) {
             const curr = flist[j], prevf = flist[j - 1];
             if (prevf.staDt && curr.stdDt && (curr.stdDt - prevf.staDt > REST)) break;
+            // Người dẫn chuỗi chuyển sang DHC (đi nhờ) ở chặng này → hết duty, chuỗi kết thúc trước chặng đó
+            const leadMember = getRelevantMembers(curr, mode).find(m => String(m.id) === String(cid));
+            if (leadMember && leadMember.dhc) break;
             seq.push(curr);
             const currRel = getRelevantMembers(curr, mode).filter(m => !m.dhc);
             const currStarters = currRel.filter(m => staffStartsAtFlight(m.id, curr, byStaff, REST));
@@ -2912,7 +2960,8 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
     function processData(mode, opts) {
       mode = mode || filterMode;
       const silent = !!(opts && opts.silent);
-      const { results, roleLabel } = computeDutyChains(mode);
+      buildStationChips();
+      const { results, roleLabel } = computeDutyChains(mode, filterStation);
 
       lastResults = results;
       lastRoleLabel = roleLabel;
@@ -2921,9 +2970,9 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       tbody.innerHTML = '';
       if (results.length === 0) {
         const d = window.__lastDiagnostic || {};
-        let hint = 'Không tìm thấy chuỗi duty nào bắt đầu từ PQC thỏa điều kiện (' + roleLabel + ').';
+        let hint = 'Không tìm thấy chuỗi duty nào bắt đầu từ ' + filterStation + ' thỏa điều kiện (' + roleLabel + ').';
         if (d.total) {
-          hint += ` (Chẩn đoán: ${d.depPqcCount || 0}/${d.total} chuyến có DEP=PQC · ${d.roleCount || 0}/${d.total} chuyến nhận diện được ${roleLabel}`;
+          hint += ` (Chẩn đoán: ${d.depPqcCount || 0}/${d.total} chuyến có DEP=${filterStation} · ${d.roleCount || 0}/${d.total} chuyến nhận diện được ${roleLabel}`;
           if (d.uniqueDeps) hint += ` · Các mã DEP tìm thấy: ${d.uniqueDeps.slice(0, 8).join(', ')}`;
           hint += '. Mở Console (F12) xem chi tiết "vaiChuyenMauDEP" để biết dòng crew thực tế.)';
         }
@@ -2943,7 +2992,7 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
           const hr = document.createElement('tr');
           hr.className = 'group-header';
           {
-            const ghText = '✈ ' + (r.cp || '') + (r.cpId ? ' (' + r.cpId + ')' : '') + ' · ' + roleLabel + ' · ' + r.seq.length + ' chuyến · bắt đầu PQC FLT ' + (r.seq[0] && r.seq[0].flt ? r.seq[0].flt : '');
+            const ghText = '✈ ' + (r.cp || '') + (r.cpId ? ' (' + r.cpId + ')' : '') + ' · ' + roleLabel + ' · ' + r.seq.length + ' chuyến · bắt đầu ' + filterStation + ' FLT ' + (r.seq[0] && r.seq[0].flt ? r.seq[0].flt : '');
             // Chỉ nhân đôi nội dung khi mobile (marquee); desktop hiện 1 lần, không lặp
             const isMobileView = typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 680px)').matches;
             const needScroll = isMobileView && ghText.length > 36;
@@ -3133,7 +3182,7 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
       lastResults.forEach(r => {
         // Group header
         html += '<tr><td colspan="8" style="background:#FFF6E5;color:#E30613;font-weight:700;padding:12px;border-bottom:2px solid #F5A623;">✈ '
-          + r.cp + ' (' + r.cpId + ') · ' + lastRoleLabel + ' · ' + r.seq.length + ' chuyến · bắt đầu PQC FLT ' + r.seq[0].flt + '</td></tr>';
+          + r.cp + ' (' + r.cpId + ') · ' + lastRoleLabel + ' · ' + r.seq.length + ' chuyến · bắt đầu ' + filterStation + ' FLT ' + r.seq[0].flt + '</td></tr>';
 
         r.seq.forEach((f, idx) => {
           const local = toLocal(f.stdDt);
@@ -3169,7 +3218,7 @@ CODE/88820F PER/C RMK/TCAS EQUIPPED)"></textarea>
           logging: false
         });
         const link = document.createElement('a');
-        link.download = 'PQC_Duty_Sequences_' + new Date().toISOString().slice(0,10) + '.png';
+        link.download = filterStation + '_Duty_Sequences_' + new Date().toISOString().slice(0,10) + '.png';
         link.href = canvas.toDataURL('image/png');
         link.click();
       } catch (err) {
@@ -3210,8 +3259,8 @@ function exportExcel() {
       }
       const ws = XLSX.utils.aoa_to_sheet(aoa);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'PQC Duty Sequences');
-      XLSX.writeFile(wb, 'PQC_Duty_Sequences.xlsx');
+      XLSX.utils.book_append_sheet(wb, ws, filterStation + ' Duty Sequences');
+      XLSX.writeFile(wb, filterStation + '_Duty_Sequences.xlsx');
     }
 
     /* ========== CHECK PIB & MET ========== */
