@@ -3029,14 +3029,14 @@ function offAutoPlan(){
     });
   }
   const ids=people.map(empKey);
-  // Sau E: được E tiếp; KHÔNG được C9/M/HC ngày hôm sau
+  // Sau E: được E tiếp; KHÔNG C9/M/HC ngày hôm sau
   const afterE=(id,i)=> i>0 && out[id][i-1]==='E';
   const freeDay=(id,i)=> !fixed[id][i] && out[id][i]==='';
-  // Ngày có người đăng ký OFF → chỉ 1 C9
   const hasOffReg=(i)=> ids.some(id=>fixed[id][i]==='OFF');
-  const byNeed=(a,b)=> (st[a].h-st[b].h) || ((st[a].c.E||0)-(st[b].c.E||0)) || (ids.indexOf(a)-ids.indexOf(b));
+  const dayWorkers=(i)=> ids.filter(id=>isWork(out[id][i]));
+  const byNeed=(a,b)=> (st[a].h-st[b].h) || ((st[a].c.E||0)-(st[b].c.E||0)) || ((st[a].c.C9||0)-(st[b].c.C9||0)) || (ids.indexOf(a)-ids.indexOf(b));
 
-  // —— Pass 1: từng ngày C9 (+ E nếu không có off) ——
+  // —— Pass 1: từng ngày — đúng 1 C9; nếu không off thì +1 E (tối đa 2 người) ——
   for(let i=0;i<D;i++){
     const onlyC9 = hasOffReg(i);
 
@@ -3053,8 +3053,8 @@ function offAutoPlan(){
       warns.push('Ngày '+DAYS[i][0]+'/'+DAYS[i][2]+': thiếu C9.');
     }
 
-    // Ngày không off: xếp E cho người thiếu giờ nhất (có thể E liên tiếp)
-    if(!onlyC9){
+    // E: tối đa 1, chỉ ngày không off, ưu tiên người thiếu giờ nhất
+    if(!onlyC9 && dayWorkers(i).length < 2){
       const eCand=ids.filter(id=>freeDay(id,i) && st[id].h+12<=targetH && st[id].consec<6);
       if(eCand.length){
         eCand.sort(byNeed);
@@ -3067,21 +3067,28 @@ function offAutoPlan(){
     }
   }
 
-  // —— Pass 2: bù E cho người còn thiếu ≥12h trên ngày trống (không có off, chưa có ca) ——
-  // Lặp đến khi không thêm được nữa hoặc ai cũng gần đủ
+  // —— Pass 2: bù E cho người còn thiếu — rải đều cả tháng, tối đa 2 người/ngày ——
+  // Duyệt ngày theo thứ tự xen kẽ để không gom E đầu tháng
+  const dayOrder=[];
+  for(let k=0;k<D;k++) dayOrder.push(k);
+  // xen kẽ: 0, D/2, 1, D/2+1, ...
+  dayOrder.sort((a,b)=>{
+    const aa=Math.min(a, D-1-a), bb=Math.min(b, D-1-b);
+    return aa-bb || a-b;
+  });
+
   let guard=0;
-  while(guard++<D*n){
-    let added=false;
-    // Người thiếu nhiều nhất trước
+  while(guard++ < D*n){
     const short=ids.filter(id=>st[id].h+12<=targetH).sort(byNeed);
     if(!short.length) break;
+    let added=false;
     for(const id of short){
       if(st[id].h+12>targetH) continue;
-      for(let i=0;i<D;i++){
-        if(hasOffReg(i)) continue; // ngày off chỉ 1 C9
+      for(const i of dayOrder){
+        if(hasOffReg(i)) continue;          // ngày off: chỉ 1 C9
+        if(dayWorkers(i).length >= 2) continue; // tối đa 2 người
         if(!freeDay(id,i)) continue;
         if(st[id].consec>=6) continue;
-        // OK: E sau E được; không ảnh hưởng C9 đã xếp
         put(id,i,'E');
         added=true;
         break;
@@ -3091,9 +3098,10 @@ function offAutoPlan(){
     if(!added) break;
   }
 
-  // —— Pass 3: HC bù thiếu <12h (không sau E, không ngày off-only) ——
+  // —— Pass 3: HC bù <12h — không sau E, không vượt 2 người/ngày, không ngày off ——
   for(let i=0;i<D;i++){
     if(hasOffReg(i)) continue;
+    if(dayWorkers(i).length >= 2) continue;
     const hcCand=ids.filter(id=>{
       if(!freeDay(id,i)) return false;
       if(afterE(id,i)) return false;
@@ -3103,7 +3111,6 @@ function offAutoPlan(){
     if(hcCand.length) put(hcCand[0],i,'HC');
   }
 
-  // NL còn thiếu
   for(let i=0;i<D;i++){
     if(!hol.has(i)) continue;
     ids.forEach(id=>{ if(out[id][i]==='' && !fixed[id][i]) put(id,i,'NL'); });
@@ -3119,6 +3126,7 @@ function offAutoPlan(){
   });
   return {shifts:out,stats,warns};
 }
+
 
 
 
@@ -3230,7 +3238,7 @@ function renderOff(){
    +'<span class="off-save '+(offLoading?'':offSaveState)+'">'+saveTxt+'</span></div></div>'
    +'<div class="off-note '+(offMsg?offMsg.type:'hint')+'" role="status" aria-live="polite">'+(offMove?'Đang đổi ngày '+offLbl(offMove.date)+' — bấm vào ngày mới (bấm lại ngày cũ để thôi). ':'')+(offMsg?offMsg.msg:(offMove?'':'Bấm vào một ngày để đăng ký, bấm lại ngày của bạn để hủy. Số thứ tự trên tên là thứ tự đăng ký. Có thể đăng ký trước cho tháng sau.'))+'</div>'
    +'<div class="off-main"><section class="off-cal"><div class="oc-head">'+['T2','T3','T4','T5','T6','T7','CN'].map(x=>'<span>'+x+'</span>').join('')+'</div><div class="oc-grid">'+cells+'</div></section>'
-   +'<aside class="off-side"><h3>Đăng ký của bạn</h3><ul class="mine">'+mineHtml+'</ul><h3>Quy tắc xếp lịch</h3><ul class="rules"><li><b>Sau ca E:</b> được <b>E liên tiếp</b>, nhưng <b>không</b> xếp C9/M/HC ngày hôm sau (trừ khi bắt buộc để có C9)</li><li><b>B1:</b> mỗi ngày đúng <b>1 C9</b> — chia đều; <b>ngày có người đăng ký off chỉ cần 1 C9</b> (không thêm E/HC)</li><li><b>B2:</b> xếp <b>E</b> khi thiếu ≥12h; dừng khi đạt giờ công kế hoạch (<b>'+TARGET_HOURS+'h</b>)</li><li><b>B3:</b> <b>HC</b> chỉ bù khi thiếu &lt;12h</li><li>Off/SN giữ nguyên · lễ trống = NL</li></ul></aside></div>'+plan;
+   +'<aside class="off-side"><h3>Đăng ký của bạn</h3><ul class="mine">'+mineHtml+'</ul><h3>Quy tắc xếp lịch</h3><ul class="rules"><li><b>Sau ca E:</b> được <b>E liên tiếp</b>, nhưng <b>không</b> xếp C9/M/HC ngày hôm sau (trừ khi bắt buộc để có C9)</li><li><b>B1:</b> mỗi ngày đúng <b>1 C9</b> — chia đều; <b>ngày có off chỉ 1 C9</b> · <b>tối đa 2 người/ngày</b> (C9+E) · rải đều E</li><li><b>B2:</b> xếp <b>E</b> khi thiếu ≥12h; dừng khi đạt giờ công kế hoạch (<b>'+TARGET_HOURS+'h</b>)</li><li><b>B3:</b> <b>HC</b> chỉ bù khi thiếu &lt;12h</li><li>Off/SN giữ nguyên · lễ trống = NL</li></ul></aside></div>'+plan;
 }
 (function(){
   const box=document.getElementById('offView');
