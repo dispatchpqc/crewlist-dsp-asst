@@ -872,6 +872,13 @@ body{background:#FBF8F2}
 .op-grid .pv{height:26px;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;border-radius:7px;min-width:0;padding:0;border:0}
 .op-grid .pv.h,.op-grid .pv.nm{background:transparent}
 .op-grid .pv.h{height:20px;color:var(--ink-soft);font-weight:700}.op-grid .pv.h.sun{color:var(--red)}
+.op-grid .pv.h.offday{color:#9B1C1C;background:rgba(220,38,38,.12);border-radius:6px;box-shadow:inset 0 0 0 1px rgba(185,28,28,.35)}
+.op-grid .pv.ed.offday{box-shadow:inset 0 0 0 1.5px rgba(185,28,28,.45)}
+.op-grid .pv.ed.offday.empty-off{background:rgba(220,38,38,.08);color:var(--ink-soft)}
+.op-legend{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:11.5px;color:var(--ink-soft);margin:6px 0 2px}
+.op-legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:middle;margin-right:4px}
+.op-legend .lg-off{background:rgba(220,38,38,.18);box-shadow:inset 0 0 0 1px rgba(185,28,28,.4)}
+
 .op-grid .pv.nm{justify-content:flex-start;font-size:12px;font-weight:700;color:var(--ink)}
 .op-grid .pv.ed{cursor:pointer;position:relative;transition:box-shadow .12s,transform .12s}
 .op-grid .pv.ed:hover{box-shadow:inset 0 0 0 1.5px var(--gold-deep);transform:scale(1.06);z-index:2}
@@ -887,6 +894,39 @@ body{background:#FBF8F2}
 .off-refresh{font:inherit;font-size:12px;font-weight:700;padding:7px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}.off-refresh:hover{border-color:var(--ink)}
 .hrs small{font-weight:600;color:var(--ink-soft);font-size:11px}
 .op-stat .hrs{min-width:86px}
+.op-info{list-style:none;margin:8px 0;padding:0}.op-info li{font-size:12px;color:var(--ink-soft);padding:3px 0}
+
+/* ===== Tạo lịch tự động: bảng xem trước gọn hơn ===== */
+.off-auto.ap{padding:16px 16px 14px}
+.ap .off-autohead{align-items:flex-start;margin-bottom:12px}
+.ap-actions{display:flex;gap:8px;flex-wrap:wrap}
+.ap-key{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-soft);margin:0 0 10px}
+.ap-key span{display:inline-flex;align-items:center;gap:6px}
+.ap-key i{font-style:normal;font-size:10px;font-weight:800;min-width:26px;height:20px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
+.ap-key i.k-off{background:repeating-linear-gradient(135deg,rgba(185,28,28,.16) 0 2px,transparent 2px 6px);color:#9B1C1C;box-shadow:inset 0 0 0 1px rgba(185,28,28,.35)}
+.ap-key .ap-hint{margin-left:auto}
+.ap .op-scroll{border:1px solid var(--line);border-radius:12px;padding:8px 10px 10px;background:var(--paper)}
+.ap .op-grid{grid-template-columns:150px repeat(var(--n),28px) 112px;gap:2px 3px;align-items:center}
+.ap .op-grid .pv{height:30px;border-radius:8px}
+.ap .op-grid .pv.h{height:auto;background:transparent;font-size:10px;font-weight:700;color:var(--ink-soft);padding:1px 0}
+.ap .op-grid .pv.h.wk{height:14px;font-size:9.5px;letter-spacing:.02em}
+.ap .op-grid .pv.h.dn{font-size:11.5px;font-weight:800;color:var(--ink);flex-direction:column;line-height:1.1}
+.ap .op-grid .pv.h.dn small{font-size:8.5px;font-weight:700;color:var(--ink-soft)}
+.ap .op-grid .pv.h.sun,.ap .op-grid .pv.h.dn.sun{color:var(--red)}
+.ap .op-grid .pv.h.nm2{justify-content:flex-start;font-size:10.5px}.ap .op-grid .pv.h.nm2.r{justify-content:flex-end}
+.ap .op-grid .pv.nm{height:38px;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;border-top:1px solid var(--line-soft);border-radius:0;padding-top:4px}
+.ap .op-grid .pv.nm b{font-size:13px;font-weight:800}.ap .op-grid .pv.nm em{font-style:normal;font-size:10.5px;font-weight:600;color:var(--ink-soft)}
+.ap .op-grid .pv.ed{font-size:10.5px;font-weight:800}
+.ap .op-grid .pv.ed.s-:empty::after{content:'';width:3px;height:3px;border-radius:50%;background:var(--line)}
+.ap .op-grid .pv.ed.wkend{background:rgba(245,163,0,.10)}
+.ap .op-grid .pv.ed.offday.empty-off{background:repeating-linear-gradient(135deg,rgba(185,28,28,.13) 0 2px,transparent 2px 6px);color:#9B1C1C;font-size:9.5px;font-weight:800;box-shadow:inset 0 0 0 1px rgba(185,28,28,.30)}
+.ap .op-grid .pv.ed:hover{transform:none;box-shadow:inset 0 0 0 2px var(--ink)}
+.ap .op-grid .pv.tot{flex-direction:column;align-items:flex-end;justify-content:center;gap:2px;height:38px;border-top:1px solid var(--line-soft);border-radius:0;padding-top:4px}
+.ap .op-grid .pv.tot b{font-size:13px;font-weight:800;color:var(--ok);font-variant-numeric:tabular-nums}
+.ap .op-grid .pv.tot.low b{color:var(--red)}
+.ap .op-grid .pv.tot i{display:block;width:84px;height:4px;border-radius:2px;background:var(--line-soft);overflow:hidden}
+.ap .op-grid .pv.tot i u{display:block;height:100%;background:var(--ok);border-radius:2px}.ap .op-grid .pv.tot.low i u{background:var(--red)}
+.ap .op-grid .pv.tot small{font-size:10px;font-weight:700;color:var(--ink-soft);margin-top:-1px}
 </style>
 </head>
 <body>
@@ -3021,76 +3061,85 @@ function offAutoPlan(){
     else { s.consec=0; s.last=code||''; }
     s.h+=hrsOf(code);
   };
-  const rest=(id)=>{ st[id].consec=0; if(st[id].last!=='E') st[id].last=''; };
   for(let i=0;i<D;i++){
     people.forEach(e=>{
       const id=empKey(e), f=fixed[id][i];
       if(f==='SN') put(id,i,'SN');
-      else if(f==='OFF'){ put(id,i,''); rest(id); }
+      else if(f==='OFF') put(id,i,'');
     });
   }
   const ids=people.map(empKey);
+  // Phương án n: xáo nhẹ thứ tự ưu tiên bằng số ngẫu nhiên cố định theo (người, ngày, phương án) để «Xếp lại» ra kết quả khác
+  const jit=(id,i,t)=>{ if(!offSeed) return 0; let h=2166136261; const str=id+'|'+i+'|'+t+'|'+offSeed;
+    for(let c=0;c<str.length;c++){ h^=str.charCodeAt(c); h=Math.imul(h,16777619); } return ((h>>>0)%1000)/1000; };
+  const rotOf=(id,i)=>(ids.indexOf(id)+i+offSeed)%Math.max(1,n);
   const afterE=(id,i)=> i>0 && out[id][i-1]==='E';
   const freeDay=(id,i)=> !fixed[id][i] && out[id][i]==='';
   const hasOffReg=(i)=> ids.some(id=>fixed[id][i]==='OFF');
   const dayWorkers=(i)=> ids.filter(id=>isWork(out[id][i]));
-  // Ưu tiên người còn thiếu giờ; tránh đẩy người đã đủ/dư
-  const byNeed=(a,b)=>{
-    const ua=st[a].h < targetH ? 0 : 1, ub=st[b].h < targetH ? 0 : 1;
-    if(ua!==ub) return ua-ub; // thiếu trước, đã đủ/dư sau
-    return (st[a].h-st[b].h) || ((st[a].c.E||0)-(st[b].c.E||0)) || ((st[a].c.C9||0)-(st[b].c.C9||0)) || (ids.indexOf(a)-ids.indexOf(b));
-  };
-  // Khi bắt buộc C9: chọn người lệch target ít nhất sau khi nhận C9
-  const byC9=(a,b)=>{
-    const da=Math.abs(st[a].h+12-targetH), db=Math.abs(st[b].h+12-targetH);
-    const ua=st[a].h < targetH ? 0 : 1, ub=st[b].h < targetH ? 0 : 1;
-    if(ua!==ub) return ua-ub;
-    return da-db || (st[a].c.C9||0)-(st[b].c.C9||0) || (st[a].h-st[b].h);
+  // Đếm consec thực từ lịch
+  const realConsec=(id,i)=>{
+    let cons=0;
+    for(let j=i-1;j>=0;j--){
+      if(isWork(out[id][j])) cons++;
+      else break;
+    }
+    return cons;
   };
 
+  // Số ngày làm liên tiếp nếu xếp thêm 1 ca vào ngày i (tính cả các ngày sau)
+  const runIfWork=(id,i)=>{ let r=1; for(let j=i-1;j>=0&&isWork(out[id][j]);j--) r++; for(let j=i+1;j<D&&isWork(out[id][j]);j++) r++; return r; };
   // —— Pass 1: từng ngày ——
   for(let i=0;i<D;i++){
-    const onlyC9 = hasOffReg(i);
+    const onlyC9 = hasOffReg(i); // ngày có người đăng ký off: chỉ 1 người làm, ca C9
 
-    let c9cand=ids.filter(id=>freeDay(id,i) && !afterE(id,i));
+    // C9: chia đều số C9, tôn trọng sau E + max 6 ngày liên tiếp
+    let c9cand=ids.filter(id=>freeDay(id,i) && !afterE(id,i) && realConsec(id,i)<6);
+    if(!c9cand.length){
+      // nới consec trước, rồi nới afterE nếu bắt buộc phủ
+      c9cand=ids.filter(id=>freeDay(id,i) && !afterE(id,i));
+    }
     if(!c9cand.length){
       c9cand=ids.filter(id=>freeDay(id,i));
       if(c9cand.length) warns.push('Ngày '+DAYS[i][0]+'/'+DAYS[i][2]+': buộc C9 cho người vừa E.');
     }
     if(c9cand.length){
-      // Ưu tiên người còn thiếu; nếu ai cũng đủ thì ít lệch target nhất
-      c9cand.sort(byC9);
+      // Ưu tiên: ít C9 nhất → còn thiếu giờ → ít giờ
+      c9cand.sort((a,b)=>
+        ((st[a].c.C9||0)+jit(a,i,'c')*1.6)-((st[b].c.C9||0)+jit(b,i,'c')*1.6) ||
+        (st[a].h-st[b].h) ||
+        rotOf(a,i)-rotOf(b,i)
+      );
       put(c9cand[0],i,'C9');
     } else if(!ids.every(id=>fixed[id][i]==='OFF'||fixed[id][i]==='SN')){
       warns.push('Ngày '+DAYS[i][0]+'/'+DAYS[i][2]+': thiếu C9.');
     }
 
-    // E chỉ khi sau E vẫn ≤ target (không đẩy dư)
+    // E: max 1, không vượt target, max 2 người/ngày; chia đều E
     if(!onlyC9 && dayWorkers(i).length < 2){
-      const eCand=ids.filter(id=>freeDay(id,i) && st[id].h+12<=targetH && st[id].consec<6);
+      const eCand=ids.filter(id=>
+        freeDay(id,i) && st[id].h+12<=targetH && realConsec(id,i)<6
+      );
       if(eCand.length){
-        eCand.sort(byNeed);
+        eCand.sort((a,b)=>
+          ((st[a].h+jit(a,i,'e')*14)-(st[b].h+jit(b,i,'e')*14)) ||
+          (st[a].c.E||0)-(st[b].c.E||0) ||
+          rotOf(a,i)-rotOf(b,i)
+        );
         put(eCand[0],i,'E');
       }
     }
-
-    ids.forEach(id=>{
-      if(out[id][i]==='' || fixed[id][i]==='OFF') rest(id);
-    });
-
-    if(hol.has(i)){
-      ids.forEach(id=>{ if(out[id][i]==='' && !fixed[id][i]) put(id,i,'NL'); });
-    }
   }
 
-  // —— Pass 2: bù E cho người còn thiếu (không vượt target) ——
+  // —— Pass 2: bù E cho người thiếu (không vượt target, max 2/ngày) ——
   const dayOrder=[];
   for(let k=0;k<D;k++) dayOrder.push(k);
-  dayOrder.sort((a,b)=>Math.min(a,D-1-a)-Math.min(b,D-1-b)||a-b);
+  dayOrder.sort((a,b)=>(Math.min(a,D-1-a)+(offSeed?jit('d',a,'o')*D/2:0))-(Math.min(b,D-1-b)+(offSeed?jit('d',b,'o')*D/2:0))||a-b);
 
   let guard=0;
   while(guard++ < D*n){
-    const short=ids.filter(id=>st[id].h+12<=targetH).sort(byNeed);
+    const short=ids.filter(id=>st[id].h+12<=targetH)
+      .sort((a,b)=>((st[a].h+jit(a,0,'s')*14)-(st[b].h+jit(b,0,'s')*14))||(st[a].c.E||0)-(st[b].c.E||0));
     if(!short.length) break;
     let added=false;
     for(const id of short){
@@ -3099,12 +3148,8 @@ function offAutoPlan(){
         if(hasOffReg(i)) continue;
         if(dayWorkers(i).length >= 2) continue;
         if(!freeDay(id,i)) continue;
-        let cons=0;
-        for(let j=i-1;j>=0;j--){
-          if(isWork(out[id][j])) cons++;
-          else break;
-        }
-        if(cons>=6) continue;
+        if(runIfWork(id,i)>6) continue;
+        if(i+1<D && out[id][i+1]==='C9') continue; // không để C9 ngay sau ca E
         put(id,i,'E');
         added=true;
         break;
@@ -3114,24 +3159,53 @@ function offAutoPlan(){
     if(!added) break;
   }
 
-  // —— Pass 3: HC bù thiếu <12h (không vượt target) ——
+  // —— Pass 3: HC bù <12h ——
   for(let i=0;i<D;i++){
     if(hasOffReg(i)) continue;
     if(dayWorkers(i).length >= 2) continue;
     const hcCand=ids.filter(id=>{
       if(!freeDay(id,i)) return false;
       if(afterE(id,i)) return false;
+      if(runIfWork(id,i)>6) return false;
       const need=targetH-st[id].h;
       return need>0 && need<12 && st[id].h+8<=targetH;
-    }).sort(byNeed);
+    }).sort((a,b)=>st[a].h-st[b].h);
     if(hcCand.length) put(hcCand[0],i,'HC');
   }
+
+  // —— Pass 4: ai dư giờ → random bỏ 1 ca E (lặp đến khi không còn dư) ; không bỏ nếu ngày đó hết người trực ——
+  const infos=[];
+  const holBlank=id=>{ let c=0; hol.forEach(i=>{ if(out[id][i]===''&&!fixed[id][i]) c++; }); return c; };
+  const totalOf=id=>calcTotal(out[id])+8*holBlank(id);
+  const sg=v=>(v>0?'+':'')+v+'h';
+  ids.slice().sort((a,b)=>totalOf(b)-totalOf(a)).forEach(id=>{
+    for(let g=0;g<D;g++){
+      const diff=totalOf(id)-targetH; if(diff<=0) break;
+      // Dư giờ (dù chỉ vài giờ): chọn NGẪU NHIÊN 1 ngày E hợp lệ để bỏ (hết E mới xét HC)
+      let best=null;
+      for(const code of ['E','HC']){
+        const list=[];
+        for(let i=0;i<D;i++){
+          if(out[id][i]!==code||fixed[id][i]) continue;
+          if(dayWorkers(i).length<2) continue;
+          list.push(i);
+        }
+        if(list.length){ const i=list[Math.floor(Math.random()*list.length)]; best={i,code,net:hrsOf(code)-(hol.has(i)?8:0)}; break; }
+      }
+      if(!best) break;
+      out[id][best.i]=''; const s2=st[id]; s2.h-=hrsOf(best.code); s2.d--; s2.c[best.code]--;
+      infos.push(offShort(people[ids.indexOf(id)].name)+': bỏ ca '+best.code+' ngày '+DAYS[best.i][0]+'/'+DAYS[best.i][2]+' ('+sg(diff)+' → '+(diff-best.net===0?'đủ giờ':sg(diff-best.net))+').');
+    }
+  });
 
   for(let i=0;i<D;i++){
     if(!hol.has(i)) continue;
     ids.forEach(id=>{ if(out[id][i]==='' && !fixed[id][i]) put(id,i,'NL'); });
   }
 
+  // Cảnh báo ai phải làm quá 6 ngày liên tiếp (do nhiều người off cùng lúc, admin xem lại)
+  ids.forEach((id,k)=>{ let r=0,mx=0,end=0; out[id].forEach((c,i)=>{ if(isWork(c)){ r++; if(r>mx){ mx=r; end=i; } } else r=0; });
+    if(mx>6) warns.push(offShort(people[k].name)+' làm '+mx+' ngày liên tiếp (đến '+DAYS[end][0]+'/'+DAYS[end][2]+').'); });
   const stats=people.map(e=>{
     const id=empKey(e), sh=out[id], c={};
     sh.forEach(x=>{ if(x) c[x]=(c[x]||0)+1; });
@@ -3140,8 +3214,9 @@ function offAutoPlan(){
     else if(diff<-12) warns.push(offShort(e.name)+' thiếu '+(-diff)+'h.');
     return {e,id,h,diff,days:sh.filter(x=>isWork(x)||x==='SN'||x==='NL'||x==='P').length,c};
   });
-  return {shifts:out,stats,warns};
+  return {shifts:out,stats,warns,infos};
 }
+
 
 
 
@@ -3234,16 +3309,38 @@ function renderOff(){
   if(admin){
     let body='';
     if(offPlan&&offPlan.key===offPeriodKey()){
-      const head='<span class="pv h"></span>'+DAYS.map((d,i)=>'<span class="pv h'+(sun.has(i)?' sun':'')+'">'+d[0]+'</span>').join('');
-      const rows=offPlan.stats.map(x=>'<span class="pv nm">'+offShort(x.e.name)+'</span>'+offPlan.shifts[x.id].map((c,i)=>'<span class="pv rg-cell s-'+(c||'')+' ed" data-act="opcell" data-id="'+x.id+'" data-i="'+i+'" title="Bấm để sửa">'+(c||'–')+'</span>').join('')).join('');
-      const stat=offPlan.stats.map(x=>{
-        const cls=x.diff>12?'low':(x.diff<-24?'low':'ok');
+      const offMap={}; // id -> Set of day indexes
+      let offCount=0;
+      getOffRegs().forEach(r=>{
+        if(r.type!=='OFF') return;
+        const i=DAYS.findIndex((_,x)=>offIso(x)===r.date);
+        if(i<0) return;
+        if(!offMap[r.id]) offMap[r.id]=new Set();
+        offMap[r.id].add(i); offCount++;
+      });
+      const off2=i=>sun.has(i)||hol.has(i);
+      const head='<span class="pv h nm2">Nhân viên</span>'+DAYS.map((d,i)=>'<span class="pv h wk'+(off2(i)?' sun':'')+'">'+d[1]+'</span>').join('')+'<span class="pv h nm2 r">Giờ công</span>'
+        +'<span class="pv h"></span>'+DAYS.map((d,i)=>'<span class="pv h dn'+(off2(i)?' sun':'')+'">'+d[0]+(d[0]===1||i===0?'<small>/'+d[2]+'</small>':'')+'</span>').join('')+'<span class="pv h"></span>';
+      const rows=offPlan.stats.map(x=>{
+        const used=['C9','E','HC','M','SN','NL'].filter(k=>x.c[k]).map(k=>k+' '+x.c[k]).join(' · ');
+        const cells=offPlan.shifts[x.id].map((c,i)=>{
+          const isOff=offMap[x.id] && offMap[x.id].has(i);
+          const cls='pv rg-cell s-'+(c||'')+' ed'+(isOff?' offday empty-off':'')+(off2(i)&&!c?' wkend':'');
+          return '<span class="'+cls+'" data-act="opcell" data-id="'+x.id+'" data-i="'+i+'" title="'+DAYS[i][1]+' '+DAYS[i][0]+'/'+DAYS[i][2]+(isOff?' · đăng ký off':'')+' · bấm để sửa">'+(isOff?'off':(c||''))+'</span>';
+        }).join('');
+        const low=x.diff>12||x.diff<-24, pct=TARGET_HOURS?Math.min(100,Math.round(x.h/TARGET_HOURS*100)):100;
         const tag=x.diff>0?('+'+x.diff+'h'):(x.diff<0?(x.diff+'h'):'đủ');
-        return '<li><b>'+offShort(x.e.name)+'</b><span class="hrs '+cls+'">'+x.h+'h <small>/ '+TARGET_HOURS+'h</small> <small>('+tag+')</small></span><em>'+['C9','E','HC','M','SN','NL'].map(k=>k+' '+(x.c[k]||0)).join(' · ')+'</em></li>';
+        return '<span class="pv nm"><b>'+offShort(x.e.name)+'</b><em>'+used+'</em></span>'+cells
+          +'<span class="pv tot'+(low?' low':'')+'"><b>'+x.h+'h</b><i><u style="width:'+pct+'%"></u></i><small>'+tag+'</small></span>';
       }).join('');
-      body='<div class="op-scroll"><div class="op-grid" style="--n:'+DAYS.length+'">'+head+rows+'</div></div><ul class="op-stat">'+stat+'</ul>'+(offPlan.warns.length?'<ul class="op-warn">'+offPlan.warns.slice(0,8).map(w=>'<li>'+w+'</li>').join('')+'</ul>':'<p class="op-ok">Mỗi ngày đều có người phủ ca sáng, giờ công và ngày công gần với kế hoạch.</p>')+'<div class="off-actions"><button type="button" class="btn-action" data-act="replan">Xếp lại (phương án khác)</button><button type="button" class="btn-action primary" data-act="create">'+(hasRoster?'Xác nhận · ghi đè lịch tháng '+mm+'/'+yy:'Xác nhận · tạo lịch tháng '+mm+'/'+yy)+'</button></div>';
+      const key='<div class="ap-key">'+['C9','E','HC','NL'].map(k=>'<span><i class="rg-cell s-'+k+'">'+k+'</i></span>').join('')+(offCount?'<span><i class="k-off">off</i>đăng ký off ('+offCount+' lượt) · ngày đó chỉ 1 C9</span>':'')+'<span class="ap-hint">Bấm vào ô để sửa ca</span></div>';
+      body=key+'<div class="op-scroll"><div class="op-grid" style="--n:'+DAYS.length+'">'+head+rows+'</div></div>';
     }
-    plan='<section class="off-auto"><div class="off-autohead"><div><h3>Tạo lịch tự động · tháng '+mm+'/'+yy+' <span class="demo">demo</span></h3><p>Xếp đồng thời '+people.length+' người theo các ngày off/SN đã đăng ký. '+(hasRoster?'Tháng này đã có lịch — chỉ ghi đè ca của DSP PQC.':'Tháng này chưa có lịch — sẽ tạo file lịch mới.')+'</p></div><button type="button" class="btn-action primary" data-act="plan">'+(offPlan?'Xếp lại từ đầu':'Xếp thử')+'</button></div>'+body+'</section>';
+    const hasPlan=!!(offPlan&&offPlan.key===offPeriodKey());
+    const acts=hasPlan
+      ?'<button type="button" class="btn-action" data-act="replan">Xếp lại · phương án '+(offSeed+2)+'</button><button type="button" class="btn-action primary" data-act="create">'+(hasRoster?'Xác nhận · ghi đè lịch '+mm+'/'+yy:'Xác nhận · tạo lịch '+mm+'/'+yy)+'</button>'
+      :'<button type="button" class="btn-action primary" data-act="plan">Xếp thử</button>';
+    plan='<section class="off-auto ap"><div class="off-autohead"><div><h3>Tạo lịch tự động · tháng '+mm+'/'+yy+' <span class="demo">demo</span></h3><p>Xếp đồng thời '+people.length+' người theo các ngày off/SN đã đăng ký. '+(hasRoster?'Tháng này đã có lịch — chỉ ghi đè ca của DSP PQC.':'Tháng này chưa có lịch — sẽ tạo file lịch mới.')+'</p></div><div class="ap-actions">'+acts+'</div></div>'+body+'</section>';
   } else {
     const prog=people.map(e=>'<li><b>'+offShort(e.name)+'</b><span>'+regs.filter(r=>r.id===empKey(e)).length+' ngày</span></li>').join('');
     plan='<section class="off-auto"><div class="off-autohead"><div><h3>Tình hình đăng ký</h3><p>Admin sẽ tạo lịch tự động sau khi mọi người đăng ký off xong.</p></div></div><ul class="op-stat">'+prog+'</ul></section>';
@@ -3256,7 +3353,7 @@ function renderOff(){
    +'<span class="off-save '+(offLoading?'':offSaveState)+'">'+saveTxt+'</span></div></div>'
    +'<div class="off-note '+(offMsg?offMsg.type:'hint')+'" role="status" aria-live="polite">'+(offMove?'Đang đổi ngày '+offLbl(offMove.date)+' — bấm vào ngày mới (bấm lại ngày cũ để thôi). ':'')+(offMsg?offMsg.msg:(offMove?'':'Bấm vào một ngày để đăng ký, bấm lại ngày của bạn để hủy. Số thứ tự trên tên là thứ tự đăng ký. Có thể đăng ký trước cho tháng sau.'))+'</div>'
    +'<div class="off-main"><section class="off-cal"><div class="oc-head">'+['T2','T3','T4','T5','T6','T7','CN'].map(x=>'<span>'+x+'</span>').join('')+'</div><div class="oc-grid">'+cells+'</div></section>'
-   +'<aside class="off-side"><h3>Đăng ký của bạn</h3><ul class="mine">'+mineHtml+'</ul><h3>Quy tắc xếp lịch</h3><ul class="rules"><li><b>Sau ca E:</b> được <b>E liên tiếp</b>, nhưng <b>không</b> xếp C9/M/HC ngày hôm sau (trừ khi bắt buộc để có C9)</li><li><b>B1:</b> mỗi ngày đúng <b>1 C9</b> — chia đều; <b>ngày có off chỉ 1 C9</b> · <b>tối đa 2 người/ngày</b> (C9+E) · rải đều E</li><li><b>B2:</b> xếp <b>E</b> khi thiếu ≥12h; dừng khi đạt giờ công kế hoạch (<b>'+TARGET_HOURS+'h</b>)</li><li><b>B3:</b> <b>HC</b> chỉ bù khi thiếu &lt;12h</li><li>Off/SN giữ nguyên · lễ trống = NL</li></ul></aside></div>'+plan;
+   +'<aside class="off-side"><h3>Đăng ký của bạn</h3><ul class="mine">'+mineHtml+'</ul></aside></div>'+plan;
 }
 (function(){
   const box=document.getElementById('offView');
@@ -3268,7 +3365,7 @@ function renderOff(){
     else if(a==='type'){ offType=b.dataset.v; renderOff(); }
     else if(a==='cancel') offCancel(b.dataset.date);
     else if(a==='move'){ const r=getOffRegs().find(r=>r.id===offMe&&r.date===b.dataset.date); offMove=r&&!(offMove&&offMove.date===r.date)?{date:r.date,type:r.type}:null; offSay(null); }
-    else if(a==='plan'||a==='replan'){ offSeed=a==='plan'?0:offSeed+1; offPlan=offAutoPlan(); offPlan.key=offPeriodKey(); renderOff(); }
+    else if(a==='plan'||a==='replan'){ offSeed=a==='plan'?0:offSeed+1; offPlan=offAutoPlan(); offPlan.key=offPeriodKey(); offMsg={msg:'Phương án '+(offSeed+1)+'.',type:'ok'}; renderOff(); }
     else if(a==='create') offCreate();
     else if(a==='save') offSaveToServer();
     else if(a==='refresh'){
