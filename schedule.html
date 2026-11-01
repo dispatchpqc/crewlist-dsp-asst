@@ -1636,7 +1636,6 @@ async function editPlan(kind){
     o[kind]=n;
   }
   setPlanOv(o); recomputeSunHol();
-  // Demo xếp thử bám đúng giờ/công kế hoạch vừa chỉnh
   if(typeof offPlan!=='undefined' && offPlan && typeof offPeriodKey==='function' && offPlan.key===offPeriodKey() && typeof offPlanRebuildStats==='function'){
     offPlanRebuildStats();
   }
@@ -2885,7 +2884,6 @@ function closeChangelog(){
 
 /* ===== Đăng ký off (riêng) + xếp lịch tự động (riêng) — demo DSP PQC ===== */
 const OFF_DEPT='PQC', OFF_DIR='data/dangky-off';
-/* endpoint Worker (giống feedback) — nếu có trong config.js thì mọi người đăng ký được mà không cần PAT trên máy */
 const OFF_EP = (window.SUNPQ && SUNPQ.offEndpoint) || '';
 let offMe=null, offType='OFF', offMove=null, offPlan=null, offSeed=0, offSaveState='', offMsg=null;
 let offSha=null, offLoadedKey='', offLoading=false, offBusy=false, offDirty=false;
@@ -2897,7 +2895,6 @@ function getOffRegs(){ try{ return JSON.parse(localStorage.getItem('offreg_'+off
 function setOffRegs(a){ try{ if(a&&a.length) localStorage.setItem('offreg_'+offPeriodKey(),JSON.stringify(a)); else localStorage.removeItem('offreg_'+offPeriodKey()); }catch(e){} }
 function offIso(i){ const d=DAYS[i]; return d[3]+'-'+String(d[2]).padStart(2,'0')+'-'+String(d[0]).padStart(2,'0'); }
 function offLbl(date){ const p=date.split('-'); return p[2]+'/'+p[1]; }
-/** Danh sách DSP PQC: từ lịch đang mở; tháng chưa có lịch thì dùng danh sách đã nhớ từ lịch gần nhất */
 function offPeople(){
   const cur=EMP.filter(e=>e.dept===OFF_DEPT).map(e=>({id:e.id,name:e.name}));
   if(cur.length){ try{ localStorage.setItem('offPeople',JSON.stringify(cur)); }catch(e){} return cur; }
@@ -2910,9 +2907,6 @@ function offFullMsg(day,people){
   const names=day.map(r=>{ const e=people.find(x=>empKey(x)===r.id); return e?offShort(e.name):'?'; });
   return 'Ngày '+offLbl(day[0].date)+' đã đủ '+day.length+'/'+people.length+' người off — '+names.join(', ')+' đã đăng ký trước. Hãy chọn ngày khác.';
 }
-/* --- đọc/ghi file đăng ký của từng tháng: data/dangky-off/YYYY-MM.json ---
- * Chọn ngày = draft local (không ghi GitHub) → bấm «Lưu đăng ký» mới đẩy lên máy chủ.
- * Tránh mỗi lần bấm ngày kích hoạt cập nhật trang / khóa chỉnh sửa. */
 async function offFetchRegs(){
   const path=offPath(), tok=getToken();
   if(OFF_EP){
@@ -2932,72 +2926,46 @@ async function offFetchRegs(){
 }
 async function offLoad(force){
   if(offLoading) return;
-  if(offDirty && !force){
-    // Giữ draft đang sửa; không ghi đè bằng bản máy chủ
-    offLoadedKey=offPeriodKey();
-    if(view==='off') renderOff();
-    return;
-  }
+  if(offDirty && !force){ offLoadedKey=offPeriodKey(); if(view==='off') renderOff(); return; }
   offLoading=true; const key=offPeriodKey();
-  try{
-    setOffRegs(await offFetchRegs());
-    offDirty=false; offSaveState='';
-  }catch(e){
-    offMsg={msg:'Không tải được đăng ký từ máy chủ, đang dùng bản đã lưu trên máy này.',type:'warn'};
-  }
+  try{ setOffRegs(await offFetchRegs()); offDirty=false; offSaveState=''; }
+  catch(e){ offMsg={msg:'Không tải được đăng ký từ máy chủ, đang dùng bản đã lưu trên máy này.',type:'warn'}; }
   offLoadedKey=key; offLoading=false; if(view==='off') renderOff();
 }
-/** Chỉ sửa draft trên máy — không ghi GitHub, không khóa trang */
+/** Chọn ngày = bản nháp local; bấm «Lưu đăng ký» mới đẩy máy chủ */
 function offDraftMutate(fn){
   if(!requireLogin('Đăng nhập để đăng ký off.')) return;
-  if(siteMaint.on && !isAdmin()){
-    setBanner('🔧 <b>Hệ thống đang bảo trì</b> — tạm thời chỉ xem.','err');
-    return;
-  }
+  if(siteMaint.on && !isAdmin()){ setBanner('🔧 <b>Hệ thống đang bảo trì</b> — tạm thời chỉ xem.','err'); return; }
   const regs=getOffRegs();
   const res=fn(regs);
   if(res.error){ offMsg={msg:res.error,type:'err'}; renderOff(); return; }
   if(res.noop){ offMsg=null; renderOff(); return; }
-  setOffRegs(res.regs);
-  offDirty=true;
-  offPlan=null;
-  offSaveState='draft';
-  offMsg={msg:(res.msg||'Đã cập nhật')+' · <b>bản nháp trên máy này</b> — bấm «Lưu đăng ký» để đẩy lên máy chủ.',type:'ok'};
+  setOffRegs(res.regs); offDirty=true; offPlan=null; offSaveState='draft';
+  offMsg={msg:(res.msg||'Đã cập nhật')+' · <b>bản nháp</b> — bấm «Lưu đăng ký» để đẩy lên máy chủ.',type:'ok'};
   renderOff();
 }
-/** Đẩy bản nháp hiện tại lên máy chủ (Worker / GitHub). Chỉ lúc này mới ghi remote. */
 async function offSaveToServer(){
   if(offBusy) return;
   if(!requireEditable('Đăng nhập để lưu đăng ký off.')) return;
-  if(!offDirty && offSaveState==='saved'){
-    offMsg={msg:'Không có thay đổi mới để lưu.',type:'ok'}; renderOff(); return;
-  }
+  if(!offDirty && offSaveState==='saved'){ offMsg={msg:'Không có thay đổi mới để lưu.',type:'ok'}; renderOff(); return; }
   const regs=getOffRegs();
   offBusy=true; offSaveState='saving'; renderOff();
   try{
     if(OFF_EP){
       const r=await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({period:offPeriodKey(),regs,action:'put'})});
       if(!r.ok) throw new Error('HTTP '+r.status);
-      offDirty=false; offSaveState='saved';
-      offMsg={msg:'Đã lưu đăng ký lên máy chủ.',type:'ok'};
+      offDirty=false; offSaveState='saved'; offMsg={msg:'Đã lưu đăng ký lên máy chủ.',type:'ok'};
     } else if(getToken()){
-      // Lấy bản mới nhất, gộp đăng ký của mình (tránh ghi đè người khác vừa lưu)
-      let remote=[];
-      try{ remote=await offFetchRegs(); }catch(e){ remote=[]; }
+      let remote=[]; try{ remote=await offFetchRegs(); }catch(e){ remote=[]; }
       const me=offMe;
       const mineLocal=regs.filter(r=>r.id===me);
       const others=remote.filter(r=>r.id!==me);
-      // Giữ đăng ký người khác từ server + đăng ký của mình từ draft
       const merged=others.concat(mineLocal);
-      // Kiểm tra đủ chỗ theo max (theo từng ngày, chỉ đếm người khác + mình)
-      const people=offPeople(), max=offMax();
-      const byDate={};
+      const people=offPeople(), max=offMax(), byDate={};
       merged.forEach(r=>{ (byDate[r.date]=byDate[r.date]||[]).push(r); });
       for(const date of Object.keys(byDate)){
-        const day=byDate[date];
-        if(day.length>max){
-          offSaveState='draft';
-          offMsg={msg:offFullMsg(day,people)+' Hãy bỏ bớt ngày của bạn rồi lưu lại.',type:'err'};
+        if(byDate[date].length>max){
+          offSaveState='draft'; offMsg={msg:offFullMsg(byDate[date],people)+' Hãy bỏ bớt ngày rồi lưu lại.',type:'err'};
           offBusy=false; renderOff(); return;
         }
       }
@@ -3010,27 +2978,21 @@ async function offSaveToServer(){
         if(put.status===409||put.status===422){ offSha=null; continue; }
         if(put.status===401||put.status===403){
           offSaveState='draft';
-          offMsg={msg:'Key máy chủ không hợp lệ (HTTP '+put.status+'). Bản nháp vẫn còn trên máy này. Admin cập nhật khóa (🔑) hoặc cấu hình SUNPQ.offEndpoint.',type:'err'};
+          offMsg={msg:'Key không hợp lệ (HTTP '+put.status+'). Bản nháp vẫn trên máy này.',type:'err'};
           break;
         }
         if(!put.ok) throw new Error('HTTP '+put.status);
-        offSha=(await put.json()).content.sha;
-        setOffRegs(merged);
-        offDirty=false; offSaveState='saved';
-        offMsg={msg:'Đã lưu đăng ký lên máy chủ.',type:'ok'};
-        break;
+        offSha=(await put.json()).content.sha; setOffRegs(merged);
+        offDirty=false; offSaveState='saved'; offMsg={msg:'Đã lưu đăng ký lên máy chủ.',type:'ok'}; break;
       }
     } else {
       offSaveState='draft';
-      offMsg={msg:'Chưa có khóa máy chủ — bản nháp chỉ lưu trên máy này. Admin nhập Key (🔑) hoặc cấu hình SUNPQ.offEndpoint trong config.js.',type:'warn'};
+      offMsg={msg:'Chưa có khóa máy chủ — bản nháp chỉ trên máy này. Admin nhập Key (🔑).',type:'warn'};
     }
   }catch(e){
     offSaveState='draft';
     const m=String(e.message||e);
-    if(/401|403/.test(m))
-      offMsg={msg:'Không lưu được lên máy chủ (HTTP 401/403). Bản nháp vẫn còn trên máy này.',type:'err'};
-    else
-      offMsg={msg:'Không lưu được đăng ký: '+m,type:'err'};
+    offMsg={msg:/401|403/.test(m)?'Không lưu được (HTTP 401/403). Bản nháp vẫn trên máy này.':'Không lưu được: '+m,type:'err'};
   }
   offBusy=false; renderOff();
 }
@@ -3050,7 +3012,7 @@ function offCell(i){
     }
     if(mine) return {regs:regs.filter(r=>!(r.id===me&&r.date===date)),msg:'Đã bỏ đăng ký ngày '+offLbl(date)};
     if(day.length>=max) return {error:offFullMsg(day,people)};
-    return {regs:regs.concat([{id:me,date,type,ts:Date.now()}]),msg:'Đã chọn '+(type==='SN'?'SN':'off')+' ngày '+offLbl(date)+(names.length?' · '+names.join(', ')+' đã đăng ký trước':'' )};
+    return {regs:regs.concat([{id:me,date,type,ts:Date.now()}]),msg:'Đã chọn '+(type==='SN'?'SN':'off')+' ngày '+offLbl(date)+(names.length?' · '+names.join(', ')+' đã đăng ký trước':'')};
   });
 }
 function offCancel(date){
@@ -3058,12 +3020,7 @@ function offCancel(date){
   offDraftMutate(regs=>({regs:regs.filter(r=>!(r.id===me&&r.date===date)),msg:'Đã bỏ đăng ký ngày '+offLbl(date)}));
 }
 
-/** Xếp lịch tự động DSP PQC
- * Bước 1: Mỗi ngày đúng 1 C9 — chia đều cho mọi người (ưu tiên ít C9 / thiếu giờ).
- * Bước 2: Xếp E cho người còn thiếu ≥12h; dừng khi đạt giờ công kế hoạch (không vượt).
- * Bước 3: HC bù chỉ khi còn thiếu <12h sau bước 1–2.
- * Không nhét HC/E khi đã đủ hoặc dư giờ.
- */
+/** Xếp lịch tự động cho DSP PQC: M, E, C9, SN, NL */
 function offAutoPlan(){
   const people=offPeople(), D=DAYS.length, regs=getOffRegs(), n=people.length;
   const targetH = TARGET_HOURS;
@@ -3086,7 +3043,6 @@ function offAutoPlan(){
     else { s.consec=0; s.last=code||''; }
     s.h+=hrsOf(code);
   };
-  // Pre-fill OFF / SN
   for(let i=0;i<D;i++){
     people.forEach(e=>{
       const id=empKey(e), f=fixed[id][i];
@@ -3097,15 +3053,14 @@ function offAutoPlan(){
   const free=(id,i)=>!fixed[id][i] && out[id][i]==='';
   const ids=people.map(empKey);
 
-  // ——— Bước 1: mỗi ngày đúng 1 C9, chia đều ———
+  // Bước 1: mỗi ngày đúng 1 C9, chia đều
   for(let i=0;i<D;i++){
     const cand=ids.filter(id=>free(id,i));
     if(!cand.length){
       const anyOff=ids.every(id=>fixed[id][i]==='OFF'||fixed[id][i]==='SN');
-      if(!anyOff) warns.push('Ngày '+DAYS[i][0]+'/'+DAYS[i][2]+': không ai nhận C9 (all off).');
+      if(!anyOff) warns.push('Ngày '+DAYS[i][0]+'/'+DAYS[i][2]+': không ai nhận C9.');
       continue;
     }
-    // Ưu tiên: ít C9 nhất → ít giờ nhất → xoay seed
     cand.sort((a,b)=>{
       const sa=st[a], sb=st[b];
       return (sa.c.C9||0)-(sb.c.C9||0) || sa.h-sb.h || (ids.indexOf(a)+i+offSeed)-(ids.indexOf(b)+i+offSeed);
@@ -3128,62 +3083,43 @@ function offAutoPlan(){
   }
   resync();
 
-  // ——— Bước 2: xếp E — dừng khi đạt target (không vượt) ———
-  // Duyệt ngày theo thứ tự; mỗi ngày tối đa 1 E
+  // Bước 2: E — chỉ khi sau E vẫn ≤ targetH
   for(let i=0;i<D;i++){
-    // Người đã có ca trong ngày (C9) bỏ qua
     const cand=ids.filter(id=>{
-      if(!free(id,i)) return false; // đã C9 / off / sn
       if(out[id][i]!=='') return false;
-      // Không xếp E ngay sau E hôm trước
-      // last E: check yesterday
+      if(fixed[id][i]) return false;
       if(i>0 && out[id][i-1]==='E') return false;
-      // Chỉ khi còn thiếu ≥12h — sau E vẫn ≤ target
       if(st[id].h + 12 > targetH) return false;
       if(st[id].consec>=6) return false;
       return true;
     });
     if(!cand.length) continue;
-    // Người thiếu giờ nhiều nhất, ít E nhất
-    cand.sort((a,b)=>{
-      const sa=st[a], sb=st[b];
-      return sa.h-sb.h || (sa.c.E||0)-(sb.c.E||0) || (ids.indexOf(a)-ids.indexOf(b));
-    });
-    const pick=cand[0];
-    put(pick, i, 'E');
-    // st already updated by put — but put uses st[id]; we need put to work with id string
+    cand.sort((a,b)=>st[a].h-st[b].h || (st[a].c.E||0)-(st[b].c.E||0) || (ids.indexOf(a)-ids.indexOf(b)));
+    put(cand[0], i, 'E');
   }
 
-  // Fix: put above uses st[id] but I defined put(id,i,code) — good.
-
-  // ——— Bước 3: HC bù chỉ khi còn thiếu <12h và chưa dư ———
+  // Bước 3: HC bù khi thiếu <12h, không vượt target
   resync();
   for(let i=0;i<D;i++){
     const cand=ids.filter(id=>{
       if(out[id][i]!=='') return false;
       if(fixed[id][i]) return false;
       const need=targetH - st[id].h;
-      if(need <= 0 || need >= 12) return false; // đủ hoặc còn thiếu đủ 1 C9/E
-      if(st[id].h + 8 > targetH) return false; // HC sẽ vượt
+      if(need<=0 || need>=12) return false;
+      if(st[id].h + 8 > targetH) return false;
       if(i>0 && out[id][i-1]==='E') return false;
       return true;
     });
     if(!cand.length) continue;
     cand.sort((a,b)=>st[a].h-st[b].h || (st[a].c.HC||0)-(st[b].c.HC||0));
-    // Chỉ 1 HC/ngày, chỉ cho người thiếu nhất
     put(cand[0], i, 'HC');
-    // Sau 1 HC, resync hours for next days — put already updates st
   }
 
-  // NL cho ngày lễ còn trống
   for(let i=0;i<D;i++){
     if(!hol.has(i)) continue;
-    ids.forEach(id=>{
-      if(out[id][i]==='' && !fixed[id][i]) put(id,i,'NL');
-    });
+    ids.forEach(id=>{ if(out[id][i]==='' && !fixed[id][i]) put(id,i,'NL'); });
   }
 
-  // Kiểm tra C9
   for(let i=0;i<D;i++){
     const c9n=ids.filter(id=>out[id][i]==='C9').length;
     if(c9n===0){
@@ -3203,7 +3139,8 @@ function offAutoPlan(){
   });
   return {shifts:out,stats,warns};
 }
-/** Tính lại giờ công / thống kê từ offPlan.shifts sau khi admin sửa tay */
+/** Admin xác nhận: tạo (hoặc ghi đè ca DSP PQC của) lịch tháng đang chọn rồi lưu lên máy chủ */
+
 function offPlanRebuildStats(){
   if(!offPlan||!offPlan.shifts) return;
   const people=offPeople();
@@ -3214,19 +3151,17 @@ function offPlanRebuildStats(){
     const days=sh.filter(x=>['M','E','C9','SN','NL','HC','P'].includes(x)).length;
     return {e,id,h,diff,days,c};
   });
-  // Cảnh báo phủ ngày
   const warns=[];
   for(let i=0;i<DAYS.length;i++){
-    const has=people.some(e=>{ const c=(offPlan.shifts[empKey(e)]||[])[i]; return c==='M'||c==='E'||c==='C9'; });
+    const has=people.some(e=>{ const c=(offPlan.shifts[empKey(e)]||[])[i]; return c==='M'||c==='E'||c==='C9'||c==='HC'; });
     if(!has) warns.push('Ngày '+DAYS[i][0]+'/'+DAYS[i][2]+': chưa có người trực.');
   }
   offPlan.stats.forEach(x=>{
-    if(x.diff>24) warns.push(offShort(x.e.name)+' dư '+x.diff+'h so với kế hoạch.');
-    else if(x.diff<-24) warns.push(offShort(x.e.name)+' thiếu '+(-x.diff)+'h so với kế hoạch.');
+    if(x.diff>12) warns.push(offShort(x.e.name)+' dư '+x.diff+'h.');
+    else if(x.diff<-24) warns.push(offShort(x.e.name)+' thiếu '+(-x.diff)+'h.');
   });
   offPlan.warns=warns;
 }
-/** Chỉnh 1 ô trên lịch xếp thử — cập nhật ca + giờ công ngay */
 function offPlanSetShift(id, dayIdx, code){
   if(!offPlan||!offPlan.shifts||!offPlan.shifts[id]) return;
   if(dayIdx<0||dayIdx>=DAYS.length) return;
@@ -3239,7 +3174,7 @@ function offPlanEditCell(el, id, dayIdx){
   if(!offPlan||!offPlan.shifts||!offPlan.shifts[id]) return;
   if(el.classList.contains('editing')) return;
   const cur=offPlan.shifts[id][dayIdx]||'';
-  const codes=['','M','E','C9','SN','NL','P','HC'];
+  const codes=['','C9','E','HC','M','SN','NL','P'];
   el.classList.add('editing');
   el.innerHTML='<select class="op-dd">'+codes.map(c=>{
     const sel=(c===cur)?' selected':'';
@@ -3253,7 +3188,7 @@ function offPlanEditCell(el, id, dayIdx){
     if(done) return; done=true;
     el.classList.remove('editing');
     if(code!==undefined) offPlanSetShift(id, dayIdx, code);
-    else { el.textContent=cur||''; el.className='pv rg-cell s-'+(cur||'')+' ed'; }
+    else { el.textContent=cur||'–'; el.className='pv rg-cell s-'+(cur||'')+' ed'; }
   };
   sel.onchange=()=>finish(sel.value);
   sel.onblur=()=>setTimeout(()=>finish(undefined),120);
@@ -3263,7 +3198,6 @@ function offPlanEditCell(el, id, dayIdx){
   };
 }
 
-/** Admin xác nhận: tạo (hoặc ghi đè ca DSP PQC của) lịch tháng đang chọn rồi lưu lên máy chủ */
 async function offCreate(){
   if(!isAdmin()){ offSay('Chỉ admin được tạo lịch tự động.','err'); return; }
   if(!offPlan||offPlan.key!==offPeriodKey()){ offSay('Hãy bấm «Xếp thử» cho tháng này trước.','warn'); return; }
@@ -3312,13 +3246,13 @@ function renderOff(){
       const head='<span class="pv h"></span>'+DAYS.map((d,i)=>'<span class="pv h'+(sun.has(i)?' sun':'')+'">'+d[0]+'</span>').join('');
       const rows=offPlan.stats.map(x=>'<span class="pv nm">'+offShort(x.e.name)+'</span>'+offPlan.shifts[x.id].map((c,i)=>'<span class="pv rg-cell s-'+(c||'')+' ed" data-act="opcell" data-id="'+x.id+'" data-i="'+i+'" title="Bấm để sửa ca">'+(c||'–')+'</span>').join('')).join('');
       const stat=offPlan.stats.map(x=>{
-        const cls=x.diff>24?'low':(x.diff<-24?'low':'ok');
+        const cls=x.diff>12?'low':(x.diff<-24?'low':'ok');
         const tag=x.diff>0?('+'+x.diff+'h'):(x.diff<0?(x.diff+'h'):'đủ');
-        return '<li><b>'+offShort(x.e.name)+'</b><span class="hrs '+cls+'">'+x.h+'h <small>/ '+TARGET_HOURS+'h</small> <small>('+tag+')</small></span><em>'+['HC','C9','M','E','SN','NL'].map(k=>k+' '+(x.c[k]||0)).join(' · ')+'</em></li>';
+        return '<li><b>'+offShort(x.e.name)+'</b><span class="hrs '+cls+'">'+x.h+'h <small>/ '+TARGET_HOURS+'h</small> <small>('+tag+')</small></span><em>'+['C9','E','HC','M','SN','NL'].map(k=>k+' '+(x.c[k]||0)).join(' · ')+'</em></li>';
       }).join('');
-      body='<div class="op-scroll"><div class="op-grid" style="--n:'+DAYS.length+'">'+head+rows+'</div></div><ul class="op-stat">'+stat+'</ul>'+(offPlan.warns.length?'<ul class="op-warn">'+offPlan.warns.slice(0,8).map(w=>'<li>'+w+'</li>').join('')+'</ul>':'<p class="op-ok">Mỗi ngày có ít nhất 1 người trực; giờ công bám kế hoạch (thiếu được, dư tối đa +24h).</p>')+'<div class="off-actions"><button type="button" class="btn-action" data-act="replan">Xếp lại (phương án khác)</button><button type="button" class="btn-action primary" data-act="create">'+(hasRoster?'Xác nhận · ghi đè lịch tháng '+mm+'/'+yy:'Xác nhận · tạo lịch tháng '+mm+'/'+yy)+'</button></div>';
+      body='<div class="op-scroll"><div class="op-grid" style="--n:'+DAYS.length+'">'+head+rows+'</div></div><ul class="op-stat">'+stat+'</ul>'+(offPlan.warns.length?'<ul class="op-warn">'+offPlan.warns.slice(0,8).map(w=>'<li>'+w+'</li>').join('')+'</ul>':'<p class="op-ok">Mỗi ngày đều có người phủ ca sáng, giờ công và ngày công gần với kế hoạch.</p>')+'<div class="off-actions"><button type="button" class="btn-action" data-act="replan">Xếp lại (phương án khác)</button><button type="button" class="btn-action primary" data-act="create">'+(hasRoster?'Xác nhận · ghi đè lịch tháng '+mm+'/'+yy:'Xác nhận · tạo lịch tháng '+mm+'/'+yy)+'</button></div>';
     }
-    plan='<section class="off-auto"><div class="off-autohead"><div><h3>Tạo lịch tự động · tháng '+mm+'/'+yy+' <span class="demo">demo</span></h3><p>Xếp theo off/SN · <b>bám giờ công kế hoạch '+TARGET_HOURS+'h</b> (KPI phía trên, bấm để chỉnh). <b>Bấm ô ca để sửa</b> — giờ cập nhật ngay. '+(hasRoster?'Xác nhận ghi đè ca DSP PQC.':'Xác nhận tạo file lịch mới.')+'</p></div><button type="button" class="btn-action primary" data-act="plan">'+(offPlan?'Xếp lại từ đầu':'Xếp thử')+'</button></div>'+body+'</section>';
+    plan='<section class="off-auto"><div class="off-autohead"><div><h3>Tạo lịch tự động · tháng '+mm+'/'+yy+' <span class="demo">demo</span></h3><p>Xếp theo off/SN · <b>bám giờ công kế hoạch '+TARGET_HOURS+'h</b>. <b>Bấm ô ca để sửa</b>. '+(hasRoster?'Xác nhận ghi đè ca DSP PQC.':'Xác nhận tạo file lịch mới.')+'</p></div><button type="button" class="btn-action primary" data-act="plan">'+(offPlan?'Xếp lại từ đầu':'Xếp thử')+'</button></div>'+body+'</section>';
   } else {
     const prog=people.map(e=>'<li><b>'+offShort(e.name)+'</b><span>'+regs.filter(r=>r.id===empKey(e)).length+' ngày</span></li>').join('');
     plan='<section class="off-auto"><div class="off-autohead"><div><h3>Tình hình đăng ký</h3><p>Admin sẽ tạo lịch tự động sau khi mọi người đăng ký off xong.</p></div></div><ul class="op-stat">'+prog+'</ul></section>';
@@ -3327,8 +3261,671 @@ function renderOff(){
    +'<div class="off-ctl"><label>Bạn là <select id="offMe"><option value="">— chọn tên —</option>'+people.map(e=>'<option value="'+empKey(e)+'"'+(empKey(e)===offMe?' selected':'')+'>'+e.name+'</option>').join('')+'</select></label>'
    +'<div class="seg"><button type="button" data-act="type" data-v="OFF" class="'+(offType==='OFF'?'on':'')+'">Off</button><button type="button" data-act="type" data-v="SN" class="'+(offType==='SN'?'on':'')+'">SN</button></div>'
    +'<button type="button" class="btn-action primary" data-act="save" title="Đẩy bản nháp lên máy chủ" '+(offBusy||!offDirty?'disabled':'')+'>Lưu đăng ký</button>'
-   +'<button type="button" class="off-refresh" data-act="refresh" title="Tải lại từ máy chủ (bỏ bản nháp chưa lưu)">Làm mới</button>'
+   +'<button type="button" class="off-refresh" data-act="refresh" title="Tải lại từ máy chủ">Làm mới</button>'
    +'<span class="off-save '+(offLoading?'':offSaveState)+'">'+saveTxt+'</span></div></div>'
    +'<div class="off-note '+(offMsg?offMsg.type:'hint')+'" role="status" aria-live="polite">'+(offMove?'Đang đổi ngày '+offLbl(offMove.date)+' — bấm vào ngày mới (bấm lại ngày cũ để thôi). ':'')+(offMsg?offMsg.msg:(offMove?'':'Bấm vào một ngày để đăng ký, bấm lại ngày của bạn để hủy. Số thứ tự trên tên là thứ tự đăng ký. Có thể đăng ký trước cho tháng sau.'))+'</div>'
    +'<div class="off-main"><section class="off-cal"><div class="oc-head">'+['T2','T3','T4','T5','T6','T7','CN'].map(x=>'<span>'+x+'</span>').join('')+'</div><div class="oc-grid">'+cells+'</div></section>'
-   +'<aside class="off-side"><h3>Đăng ký của bạn</h3><ul class="mine">'+mineHtml+'</ul><h3>Quy tắc xếp lịch</h3><ul class="rules"><li><b>Bước 1:</b> mỗi ngày đúng <b>1 C9</b> — chia đều cho mọi người</li><li><b>Bước 2:</b> xếp <b>E</b> cho người còn thiếu ≥12h; <b>dừng khi đạt giờ công kế hoạch</b> (<b>'+TARGET_HOURS+'h</b>), không vượt</li><li><b>Bước 3:</b> <b>HC</b> chỉ bù khi còn thiếu &lt;12h (không nhét khi đã đủ/dư)</li><li>Sau E → không xếp E hôm sau · Off/SN giữ nguyên · lễ trống = NL</li></ul></aside></div>'+plan;
+   +'<aside class="off-side"><h3>Đăng ký của bạn</h3><ul class="mine">'+mineHtml+'</ul><h3>Quy tắc xếp lịch</h3><ul class="rules"><li><b>Bước 1:</b> mỗi ngày đúng <b>1 C9</b> — chia đều</li><li><b>Bước 2:</b> xếp <b>E</b> khi còn thiếu ≥12h; <b>dừng khi đạt giờ công kế hoạch</b> (<b>'+TARGET_HOURS+'h</b>)</li><li><b>Bước 3:</b> <b>HC</b> chỉ bù khi thiếu &lt;12h (không nhét khi đủ/dư)</li><li>Sau E → không E hôm sau · Off/SN giữ nguyên · lễ trống = NL</li></ul></aside></div>'+plan;
+}
+(function(){
+  const box=document.getElementById('offView');
+  box.addEventListener('change',e=>{ if(e.target.id==='offMe'){ offMe=e.target.value||null; try{ localStorage.setItem('offMe',offMe||''); }catch(x){} offMove=null; renderOff(); } });
+  box.addEventListener('click',ev=>{
+    const b=ev.target.closest('[data-act]'); if(!b) return; const a=b.dataset.act;
+    if(a==='cell') offCell(+b.dataset.i);
+    else if(a==='opcell'){ offPlanEditCell(b, b.dataset.id, +b.dataset.i); }
+    else if(a==='type'){ offType=b.dataset.v; renderOff(); }
+    else if(a==='cancel') offCancel(b.dataset.date);
+    else if(a==='move'){ const r=getOffRegs().find(r=>r.id===offMe&&r.date===b.dataset.date); offMove=r&&!(offMove&&offMove.date===r.date)?{date:r.date,type:r.type}:null; offSay(null); }
+    else if(a==='plan'||a==='replan'){ offSeed=a==='plan'?0:offSeed+1; offPlan=offAutoPlan(); offPlan.key=offPeriodKey(); renderOff(); }
+    else if(a==='create') offCreate();
+    else if(a==='save') offSaveToServer();
+    else if(a==='refresh'){
+      if(offDirty && !confirm('Bạn đang có bản nháp chưa lưu. Tải lại sẽ mất thay đổi trên máy này. Tiếp tục?')) return;
+      offDirty=false; offLoadedKey=''; offLoad(true);
+    }
+  });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&offMove){ offMove=null; renderOff(); } });
+})();
+function renderAll(){
+  rebuildDeptChips();
+  renderGrid(); renderCards(); renderDuty();
+  if(EMP.length){ try{ localStorage.setItem('rosterSkel',JSON.stringify(EMP.map(e=>({dept:e.dept,id:e.id,name:e.name})))); const pq=EMP.filter(e=>e.dept===OFF_DEPT).map(e=>({id:e.id,name:e.name})); if(pq.length) localStorage.setItem('offPeople',JSON.stringify(pq)); }catch(e){} }
+  if(view==='off') renderOff();
+  document.getElementById('kpiEmp').textContent=EMP.length||'–';
+  document.getElementById('kpiPlan').textContent=PLAN_DAYS;
+  document.getElementById('kpiDays').textContent=DAYS.length||'–';
+  document.getElementById('kpiAvg').textContent=TARGET_HOURS+'h';
+  { const o=getPlanOv(); document.getElementById('kpiPlanLbl').textContent='Công kế hoạch'+(o.d!=null?' · đã chỉnh':''); document.getElementById('kpiHoursLbl').textContent='Giờ công kế hoạch'+(o.h!=null?' · đã chỉnh':''); }
+  document.getElementById('kpiShort').textContent=EMP.filter(e=>e.note).length||'0';
+  const m=document.getElementById('selMonth').value.padStart(2,'0');
+  const y=document.getElementById('selYear').value;
+  document.getElementById('titleMonth').textContent=`Tháng ${m}/${y}`;
+}
+
+['kpiPlanCard','kpiHoursCard'].forEach(id=>{
+  const el=document.getElementById(id), k=id==='kpiPlanCard'?'d':'h';
+  el.addEventListener('click',()=>editPlan(k));
+  el.addEventListener('keydown',ev=>{ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); editPlan(k); } });
+});
+document.getElementById('searchInput').oninput=e=>{ query=e.target.value; renderGrid(); renderCards(); renderDuty(); };
+deptChips.onclick=e=>{ const btn=e.target.closest('.chip'); if(!btn) return; activeDept=btn.dataset.dept; [...deptChips.children].forEach(c=>c.classList.toggle('active',c===btn)); renderGrid(); renderCards(); renderDuty(); };
+function setView(v){
+  view=v;
+  document.getElementById('btnDuty').classList.toggle('active',v==='duty');
+  document.getElementById('btnGrid').classList.toggle('active',v==='grid');
+  document.getElementById('btnCards').classList.toggle('active',v==='cards');
+  document.getElementById('btnOff').classList.toggle('active',v==='off');
+  document.getElementById('offView').style.display=v==='off'?'block':'none';
+  if(v==='off'){ offLoadedKey=''; renderOff(); }
+  dutyView.style.display=v==='duty'?'block':'none';
+  gridView.style.display=v==='grid'?'block':'none';
+  cardsView.style.display=v==='cards'?'block':'none';
+  if(v==='duty') renderDuty();
+}
+document.getElementById('btnDuty').onclick=()=>setView('duty');
+document.getElementById('btnGrid').onclick=()=>setView('grid');
+document.getElementById('btnCards').onclick=()=>setView('cards');
+document.getElementById('btnOff').onclick=()=>setView('off');
+
+/* Custom month/year dropdown */
+(function initMonthYearDD(){
+  const MONTHS=Array.from({length:12},(_,i)=>({v:String(i+1),t:String(i+1).padStart(2,'0')}));
+  const YEARS=['2025','2026','2027'];
+  const selM=document.getElementById('selMonth'), selY=document.getElementById('selYear');
+  const lblM=document.getElementById('lblMonth'), lblY=document.getElementById('lblYear');
+  const menuM=document.getElementById('menuMonth'), menuY=document.getElementById('menuYear');
+  const ddM=document.getElementById('ddMonth'), ddY=document.getElementById('ddYear');
+  const btnM=document.getElementById('btnMonth'), btnY=document.getElementById('btnYear');
+  function syncLabels(){
+    if(lblM) lblM.textContent=String(selM.value).padStart(2,'0');
+    if(lblY) lblY.textContent=selY.value;
+    if(menuM) menuM.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.v===String(selM.value)));
+    if(menuY) menuY.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.v===String(selY.value)));
+  }
+  window.syncMonthYearUI=syncLabels;
+  function buildMenu(menu,items,cur,onPick){
+    menu.innerHTML=items.map(it=>{
+      const a=String(it.v)===String(cur)?' active':'';
+      return `<button type="button" role="option" data-v="${it.v}" class="${a}">${it.t}</button>`;
+    }).join('');
+    menu.onclick=e=>{ const b=e.target.closest('button[data-v]'); if(!b) return; onPick(b.dataset.v); };
+  }
+  function closeAll(){ [ddM,ddY].forEach(d=>{if(d)d.classList.remove('open')}); [btnM,btnY].forEach(b=>{if(b)b.setAttribute('aria-expanded','false')}); }
+  function toggle(dd,btn){ const open=!dd.classList.contains('open'); closeAll(); if(open){ dd.classList.add('open'); btn.setAttribute('aria-expanded','true'); } }
+  buildMenu(menuM,MONTHS,selM.value,v=>{ selM.value=v; syncLabels(); closeAll(); selM.dispatchEvent(new Event('change')); });
+  buildMenu(menuY,YEARS.map(y=>({v:y,t:y})),selY.value,v=>{ selY.value=v; syncLabels(); closeAll(); selY.dispatchEvent(new Event('change')); });
+  syncLabels();
+  btnM.onclick=e=>{ e.stopPropagation(); toggle(ddM,btnM); };
+  btnY.onclick=e=>{ e.stopPropagation(); toggle(ddY,btnY); };
+  document.addEventListener('click',e=>{ if(!e.target.closest('.mp-dd')) closeAll(); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeAll(); });
+})();
+
+document.getElementById('selMonth').onchange=()=>{ const y=+document.getElementById('selYear').value,m=+document.getElementById('selMonth').value; loadFromGitHub(y,m); };
+document.getElementById('selYear').onchange=()=>{ const y=+document.getElementById('selYear').value,m=+document.getElementById('selMonth').value; loadFromGitHub(y,m); };
+document.getElementById('btnLoadGh').onclick=()=>{ const y=+document.getElementById('selYear').value,m=+document.getElementById('selMonth').value; loadFromGitHub(y,m); };
+document.getElementById('btnSaveGh').onclick=()=>saveToGitHub();
+
+/* Shift picker — dropdown trên ô lưới + giữ modal cho lịch cá nhân */
+const overlay=document.getElementById('overlay'), modalBody=document.getElementById('modalBody');
+
+function editCellShift(el, key, dayIdx){
+  if(!requireEditable('Đăng nhập để chọn / sửa ca.')) return;
+  if(el.classList.contains('editing')) return;
+  const e=EMP.find(x=>x.key===key); if(!e) return;
+  const cur = e.shifts[dayIdx] || '';
+  el.classList.add('editing');
+  const opts = SHIFT_PICK.map(s => {
+    const sel = (s.code === cur) ? ' selected' : '';
+    const label = s.code || '—';
+    return `<option value="${s.code}"${sel}>${label}</option>`;
+  }).join('');
+  el.innerHTML = `<select class="shift-dd" size="1">${opts}</select>`;
+  const sel = el.querySelector('select');
+  sel.focus();
+  // Mở dropdown ngay (một số trình duyệt hỗ trợ)
+  try{ sel.showPicker && sel.showPicker(); }catch(ex){}
+  let applied = false;
+  const finish = (code) => {
+    if(applied) return;
+    applied = true;
+    el.classList.remove('editing');
+    if(code !== undefined && code !== cur){
+      applyShift(key, dayIdx, code);
+    } else {
+      // Khôi phục text nếu không đổi
+      el.textContent = cur || '';
+      el.className = `rg-cell rg-day s-${cur||''} ${dayClass(dayIdx)}`;
+    }
+  };
+  sel.onchange = () => finish(sel.value);
+  sel.onblur = () => setTimeout(() => finish(undefined), 120); // delay để onchange kịp chạy
+  sel.onkeydown = (ev) => {
+    if(ev.key === 'Escape'){ finish(undefined); }
+    if(ev.key === 'Enter'){ finish(sel.value); }
+  };
+}
+
+function openShiftPicker(key, dayIdx){
+  // Dùng cho lịch cá nhân (openPerson) — vẫn list modal cho dễ đọc label đầy đủ
+  if(!requireEditable('Đăng nhập để chọn / sửa ca.')) return;
+  const e=EMP.find(x=>x.key===key); if(!e) return;
+  const dd=DAYS[dayIdx]||['?','?',''];
+  const cur=e.shifts[dayIdx]||'';
+  modalBody.className='modal';
+  modalBody.innerHTML=`
+    <div class="mtop">
+      <div><h3>Chọn ca</h3>
+      <div class="mid">${e.name} · Ngày ${dd[0]}/${dd[2]} (${dd[1]})</div></div>
+      <button class="closeb" onclick="closeModal()">✕</button>
+    </div>
+    <div class="shift-list">
+      ${SHIFT_PICK.map(s=>{
+        const on = (s.code===cur);
+        return `<button type="button" class="${on?'active':''}" onclick="applyShift(${key},${dayIdx},'${s.code}')">
+          <span class="code ${s.cls}">${s.code||'—'}</span>
+          <span class="lbl">${s.label}</span>
+          <span class="check">${on?'✓':''}</span>
+        </button>`;
+      }).join('')}
+    </div>
+    <p class="hint">Sau khi sửa, bấm <b>💾 Lưu lịch</b> để ghi file Excel lên máy chủ.</p>`;
+  overlay.classList.add('show');
+}
+function applyShift(key, dayIdx, code){
+  const e=EMP.find(x=>x.key===key); if(!e) return;
+  e.shifts[dayIdx]=code;
+  e.counts=countShifts(e.shifts);
+  e.total=calcTotal(e.shifts);
+  const short=TARGET_HOURS-e.total;
+  e.note=short>0?('thiếu '+short+'h'):'';
+  closeModal();
+  renderAll();
+}
+function openPerson(key){
+  const e=EMP.find(x=>x.key===key); if(!e) return;
+  const d=DEPTS[e.dept]||{name:e.dept,color:'#888'};
+  const canEdit = typeof isLoggedIn==='function' && isLoggedIn();
+  modalBody.className='modal wide';
+  modalBody.innerHTML=`<div class="mtop"><div><h3>${e.name}</h3><div class="mid">${e.id} · <span style="color:${d.color}">${d.name}</span></div></div><button class="closeb" onclick="closeModal()">✕</button></div>
+    <div class="mstats"><div class="mstat"><b>${e.total}h</b><span>Tổng giờ</span></div><div class="mstat"><b>${e.counts.M||0}</b><span>Ca sáng</span></div><div class="mstat"><b>${e.counts.E||0}</b><span>Ca chiều</span></div></div>
+    <div class="cal">${DAYS.map((dd,i)=>{ const s=e.shifts[i]||''; const info=SHIFT_INFO[s]||SHIFT_INFO['']; return `<div class="calcell ${info.cls} ${dayClass(i)}" onclick="openShiftPicker(${key},${i});"><div class="d">${dd[1]} ${dd[0]}</div><div class="s">${s||'–'}</div></div>`; }).join('')}</div>
+    <p class="hint">Bấm một ngày để chọn ca từ danh sách.</p>
+    ${canEdit?`<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap">
+      <button type="button" class="btn-action" style="border-color:var(--danger);color:var(--danger)" onclick="deleteEmployee(${key})">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        Xóa nhân viên
+      </button>
+    </div>`:''}`;
+  overlay.classList.add('show');
+}
+async function deleteEmployee(key){
+  if(!requireEditable('Đăng nhập để xóa nhân viên.')) return;
+  const e=EMP.find(x=>x.key===key);
+  if(!e) return;
+  const ok=confirm('Xóa nhân viên «'+e.name+'» ('+(e.id||'—')+') khỏi lịch tháng này?\n\nFile lịch trên máy chủ sẽ được cập nhật ngay.');
+  if(!ok) return;
+  EMP=EMP.filter(x=>x.key!==key).map((x,i)=>({...x,key:i}));
+  applyNotes(EMP);
+  closeModal();
+  renderAll();
+  setBanner('Đã xóa <b>'+e.name+'</b>. Đang cập nhật lịch trên máy chủ…','');
+  try{
+    await saveToGitHub();
+  }catch(err){
+    setBanner('Đã xóa trên web nhưng lưu máy chủ lỗi: '+(err.message||err)+'. Bấm <b>Lưu lịch</b> thủ công.','err');
+  }
+}
+function closeModal(){ fbShown=-1; overlay.classList.remove('show'); }
+overlay.onclick=e=>{ if(e.target===overlay) closeModal(); };
+
+function openTokenModal(msg){
+  modalBody.className='modal';
+  modalBody.innerHTML=`
+    <div class="mtop"><div><h3>Khóa truy cập máy chủ</h3><div class="mid">Cần để 💾 Lưu file Excel lên máy chủ</div></div>
+    <button class="closeb" onclick="closeModal()">✕</button></div>
+    <div class="token-box">
+      ${msg||'Liên hệ quản trị để lấy khóa truy cập máy chủ (dùng khi lưu lịch).'}
+      <input id="tokInput" type="password" placeholder="Dán khóa truy cập…" value="${getToken()}">
+      <div class="row">
+        <button type="button" class="btn-action primary" id="tokSave">Lưu khóa</button>
+        <button type="button" class="btn-action" id="tokClear">Xóa khóa</button>
+      </div>
+      <p style="margin:8px 0 0;font-size:11px">Khóa chỉ lưu trên trình duyệt máy này, không gửi đi đâu khác ngoài máy chủ lịch.</p>
+    </div>`;
+  overlay.classList.add('show');
+  document.getElementById('tokSave').onclick=()=>{ setToken(document.getElementById('tokInput').value.trim()); closeModal(); setBanner('Đã lưu khóa truy cập trên trình duyệt này.','ok'); };
+  document.getElementById('tokClear').onclick=()=>{ setToken(''); document.getElementById('tokInput').value=''; setBanner('Đã xóa khóa truy cập.','ok'); };
+}
+document.getElementById('btnToken').onclick=()=>{ if(!requireLogin('Đăng nhập để cấu hình khóa truy cập.')) return; openTokenModal(); };
+
+/* Template + Upload merge */
+document.getElementById('btnTemplate').onclick=()=>downloadTemplateExcel();
+document.getElementById('btnUpload').onclick=()=>{ if(!requireEditable('Đăng nhập để nạp Excel.')) return; document.getElementById('fileExcel').click(); };
+document.getElementById('fileExcel').onchange=async ev=>{
+  const file=ev.target.files&&ev.target.files[0]; ev.target.value=''; if(!file) return;
+  try{
+    setBanner('Đang đọc & gộp <b>'+file.name+'</b>…','');
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array', cellDates:true});
+    const parsed=parseRosterWorkbook(wb);
+    if(!parsed.employees || !parsed.employees.length){
+      throw new Error('Không đọc được nhân viên nào. Dùng «Mẫu Excel» (đúng cột Họ tên / Mã / ngày).');
+    }
+    if(parsed.plan && (parsed.plan.d!=null||parsed.plan.h!=null)) applyServerPlan(parsed.plan);
+    const beforeSnap = snapshotEmp(EMP);
+    const {added, updated, total}=mergeEmployees(parsed.employees);
+    const afterSnap = snapshotEmp(EMP);
+    renderAll();
+
+    // Trùng tên + trùng hết ca → bỏ qua, không tải lên máy chủ
+    if(empSnapshotsEqual(beforeSnap, afterSnap)){
+      setBanner('File <b>'+file.name+'</b> trùng hoàn toàn với lịch đang có (tên + ca). <b>Không tải lên</b> máy chủ.','');
+      return;
+    }
+    const diff = countShiftDiffs(beforeSnap, afterSnap);
+    // Có thay đổi ca hoặc tên mới → cập nhật file Excel tổng (từ EMP) và gửi máy chủ
+    // (không upload nguyên file user nạp)
+    setBanner(
+      'Đã gộp <b>'+file.name+'</b>: +'+added+' NV mới, cập nhật ca '+updated
+      +' · đổi ca '+diff.changed+' người, thêm '+diff.added
+      +' · tổng <b>'+total+'</b> NV. Đang cập nhật file Excel tổng lên máy chủ…','');
+    try{
+      await saveToGitHub();
+    }catch(e){
+      setBanner('Đã gộp trên web nhưng lưu máy chủ lỗi: '+(e.message||e)+'. Bấm <b>Lưu lịch</b> thủ công.','err');
+    }
+  }catch(err){ console.error(err); setBanner('Lỗi Excel: '+(err.message||err),'err'); }
+};
+
+/* INIT — mặc định tab Đang trực */
+
+/* Theme */
+const THEME_KEY='sunpq_theme';
+function applyTheme(t){
+  const mode = (t==='dark')?'dark':'light';
+  document.documentElement.setAttribute('data-theme', mode==='dark'?'dark':'light');
+  const sun=document.getElementById('iconSun'), moon=document.getElementById('iconMoon');
+  if(sun) sun.style.display = mode==='dark'?'none':'';
+  if(moon) moon.style.display = mode==='dark'?'':'none';
+  try{ localStorage.setItem(THEME_KEY, mode); }catch(e){}
+}
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute('data-theme');
+  applyTheme(cur==='dark'?'light':'dark');
+}
+(function bootTheme(){
+  let t='light';
+  try{ t=localStorage.getItem(THEME_KEY)||'light'; }catch(e){}
+  if(t!=='dark' && t!=='light'){
+    if(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) t='dark';
+  }
+  applyTheme(t);
+})();
+
+document.getElementById('btnTheme').onclick=()=>toggleTheme();
+document.getElementById('btnLogin').onclick=()=>openLoginModal();
+document.getElementById('btnLogout').onclick=()=>{
+  setAuth(null);
+  refreshAuthUI();
+  if(!EMP.length) renderAll();
+  setBanner('Đã đăng xuất — chế độ chỉ xem.','');
+};
+
+/* ========== BÁO CÁO LỖI → Viber ========== */
+const VIBER_PHONE_LOCAL = '0706551196';
+const VIBER_PHONE_INTL = '84706551196'; // +84 bỏ số 0 đầu
+let reportImages = []; // { file, url, name }
+
+function openReportModal(){
+  reportImages = [];
+  modalBody.className = 'modal';
+  modalBody.innerHTML = `
+    <div class="mtop">
+      <div><h3>Báo cáo lỗi</h3>
+      <div class="mid">Mô tả lỗi + ảnh đính kèm sẽ được lưu lại cho quản trị xử lý</div></div>
+      <button class="closeb" onclick="closeModal()">✕</button>
+    </div>
+    <div class="login-form">
+      <label>Họ tên / mã NV (tuỳ chọn)</label>
+      <input id="repName" placeholder="Ví dụ: Nguyễn A · 41863">
+      <label>Mô tả lỗi <span style="color:var(--danger)">*</span></label>
+      <textarea id="repDesc" rows="4" style="width:100%;border:1.5px solid var(--line);border-radius:9px;padding:9px 11px;font:inherit;font-size:13.5px;box-sizing:border-box;resize:vertical" placeholder="Lỗi xảy ra khi nào? Bạn đang làm gì? Mong muốn ra sao?"></textarea>
+      <label>Ảnh lỗi (có thể chọn nhiều)</label>
+      <input type="file" id="repFiles" accept="image/*" multiple style="font-size:13px">
+      <div class="report-imgs" id="repPreview"></div>
+      <p class="report-hint">Tối đa 6 ảnh, tự động nén trước khi gửi. Không đính kèm thông tin cá nhân nhạy cảm.</p>
+      <div class="actions">
+        <button type="button" class="btn-action primary" id="repSend">Gửi báo cáo</button>
+        <button type="button" class="btn-action" onclick="closeModal()">Hủy</button>
+      </div>
+      <div class="err" id="repErr"></div>
+    </div>`;
+  overlay.classList.add('show');
+  document.getElementById('repFiles').onchange = onReportFiles;
+  document.getElementById('repSend').onclick = submitFeedback;
+}
+
+function onReportFiles(ev){
+  const files = Array.from((ev.target.files)||[]);
+  ev.target.value = '';
+  for(const f of files){
+    if(!f.type || !f.type.startsWith('image/')) continue;
+    if(f.size > 8 * 1024 * 1024){
+      setBanner('Ảnh quá lớn (>8MB), bỏ qua: '+f.name,'err');
+      continue;
+    }
+    if(reportImages.length >= 6){
+      setBanner('Tối đa 6 ảnh mỗi báo cáo.','err');
+      break;
+    }
+    const url = URL.createObjectURL(f);
+    reportImages.push({ file: f, url, name: f.name });
+  }
+  renderReportPreview();
+}
+
+function renderReportPreview(){
+  const box = document.getElementById('repPreview');
+  if(!box) return;
+  box.innerHTML = reportImages.map((im,i)=>`
+    <div class="ri">
+      <img src="${im.url}" alt="">
+      <button type="button" title="Xóa" data-i="${i}">×</button>
+    </div>`).join('');
+  box.onclick = (e)=>{
+    const b = e.target.closest('button[data-i]');
+    if(!b) return;
+    const i = +b.dataset.i;
+    try{ URL.revokeObjectURL(reportImages[i].url); }catch(ex){}
+    reportImages.splice(i,1);
+    renderReportPreview();
+  };
+}
+
+function buildReportText(name, desc){
+  const auth = getAuth();
+  const lines = [
+    '🚩 BÁO CÁO LỖI — Lịch trực Sun PhuQuoc',
+    'Thời gian: ' + new Date().toLocaleString('vi-VN'),
+    'Người gửi: ' + (name || (auth ? auth.username : 'Khách')),
+    auth ? ('Tài khoản: ' + auth.username) : '',
+    'Trang: ' + (location.href || ''),
+    'Thiết bị: ' + (navigator.userAgent || '').slice(0,160),
+    '',
+    'Mô tả:',
+    desc,
+    '',
+    reportImages.length ? ('Số ảnh đính kèm: ' + reportImages.length + ' (gửi kèm trong Viber)') : 'Không có ảnh đính kèm'
+  ].filter(x => x !== null && x !== undefined);
+  return lines.join('\n');
+}
+
+async function copyText(str){
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(str);
+      return true;
+    }
+  }catch(e){}
+  try{
+    const ta = document.createElement('textarea');
+    ta.value = str; ta.style.position='fixed'; ta.style.left='-9999px';
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  }catch(e){ return false; }
+}
+
+function openViberChat(){
+  // Deep link Viber (mobile app). Desktop có thể không mở được.
+  const uri = 'viber://chat?number=' + encodeURIComponent(VIBER_PHONE_INTL);
+  try{ window.location.href = uri; }catch(e){}
+  // Fallback nhẹ: thử mở sau 400ms nếu vẫn ở trang
+  setTimeout(()=>{
+    try{
+      const a = document.createElement('a');
+      a.href = uri; a.style.display='none';
+      document.body.appendChild(a); a.click(); a.remove();
+    }catch(e){}
+  }, 300);
+}
+
+async function submitReport(){
+  const errEl = document.getElementById('repErr');
+  if(errEl) errEl.textContent = '';
+  const name = ((document.getElementById('repName')||{}).value || '').trim();
+  const desc = ((document.getElementById('repDesc')||{}).value || '').trim();
+  if(!desc){
+    if(errEl) errEl.textContent = 'Vui lòng nhập mô tả lỗi.';
+    return;
+  }
+  const text = buildReportText(name, desc);
+  const btn = document.getElementById('repSend');
+  if(btn){ btn.disabled = true; btn.textContent = 'Đang xử lý…'; }
+
+  const copied = await copyText(text);
+
+  // Ưu tiên Web Share API (mobile: có thể chọn Viber + kèm ảnh)
+  let shared = false;
+  try{
+    if(navigator.share){
+      const data = { title: 'Báo cáo lỗi — Lịch trực', text };
+      if(reportImages.length && navigator.canShare){
+        const files = reportImages.map(im => im.file);
+        const withFiles = { ...data, files };
+        if(navigator.canShare(withFiles)){
+          await navigator.share(withFiles);
+          shared = true;
+        }
+      }
+      if(!shared){
+        await navigator.share(data);
+        shared = true;
+      }
+    }
+  }catch(e){
+    // user cancel or unsupported — tiếp tục mở Viber
+    if(e && e.name === 'AbortError') shared = true; // đã mở share sheet rồi hủy
+  }
+
+  if(!shared){
+    openViberChat();
+  }
+
+  closeModal();
+  reportImages.forEach(im=>{ try{ URL.revokeObjectURL(im.url); }catch(e){} });
+  reportImages = [];
+
+  let msg = '✅ Đã chuẩn bị báo cáo.';
+  if(copied) msg += ' Nội dung đã <b>sao chép</b> — mở Viber và <b>dán (paste)</b> vào chat ' + VIBER_PHONE_LOCAL + '.';
+  else msg += ' Hãy mở Viber chat <b>' + VIBER_PHONE_LOCAL + '</b> và gửi mô tả lỗi.';
+  if(!shared) msg += ' Ảnh (nếu có) hãy chọn từ thư viện và gửi kèm trong cùng cuộc chat.';
+  setBanner(msg, 'ok');
+}
+
+(function init(){
+  refreshAuthUI();
+  updateSyncUI();
+  setView('duty');
+  const roster = rosterMonthForDate();
+  document.getElementById('selYear').value = String(roster.year);
+  document.getElementById('selMonth').value = String(roster.month);
+  if(typeof window.syncMonthYearUI==='function') window.syncMonthYearUI();
+  loadFromGitHub(roster.year, roster.month);
+  startRemoteStatusPoll();
+  loadSiteStatus();
+  if(siteStatusPollTimer) clearInterval(siteStatusPollTimer);
+  siteStatusPollTimer = setInterval(loadSiteStatus, 15000);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) loadSiteStatus(); });
+  const btnM = document.getElementById('btnMaint');
+  if(btnM) btnM.onclick = onMaintButtonClick;
+  const btnML = document.getElementById('btnMaintLogin');
+  if(btnML) btnML.onclick = ()=> openLoginModal('Đăng nhập tài khoản quản trị để tiếp tục dùng web trong lúc bảo trì.');
+  const btnRep = document.getElementById('btnReport');
+  if(btnRep) btnRep.onclick = ()=> (isAdmin() ? openFeedbackAdmin() : openReportModal());
+  // Popup thông báo cập nhật cố định (một lần) — changelog từ bảo trì dùng maybeShowSiteChangelog
+  setTimeout(showChangelogOnce, 600);
+})();
+
+/* ================= FEEDBACK (lưu trên GitHub) =================
+ * endpoint: URL Cloudflare Worker (xem feedback-worker.js) để MỌI NGƯỜI gửi được mà không lộ khóa.
+ * Để trống → chỉ máy có khóa (Key) mới ghi thẳng được; còn lại rơi về cách cũ (sao chép gửi Viber). */
+const FB = { owner:'dispatchpqc', repo:'crewlist-feedback', dir:'feedback', endpoint:(window.SUNPQ&&SUNPQ.feedbackEndpoint)||'' };
+const fbApi = `https://api.github.com/repos/${FB.owner}/${FB.repo}/contents/${FB.dir}`;
+const fbEsc = t => String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fbB64 = str => btoa(unescape(encodeURIComponent(str)));
+let fbCount = 0;
+
+async function shrinkImg(file, max=1200, q=.72){
+  const bmp = await createImageBitmap(file);
+  const k = Math.min(1, max/Math.max(bmp.width,bmp.height));
+  const c = document.createElement('canvas'); c.width=Math.round(bmp.width*k); c.height=Math.round(bmp.height*k);
+  c.getContext('2d').drawImage(bmp,0,0,c.width,c.height); bmp.close&&bmp.close();
+  return c.toDataURL('image/jpeg', q);
+}
+
+async function submitFeedback(){
+  const desc=(document.getElementById('repDesc').value||'').trim();
+  const name=(document.getElementById('repName').value||'').trim().slice(0,80);
+  const err=document.getElementById('repErr'), btn=document.getElementById('repSend');
+  if(!desc){ err.textContent='Vui lòng nhập mô tả lỗi.'; return; }
+  err.textContent=''; btn.disabled=true; btn.textContent='Đang gửi…';
+  try{
+    const images = await Promise.all(reportImages.slice(0,6).map(i=>shrinkImg(i.file)));
+    const rec = { name, desc:desc.slice(0,3000), images,
+      ctx:{ view:(document.getElementById('titleMonth')||{}).textContent||'', ua:navigator.userAgent.slice(0,140) } };
+    if(FB.endpoint){
+      const r = await fetch(FB.endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(rec)});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+    } else if(getToken()){
+      const id=Date.now()+'-'+Math.random().toString(36).slice(2,7);
+      const full={id,createdAt:new Date().toISOString(),...rec};
+      const r = await fetch(`${fbApi}/${id}.json`,{method:'PUT',headers:{...ghApiHeaders(),'Content-Type':'application/json'},
+        body:JSON.stringify({message:'feedback '+id,content:fbB64(JSON.stringify(full))})});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+    } else throw new Error('nocfg');
+    closeModal();
+    reportImages.forEach(im=>{ try{URL.revokeObjectURL(im.url)}catch(e){} }); reportImages=[];
+    setBanner('✅ Đã gửi báo lỗi cho quản trị. Cảm ơn bạn!','ok');
+  }catch(e){
+    console.warn('feedback',e);
+    btn.disabled=false; btn.textContent='Gửi báo cáo';
+    if(e.message==='nocfg'||/Failed to fetch|HTTP/.test(e.message)){
+      err.textContent='Chưa gửi được lên máy chủ ('+(e.message==='nocfg'?'chưa cấu hình địa chỉ Worker trong config.js':e.message)+') — chuyển sang cách gửi qua Viber.';
+      setTimeout(()=>submitReport(),700);
+    } else err.textContent='Lỗi: '+e.message;
+  }
+}
+
+async function fbFetchAll(){
+  const r = await fetch(fbApi+'?t='+Date.now(),{headers:ghApiHeaders(),cache:'no-store'});
+  if(r.status===404) return [];
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const files=(await r.json()).filter(f=>/\.json$/.test(f.name));
+  const out=await Promise.all(files.map(async f=>{
+    try{
+      const x=await fetch(f.url,{headers:{...ghApiHeaders(),'Accept':'application/vnd.github.raw+json'},cache:'no-store'});
+      const j=await x.json(); j._sha=f.sha; j._path=f.path; return j;
+    }catch(e){ return null; }
+  }));
+  return out.filter(Boolean).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+}
+
+function fbRefreshBtn(){
+  const b=document.getElementById('btnReport'); if(!b) return;
+  if(isAdmin()){
+    b.innerHTML='📥 Feedback'+(fbCount?`<span class="fb-badge">${fbCount}</span>`:'');
+    b.title='Xem các lỗi đã được báo';
+  } else { b.textContent='🚩 Báo lỗi'; b.title='Báo lỗi cho quản trị'; }
+}
+var fbShown = -1;
+async function fbPollCount(){
+  if(!isAdmin()||!getToken()||document.hidden) return;
+  try{
+    const r=await fetch(fbApi+'?t='+Date.now(),{headers:ghApiHeaders(),cache:'no-store'});
+    const n = r.ok ? (await r.json()).filter(f=>/\.json$/.test(f.name)).length : (r.status===404?0:fbCount);
+    const grew = n > fbCount; fbCount = n; fbRefreshBtn();
+    if(document.getElementById('fbList')){            // đang mở danh sách → tự cập nhật, không cần reload
+      if(n !== fbShown) openFeedbackAdmin(true);
+    } else if(grew){ setBanner('📥 Có <b>feedback mới</b> vừa được gửi.','ok'); }
+  }catch(e){}
+}
+async function openFeedbackAdmin(silent){
+  if(!getToken()){ openTokenModal('Cần khóa truy cập (Key) để xem feedback.'); return; }
+  if(!silent||!document.getElementById('fbList')){
+  modalBody.className='modal';
+  modalBody.innerHTML=`<div class="mtop"><div><h3>Feedback từ người dùng</h3><div class="mid" id="fbSub">Đang tải…</div></div><button class="closeb" onclick="closeModal()">✕</button></div><div class="fb-list" id="fbList"></div>`;
+  overlay.classList.add('show'); }
+  const box=document.getElementById('fbList'), sub=document.getElementById('fbSub');
+  try{
+    const items=await fbFetchAll(); fbCount=items.length; fbShown=items.length; fbRefreshBtn();
+    sub.textContent=items.length?items.length+' lỗi chưa xử lý':'Không có feedback nào 🎉';
+    box.innerHTML=items.map((f,i)=>`<div class="fb-card" id="fb${i}">
+      <div class="fb-h"><b>${fbEsc(f.name||'Ẩn danh')}</b><span>${f.createdAt?new Date(f.createdAt).toLocaleString('vi-VN'):''}</span></div>
+      <div class="fb-d">${fbEsc(f.desc)}</div>
+      ${(f.images&&f.images.length)?`<div class="fb-i">${f.images.map(u=>`<img loading="lazy" src="${fbEsc(u)}" alt="">`).join('')}</div>`:''}
+      ${f.ctx&&f.ctx.view?`<div class="fb-h"><span>${fbEsc(f.ctx.view)}</span></div>`:''}
+      <button type="button" class="btn-action primary fb-done">✅ Đã fix — hoàn tất &amp; xóa</button></div>`).join('');
+    box.querySelectorAll('.fb-i img').forEach(im=>im.onclick=()=>{
+      const lb=document.createElement('div'); lb.className='fb-lb'; lb.innerHTML=`<img src="${im.src}">`; lb.onclick=()=>lb.remove(); document.body.appendChild(lb); });
+    box.querySelectorAll('.fb-done').forEach((btn,i)=>btn.onclick=async()=>{
+      if(!confirm('Xác nhận đã fix xong? Feedback này sẽ bị xóa.')) return;
+      btn.disabled=true; btn.textContent='Đang xóa…';
+      const f=items[i];
+      const r=await fetch(`${fbApi}/${encodeURIComponent(f._path.split('/').pop())}`,{method:'DELETE',headers:{...ghApiHeaders(),'Content-Type':'application/json'},
+        body:JSON.stringify({message:'done '+f.id,sha:f._sha})});
+      if(r.ok||r.status===404){
+        const c=document.getElementById('fb'+i); c.classList.add('out'); setTimeout(()=>c.remove(),300);
+        fbCount=Math.max(0,fbCount-1); fbRefreshBtn(); sub.textContent=fbCount?fbCount+' lỗi chưa xử lý':'Không có feedback nào 🎉';
+      } else { btn.disabled=false; btn.textContent='✅ Đã fix — hoàn tất & xóa'; alert('Xóa thất bại (HTTP '+r.status+'). Kiểm tra khóa có quyền ghi repo '+FB.repo+'.'); }
+    });
+  }catch(e){ sub.textContent='Không tải được: '+e.message+' — kiểm tra khóa có quyền vào repo '+FB.repo; }
+}
+(function(){ const _r=refreshAuthUI; refreshAuthUI=function(){ _r.apply(this,arguments); fbRefreshBtn(); if(isAdmin()) fbPollCount(); }; fbRefreshBtn();
+  setInterval(fbPollCount,15000); document.addEventListener('visibilitychange',()=>{ if(!document.hidden) fbPollCount(); }); })();
+
+/* ================= LỊCH CÁ NHÂN (.ics) qua Worker ================= */
+const ICS = { endpoint:(window.SUNPQ&&SUNPQ.icsEndpoint)||'' };   // dán địa chỉ roster-ics-worker vào đây
+var ICS_LINKS = {}; try{ ICS_LINKS = JSON.parse(localStorage.getItem('sunpq_ics_links')||'{}'); }catch(e){}
+const icsId = e => String(e.id||'').replace(/^0+/,'').trim();
+async function icsSync(silent){
+  const tok=getToken();
+  if(!ICS.endpoint||!tok||!EMP.length||!DAYS.length){ if(!silent) alert(!ICS.endpoint?'Chưa cấu hình ICS.endpoint trong schedule.html':(!tok?'Cần nhập Key trước.':'Chưa có lịch để đồng bộ.')); return false; }
+  const pad=n=>String(n).padStart(2,'0'), last=DAYS[DAYS.length-1];
+  const body={ key:last[3]+'-'+pad(last[2]), days:DAYS.map(d=>d[3]+'-'+pad(d[2])+'-'+pad(d[0])),
+    emp:EMP.map(e=>({id:icsId(e),name:e.name,shifts:e.shifts})).filter(e=>e.id) };
+  try{
+    const r=await fetch(ICS.endpoint+'/roster',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok},body:JSON.stringify(body)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    Object.assign(ICS_LINKS,(await r.json()).links||{});
+    try{ localStorage.setItem('sunpq_ics_links',JSON.stringify(ICS_LINKS)); }catch(e){}
+    if(!silent) setBanner('✅ Đã đồng bộ lịch cá nhân ('+body.emp.length+' NV).','ok');
+    return true;
+  }catch(e){ if(!silent) alert('Đồng bộ thất bại: '+e.message); return false; }
+}
+function openIcsModal(){
+  modalBody.className='modal';
+  modalBody.innerHTML=`<div class="mtop"><div><h3>Link lịch cá nhân</h3><div class="mid">Gửi link cho từng nhân viên → thêm vào Google/Apple Calendar, ca trực tự cập nhật</div></div><button class="closeb" onclick="closeModal()">✕</button></div>
+    <div style="display:flex;gap:8px;margin-top:8px"><input id="icsQ" placeholder="Tìm tên / mã NV…" style="flex:1;border:1.5px solid var(--line);border-radius:9px;padding:8px 10px;font:inherit;background:var(--sun);color:var(--ink)"><button type="button" class="btn-action primary" id="icsSyncBtn">🔄 Đồng bộ</button></div>
+    <div class="fb-list" id="icsList"></div>`;
+  overlay.classList.add('show');
+  const list=document.getElementById('icsList'), q=document.getElementById('icsQ');
+  const draw=()=>{ const k=q.value.trim().toLowerCase();
+    const rows=EMP.filter(e=>!k||(e.name+' '+e.id).toLowerCase().includes(k)).slice(0,80);
+    list.innerHTML=rows.map(e=>{ const u=ICS_LINKS[icsId(e)];
+      return `<div class="fb-card" style="animation:none"><div class="fb-h"><b>${fbEsc(e.name)}</b><span>${fbEsc(e.id)}</span></div>${u?`<div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn-action" data-c="${fbEsc(u)}">📋 Sao chép link</button><a class="btn-action" style="text-decoration:none" href="${fbEsc(u.replace(/^https?:/,'webcal:'))}">📅 Thêm vào lịch</a></div>`:'<span class="fb-h">Chưa có link — bấm Đồng bộ</span>'}</div>`; }).join('')||'<div class="fb-h" style="margin-top:10px">Chưa có nhân viên nào (hãy Tải lịch trước).</div>';
+    list.querySelectorAll('[data-c]').forEach(b=>b.onclick=async()=>{ try{ await navigator.clipboard.writeText(b.dataset.c); b.textContent='✅ Đã chép'; setTimeout(()=>b.textContent='📋 Sao chép link',1500);}catch(e){ prompt('Sao chép link:',b.dataset.c);} }); };
+  q.oninput=draw; draw();
+  document.getElementById('icsSyncBtn').onclick=async e=>{ e.target.disabled=true; e.target.textContent='Đang gửi…'; await icsSync(false); e.target.disabled=false; e.target.textContent='🔄 Đồng bộ'; draw(); };
+}
+(function(){ const bl=document.getElementById('btnLogout'); if(!bl) return;
+  const b=document.createElement('button'); b.type='button'; b.className='btn-action'; b.id='btnIcs'; b.style.display='none';
+  b.textContent='📅 Lịch cá nhân'; b.title='Link lịch riêng cho từng nhân viên'; b.onclick=openIcsModal; bl.parentNode.insertBefore(b,bl);
+  const _r=refreshAuthUI; refreshAuthUI=function(){ _r.apply(this,arguments); b.style.display=isAdmin()?'':'none'; };
+  b.style.display=isAdmin()?'':'none'; })();
+</script>
+</body>
+</html>
