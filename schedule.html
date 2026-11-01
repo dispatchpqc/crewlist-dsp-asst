@@ -873,6 +873,14 @@ body{background:#FBF8F2}
 .op-grid .pv.h,.op-grid .pv.nm{background:transparent}
 .op-grid .pv.h{height:20px;color:var(--ink-soft);font-weight:700}.op-grid .pv.h.sun{color:var(--red)}
 .op-grid .pv.nm{justify-content:flex-start;font-size:12px;font-weight:700;color:var(--ink)}
+.op-grid .pv.ed{cursor:pointer;position:relative;transition:box-shadow .12s,transform .12s}
+.op-grid .pv.ed:hover{box-shadow:inset 0 0 0 1.5px var(--gold-deep);transform:scale(1.06);z-index:2}
+.op-grid .pv.ed select.op-dd{
+  position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;border:none;border-radius:7px;
+  font:inherit;font-size:10px;font-weight:800;text-align:center;cursor:pointer;
+  appearance:auto;-webkit-appearance:menulist;background:var(--paper);color:var(--ink);
+  box-shadow:0 2px 10px rgba(0,0,0,.18);z-index:5
+}
 .op-stat{display:grid;gap:6px;margin:12px 0}
 .op-stat li{display:flex;align-items:baseline;gap:12px;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line-soft)}
 .op-stat b{min-width:130px}.op-stat em{font-style:normal;color:var(--ink-soft);font-size:11.5px}
@@ -3197,6 +3205,66 @@ function offAutoPlan(){
   });
   return {shifts:out,stats,warns};
 }
+/** Tính lại giờ công / thống kê từ offPlan.shifts sau khi admin sửa tay */
+function offPlanRebuildStats(){
+  if(!offPlan||!offPlan.shifts) return;
+  const people=offPeople();
+  offPlan.stats=people.map(e=>{
+    const id=empKey(e), sh=offPlan.shifts[id]||[], c={};
+    sh.forEach(x=>{ if(x) c[x]=(c[x]||0)+1; });
+    const h=calcTotal(sh), diff=h-TARGET_HOURS;
+    const days=sh.filter(x=>['M','E','C9','SN','NL','HC','P'].includes(x)).length;
+    return {e,id,h,diff,days,c};
+  });
+  // Cảnh báo phủ ngày
+  const warns=[];
+  for(let i=0;i<DAYS.length;i++){
+    const has=people.some(e=>{ const c=(offPlan.shifts[empKey(e)]||[])[i]; return c==='M'||c==='E'||c==='C9'; });
+    if(!has) warns.push('Ngày '+DAYS[i][0]+'/'+DAYS[i][2]+': chưa có người trực.');
+  }
+  offPlan.stats.forEach(x=>{
+    if(x.diff>24) warns.push(offShort(x.e.name)+' dư '+x.diff+'h so với kế hoạch.');
+    else if(x.diff<-24) warns.push(offShort(x.e.name)+' thiếu '+(-x.diff)+'h so với kế hoạch.');
+  });
+  offPlan.warns=warns;
+}
+/** Chỉnh 1 ô trên lịch xếp thử — cập nhật ca + giờ công ngay */
+function offPlanSetShift(id, dayIdx, code){
+  if(!offPlan||!offPlan.shifts||!offPlan.shifts[id]) return;
+  if(dayIdx<0||dayIdx>=DAYS.length) return;
+  offPlan.shifts[id][dayIdx]=code||'';
+  offPlanRebuildStats();
+  renderOff();
+}
+function offPlanEditCell(el, id, dayIdx){
+  if(!isAdmin()){ offSay('Chỉ admin được sửa lịch xếp thử.','warn'); return; }
+  if(!offPlan||!offPlan.shifts||!offPlan.shifts[id]) return;
+  if(el.classList.contains('editing')) return;
+  const cur=offPlan.shifts[id][dayIdx]||'';
+  const codes=['','M','E','C9','SN','NL','P','HC'];
+  el.classList.add('editing');
+  el.innerHTML='<select class="op-dd">'+codes.map(c=>{
+    const sel=(c===cur)?' selected':'';
+    return '<option value="'+c+'"'+sel+'>'+(c||'—')+'</option>';
+  }).join('')+'</select>';
+  const sel=el.querySelector('select');
+  sel.focus();
+  try{ sel.showPicker&&sel.showPicker(); }catch(ex){}
+  let done=false;
+  const finish=code=>{
+    if(done) return; done=true;
+    el.classList.remove('editing');
+    if(code!==undefined) offPlanSetShift(id, dayIdx, code);
+    else { el.textContent=cur||''; el.className='pv rg-cell s-'+(cur||'')+' ed'; }
+  };
+  sel.onchange=()=>finish(sel.value);
+  sel.onblur=()=>setTimeout(()=>finish(undefined),120);
+  sel.onkeydown=ev=>{
+    if(ev.key==='Escape') finish(undefined);
+    if(ev.key==='Enter') finish(sel.value);
+  };
+}
+
 /** Admin xác nhận: tạo (hoặc ghi đè ca DSP PQC của) lịch tháng đang chọn rồi lưu lên máy chủ */
 async function offCreate(){
   if(!isAdmin()){ offSay('Chỉ admin được tạo lịch tự động.','err'); return; }
@@ -3244,7 +3312,7 @@ function renderOff(){
     let body='';
     if(offPlan&&offPlan.key===offPeriodKey()){
       const head='<span class="pv h"></span>'+DAYS.map((d,i)=>'<span class="pv h'+(sun.has(i)?' sun':'')+'">'+d[0]+'</span>').join('');
-      const rows=offPlan.stats.map(x=>'<span class="pv nm">'+offShort(x.e.name)+'</span>'+offPlan.shifts[x.id].map(c=>'<span class="pv rg-cell s-'+c+'">'+c+'</span>').join('')).join('');
+      const rows=offPlan.stats.map(x=>'<span class="pv nm">'+offShort(x.e.name)+'</span>'+offPlan.shifts[x.id].map((c,i)=>'<span class="pv rg-cell s-'+(c||'')+' ed" data-act="opcell" data-id="'+x.id+'" data-i="'+i+'" title="Bấm để sửa ca">'+(c||'–')+'</span>').join('')).join('');
       const stat=offPlan.stats.map(x=>{
         const cls=x.diff>24?'low':(x.diff<-24?'low':'ok');
         const tag=x.diff>0?('+'+x.diff+'h'):(x.diff<0?(x.diff+'h'):'đủ');
@@ -3252,7 +3320,7 @@ function renderOff(){
       }).join('');
       body='<div class="op-scroll"><div class="op-grid" style="--n:'+DAYS.length+'">'+head+rows+'</div></div><ul class="op-stat">'+stat+'</ul>'+(offPlan.warns.length?'<ul class="op-warn">'+offPlan.warns.slice(0,8).map(w=>'<li>'+w+'</li>').join('')+'</ul>':'<p class="op-ok">Mỗi ngày có ít nhất 1 người trực; giờ công bám kế hoạch (thiếu được, dư tối đa +24h).</p>')+'<div class="off-actions"><button type="button" class="btn-action" data-act="replan">Xếp lại (phương án khác)</button><button type="button" class="btn-action primary" data-act="create">'+(hasRoster?'Xác nhận · ghi đè lịch tháng '+mm+'/'+yy:'Xác nhận · tạo lịch tháng '+mm+'/'+yy)+'</button></div>';
     }
-    plan='<section class="off-auto"><div class="off-autohead"><div><h3>Tạo lịch tự động · tháng '+mm+'/'+yy+' <span class="demo">demo</span></h3><p>Xếp đồng thời '+people.length+' người theo các ngày off/SN đã đăng ký. '+(hasRoster?'Tháng này đã có lịch — chỉ ghi đè ca của DSP PQC.':'Tháng này chưa có lịch — sẽ tạo file lịch mới.')+'</p></div><button type="button" class="btn-action primary" data-act="plan">'+(offPlan?'Xếp lại từ đầu':'Xếp thử')+'</button></div>'+body+'</section>';
+    plan='<section class="off-auto"><div class="off-autohead"><div><h3>Tạo lịch tự động · tháng '+mm+'/'+yy+' <span class="demo">demo</span></h3><p>Xếp theo off/SN đã đăng ký. <b>Bấm vào ô ca để sửa</b> — giờ công cập nhật ngay. '+(hasRoster?'Xác nhận sẽ ghi đè ca DSP PQC.':'Xác nhận sẽ tạo file lịch mới.')+'</p></div><button type="button" class="btn-action primary" data-act="plan">'+(offPlan?'Xếp lại từ đầu':'Xếp thử')+'</button></div>'+body+'</section>';
   } else {
     const prog=people.map(e=>'<li><b>'+offShort(e.name)+'</b><span>'+regs.filter(r=>r.id===empKey(e)).length+' ngày</span></li>').join('');
     plan='<section class="off-auto"><div class="off-autohead"><div><h3>Tình hình đăng ký</h3><p>Admin sẽ tạo lịch tự động sau khi mọi người đăng ký off xong.</p></div></div><ul class="op-stat">'+prog+'</ul></section>';
@@ -3273,6 +3341,7 @@ function renderOff(){
   box.addEventListener('click',ev=>{
     const b=ev.target.closest('[data-act]'); if(!b) return; const a=b.dataset.act;
     if(a==='cell') offCell(+b.dataset.i);
+    else if(a==='opcell'){ offPlanEditCell(b, b.dataset.id, +b.dataset.i); }
     else if(a==='type'){ offType=b.dataset.v; renderOff(); }
     else if(a==='cancel') offCancel(b.dataset.date);
     else if(a==='move'){ const r=getOffRegs().find(r=>r.id===offMe&&r.date===b.dataset.date); offMove=r&&!(offMove&&offMove.date===r.date)?{date:r.date,type:r.type}:null; offSay(null); }
