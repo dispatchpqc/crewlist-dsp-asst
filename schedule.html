@@ -875,12 +875,7 @@ body{background:#FBF8F2}
 .op-grid .pv.nm{justify-content:flex-start;font-size:12px;font-weight:700;color:var(--ink)}
 .op-grid .pv.ed{cursor:pointer;position:relative;transition:box-shadow .12s,transform .12s}
 .op-grid .pv.ed:hover{box-shadow:inset 0 0 0 1.5px var(--gold-deep);transform:scale(1.06);z-index:2}
-.op-grid .pv.ed select.op-dd{
-  position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;border:none;border-radius:7px;
-  font:inherit;font-size:10px;font-weight:800;text-align:center;cursor:pointer;
-  appearance:auto;-webkit-appearance:menulist;background:var(--paper);color:var(--ink);
-  box-shadow:0 2px 10px rgba(0,0,0,.18);z-index:5
-}
+.op-grid .pv.ed select.op-dd{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;border:none;border-radius:7px;font:inherit;font-size:10px;font-weight:800;text-align:center;cursor:pointer;appearance:auto;-webkit-appearance:menulist;background:var(--paper);color:var(--ink);box-shadow:0 2px 10px rgba(0,0,0,.18);z-index:5}
 .op-stat{display:grid;gap:6px;margin:12px 0}
 .op-stat li{display:flex;align-items:baseline;gap:12px;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line-soft)}
 .op-stat b{min-width:130px}.op-stat em{font-style:normal;color:var(--ink-soft);font-size:11.5px}
@@ -1636,9 +1631,7 @@ async function editPlan(kind){
     o[kind]=n;
   }
   setPlanOv(o); recomputeSunHol();
-  if(typeof offPlan!=='undefined' && offPlan && typeof offPeriodKey==='function' && offPlan.key===offPeriodKey() && typeof offPlanRebuildStats==='function'){
-    offPlanRebuildStats();
-  }
+  if(typeof offPlan!=='undefined' && offPlan && typeof offPeriodKey==='function' && offPlan.key===offPeriodKey() && typeof offPlanRebuildStats==='function') offPlanRebuildStats();
   renderAll();
   // Lưu lên máy chủ cùng file lịch của tháng này để máy khác thấy đúng số đã chỉnh
   if(EMP.length){
@@ -2932,12 +2925,10 @@ async function offLoad(force){
   catch(e){ offMsg={msg:'Không tải được đăng ký từ máy chủ, đang dùng bản đã lưu trên máy này.',type:'warn'}; }
   offLoadedKey=key; offLoading=false; if(view==='off') renderOff();
 }
-/** Chọn ngày = bản nháp local; bấm «Lưu đăng ký» mới đẩy máy chủ */
 function offDraftMutate(fn){
   if(!requireLogin('Đăng nhập để đăng ký off.')) return;
   if(siteMaint.on && !isAdmin()){ setBanner('🔧 <b>Hệ thống đang bảo trì</b> — tạm thời chỉ xem.','err'); return; }
-  const regs=getOffRegs();
-  const res=fn(regs);
+  const regs=getOffRegs(), res=fn(regs);
   if(res.error){ offMsg={msg:res.error,type:'err'}; renderOff(); return; }
   if(res.noop){ offMsg=null; renderOff(); return; }
   setOffRegs(res.regs); offDirty=true; offPlan=null; offSaveState='draft';
@@ -2947,7 +2938,7 @@ function offDraftMutate(fn){
 async function offSaveToServer(){
   if(offBusy) return;
   if(!requireEditable('Đăng nhập để lưu đăng ký off.')) return;
-  if(!offDirty && offSaveState==='saved'){ offMsg={msg:'Không có thay đổi mới để lưu.',type:'ok'}; renderOff(); return; }
+  if(!offDirty && offSaveState==='saved'){ offMsg={msg:'Không có thay đổi mới.',type:'ok'}; renderOff(); return; }
   const regs=getOffRegs();
   offBusy=true; offSaveState='saving'; renderOff();
   try{
@@ -2957,42 +2948,31 @@ async function offSaveToServer(){
       offDirty=false; offSaveState='saved'; offMsg={msg:'Đã lưu đăng ký lên máy chủ.',type:'ok'};
     } else if(getToken()){
       let remote=[]; try{ remote=await offFetchRegs(); }catch(e){ remote=[]; }
-      const me=offMe;
-      const mineLocal=regs.filter(r=>r.id===me);
-      const others=remote.filter(r=>r.id!==me);
-      const merged=others.concat(mineLocal);
+      const me=offMe, merged=remote.filter(r=>r.id!==me).concat(regs.filter(r=>r.id===me));
       const people=offPeople(), max=offMax(), byDate={};
       merged.forEach(r=>{ (byDate[r.date]=byDate[r.date]||[]).push(r); });
       for(const date of Object.keys(byDate)){
         if(byDate[date].length>max){
-          offSaveState='draft'; offMsg={msg:offFullMsg(byDate[date],people)+' Hãy bỏ bớt ngày rồi lưu lại.',type:'err'};
+          offSaveState='draft'; offMsg={msg:offFullMsg(byDate[date],people),type:'err'};
           offBusy=false; renderOff(); return;
         }
       }
       for(let t=0;t<3;t++){
-        if(t>0){ try{ remote=await offFetchRegs(); }catch(e){} }
         const body={message:'Dang ky off '+offPeriodKey(),branch:GH.branch,
           content:btoa(unescape(encodeURIComponent(JSON.stringify({period:offPeriodKey(),regs:merged}))))};
         if(offSha) body.sha=offSha;
         const put=await fetch(`${GH.apiBase}/${offPath()}`,{method:'PUT',headers:{'Accept':'application/vnd.github+json','Authorization':'Bearer '+getToken(),'Content-Type':'application/json'},body:JSON.stringify(body)});
         if(put.status===409||put.status===422){ offSha=null; continue; }
-        if(put.status===401||put.status===403){
-          offSaveState='draft';
-          offMsg={msg:'Key không hợp lệ (HTTP '+put.status+'). Bản nháp vẫn trên máy này.',type:'err'};
-          break;
-        }
+        if(put.status===401||put.status===403){ offSaveState='draft'; offMsg={msg:'Key không hợp lệ (HTTP '+put.status+').',type:'err'}; break; }
         if(!put.ok) throw new Error('HTTP '+put.status);
         offSha=(await put.json()).content.sha; setOffRegs(merged);
         offDirty=false; offSaveState='saved'; offMsg={msg:'Đã lưu đăng ký lên máy chủ.',type:'ok'}; break;
       }
     } else {
-      offSaveState='draft';
-      offMsg={msg:'Chưa có khóa máy chủ — bản nháp chỉ trên máy này. Admin nhập Key (🔑).',type:'warn'};
+      offSaveState='draft'; offMsg={msg:'Chưa có Key — bản nháp chỉ trên máy này.',type:'warn'};
     }
   }catch(e){
-    offSaveState='draft';
-    const m=String(e.message||e);
-    offMsg={msg:/401|403/.test(m)?'Không lưu được (HTTP 401/403). Bản nháp vẫn trên máy này.':'Không lưu được: '+m,type:'err'};
+    offSaveState='draft'; offMsg={msg:'Không lưu được: '+(e.message||e),type:'err'};
   }
   offBusy=false; renderOff();
 }
@@ -3012,7 +2992,7 @@ function offCell(i){
     }
     if(mine) return {regs:regs.filter(r=>!(r.id===me&&r.date===date)),msg:'Đã bỏ đăng ký ngày '+offLbl(date)};
     if(day.length>=max) return {error:offFullMsg(day,people)};
-    return {regs:regs.concat([{id:me,date,type,ts:Date.now()}]),msg:'Đã chọn '+(type==='SN'?'SN':'off')+' ngày '+offLbl(date)+(names.length?' · '+names.join(', ')+' đã đăng ký trước':'')};
+    return {regs:regs.concat([{id:me,date,type,ts:Date.now()}]),msg:'Đã chọn '+(type==='SN'?'SN':'off')+' ngày '+offLbl(date)};
   });
 }
 function offCancel(date){
@@ -3020,7 +3000,7 @@ function offCancel(date){
   offDraftMutate(regs=>({regs:regs.filter(r=>!(r.id===me&&r.date===date)),msg:'Đã bỏ đăng ký ngày '+offLbl(date)}));
 }
 
-/** Xếp lịch tự động cho DSP PQC: M, E, C9, SN, NL */
+/** Xếp auto: C9 đều → E đến target → HC bù; sau E ngày hôm sau OFF */
 function offAutoPlan(){
   const people=offPeople(), D=DAYS.length, regs=getOffRegs(), n=people.length;
   const targetH = TARGET_HOURS;
@@ -3028,8 +3008,7 @@ function offAutoPlan(){
   const fixed={}, st={}, out={}, warns=[];
   people.forEach(e=>{
     const k=empKey(e);
-    fixed[k]={};
-    st[k]={h:0,consec:0,last:'',d:0,c:{HC:0,C9:0,M:0,E:0}};
+    fixed[k]={}; st[k]={h:0,consec:0,last:'',d:0,c:{HC:0,C9:0,M:0,E:0}};
     out[k]=new Array(D).fill('');
   });
   regs.forEach(r=>{ const i=DAYS.findIndex((_,x)=>offIso(x)===r.date); if(i>=0&&fixed[r.id]) fixed[r.id][i]=r.type; });
@@ -3037,8 +3016,7 @@ function offAutoPlan(){
   const hrsOf=code=>SHIFT_HOURS[code]||0;
   const isWork=c=>WORK.indexOf(c)>=0;
   const put=(id,i,code)=>{
-    out[id][i]=code;
-    const s=st[id];
+    out[id][i]=code; const s=st[id];
     if(isWork(code)){ s.consec++; s.d++; s.c[code]=(s.c[code]||0)+1; s.last=code; }
     else { s.consec=0; s.last=code||''; }
     s.h+=hrsOf(code);
@@ -3050,22 +3028,25 @@ function offAutoPlan(){
       else if(f==='OFF') put(id,i,'');
     });
   }
-  const free=(id,i)=>!fixed[id][i] && out[id][i]==='';
   const ids=people.map(empKey);
+  // Sau E: được E tiếp, KHÔNG được C9/M/HC
+  const afterE=(id,i)=> i>0 && out[id][i-1]==='E';
+  const freeDay=(id,i)=> !fixed[id][i] && out[id][i]==='';
 
-  // Bước 1: mỗi ngày đúng 1 C9, chia đều
+  // B1: 1 C9/ngày — không xếp người vừa E hôm qua
   for(let i=0;i<D;i++){
-    const cand=ids.filter(id=>free(id,i));
+    let cand=ids.filter(id=>freeDay(id,i) && !afterE(id,i));
     if(!cand.length){
-      const anyOff=ids.every(id=>fixed[id][i]==='OFF'||fixed[id][i]==='SN');
-      if(!anyOff) warns.push('Ngày '+DAYS[i][0]+'/'+DAYS[i][2]+': không ai nhận C9.');
+      cand=ids.filter(id=>freeDay(id,i)); // bắt buộc phủ C9
+      if(cand.length) warns.push('Ngày '+DAYS[i][0]+'/'+DAYS[i][2]+': buộc xếp C9 cho người vừa E.');
+    }
+    if(!cand.length){
+      if(!ids.every(id=>fixed[id][i]==='OFF'||fixed[id][i]==='SN'))
+        warns.push('Ngày '+DAYS[i][0]+'/'+DAYS[i][2]+': thiếu C9.');
       continue;
     }
-    cand.sort((a,b)=>{
-      const sa=st[a], sb=st[b];
-      return (sa.c.C9||0)-(sb.c.C9||0) || sa.h-sb.h || (ids.indexOf(a)+i+offSeed)-(ids.indexOf(b)+i+offSeed);
-    });
-    put(cand[0], i, 'C9');
+    cand.sort((a,b)=>(st[a].c.C9||0)-(st[b].c.C9||0)||st[a].h-st[b].h||(ids.indexOf(a)+i+offSeed)-(ids.indexOf(b)+i+offSeed));
+    put(cand[0],i,'C9');
   }
 
   function resync(){
@@ -3083,62 +3064,51 @@ function offAutoPlan(){
   }
   resync();
 
-  // Bước 2: E — chỉ khi sau E vẫn ≤ targetH
+  // B2: E — được E liên tiếp; chỉ khi h+12<=target
   for(let i=0;i<D;i++){
     const cand=ids.filter(id=>{
-      if(out[id][i]!=='') return false;
-      if(fixed[id][i]) return false;
-      if(i>0 && out[id][i-1]==='E') return false;
+      if(!freeDay(id,i)) return false;
+      // sau E vẫn được E
       if(st[id].h + 12 > targetH) return false;
       if(st[id].consec>=6) return false;
       return true;
     });
     if(!cand.length) continue;
-    cand.sort((a,b)=>st[a].h-st[b].h || (st[a].c.E||0)-(st[b].c.E||0) || (ids.indexOf(a)-ids.indexOf(b)));
-    put(cand[0], i, 'E');
+    cand.sort((a,b)=>st[a].h-st[b].h||(st[a].c.E||0)-(st[b].c.E||0)||ids.indexOf(a)-ids.indexOf(b));
+    put(cand[0],i,'E');
   }
 
-  // Bước 3: HC bù khi thiếu <12h, không vượt target
+  // B3: HC — KHÔNG sau E; chỉ bù thiếu <12h
   resync();
   for(let i=0;i<D;i++){
     const cand=ids.filter(id=>{
-      if(out[id][i]!=='') return false;
-      if(fixed[id][i]) return false;
-      const need=targetH - st[id].h;
-      if(need<=0 || need>=12) return false;
-      if(st[id].h + 8 > targetH) return false;
-      if(i>0 && out[id][i-1]==='E') return false;
-      return true;
+      if(!freeDay(id,i)) return false;
+      if(afterE(id,i)) return false; // không HC sau E
+      const need=targetH-st[id].h;
+      return need>0 && need<12 && st[id].h+8<=targetH;
     });
     if(!cand.length) continue;
-    cand.sort((a,b)=>st[a].h-st[b].h || (st[a].c.HC||0)-(st[b].c.HC||0));
-    put(cand[0], i, 'HC');
+    cand.sort((a,b)=>st[a].h-st[b].h||(st[a].c.HC||0)-(st[b].c.HC||0));
+    put(cand[0],i,'HC');
   }
 
   for(let i=0;i<D;i++){
     if(!hol.has(i)) continue;
-    ids.forEach(id=>{ if(out[id][i]==='' && !fixed[id][i]) put(id,i,'NL'); });
-  }
-
-  for(let i=0;i<D;i++){
-    const c9n=ids.filter(id=>out[id][i]==='C9').length;
-    if(c9n===0){
-      const allOff=ids.every(id=>fixed[id][i]==='OFF'||fixed[id][i]==='SN');
-      if(!allOff) warns.push('Ngày '+DAYS[i][0]+'/'+DAYS[i][2]+': thiếu C9.');
-    } else if(c9n>1) warns.push('Ngày '+DAYS[i][0]+'/'+DAYS[i][2]+': '+c9n+' C9 (nên 1).');
+    ids.forEach(id=>{ if(out[id][i]===''&&!fixed[id][i]) put(id,i,'NL'); });
   }
 
   const stats=people.map(e=>{
     const id=empKey(e), sh=out[id], c={};
     sh.forEach(x=>{ if(x) c[x]=(c[x]||0)+1; });
     const h=calcTotal(sh), diff=h-targetH;
-    const days=sh.filter(x=>isWork(x)||x==='SN'||x==='NL'||x==='P').length;
     if(diff>12) warns.push(offShort(e.name)+' dư '+diff+'h.');
     else if(diff<-24) warns.push(offShort(e.name)+' thiếu '+(-diff)+'h.');
-    return {e,id,h,diff,days,c};
+    return {e,id,h,diff,days:sh.filter(x=>isWork(x)||x==='SN'||x==='NL'||x==='P').length,c};
   });
   return {shifts:out,stats,warns};
 }
+
+
 /** Admin xác nhận: tạo (hoặc ghi đè ca DSP PQC của) lịch tháng đang chọn rồi lưu lên máy chủ */
 
 function offPlanRebuildStats(){
@@ -3147,55 +3117,35 @@ function offPlanRebuildStats(){
   offPlan.stats=people.map(e=>{
     const id=empKey(e), sh=offPlan.shifts[id]||[], c={};
     sh.forEach(x=>{ if(x) c[x]=(c[x]||0)+1; });
-    const h=calcTotal(sh), diff=h-TARGET_HOURS;
-    const days=sh.filter(x=>['M','E','C9','SN','NL','HC','P'].includes(x)).length;
-    return {e,id,h,diff,days,c};
+    return {e,id,h:calcTotal(sh),diff:calcTotal(sh)-TARGET_HOURS,days:sh.filter(x=>x).length,c};
   });
   const warns=[];
-  for(let i=0;i<DAYS.length;i++){
-    const has=people.some(e=>{ const c=(offPlan.shifts[empKey(e)]||[])[i]; return c==='M'||c==='E'||c==='C9'||c==='HC'; });
-    if(!has) warns.push('Ngày '+DAYS[i][0]+'/'+DAYS[i][2]+': chưa có người trực.');
-  }
-  offPlan.stats.forEach(x=>{
-    if(x.diff>12) warns.push(offShort(x.e.name)+' dư '+x.diff+'h.');
-    else if(x.diff<-24) warns.push(offShort(x.e.name)+' thiếu '+(-x.diff)+'h.');
-  });
+  offPlan.stats.forEach(x=>{ if(x.diff>12) warns.push(offShort(x.e.name)+' dư '+x.diff+'h.'); });
   offPlan.warns=warns;
 }
 function offPlanSetShift(id, dayIdx, code){
   if(!offPlan||!offPlan.shifts||!offPlan.shifts[id]) return;
-  if(dayIdx<0||dayIdx>=DAYS.length) return;
   offPlan.shifts[id][dayIdx]=code||'';
-  offPlanRebuildStats();
-  renderOff();
+  offPlanRebuildStats(); renderOff();
 }
 function offPlanEditCell(el, id, dayIdx){
   if(!isAdmin()){ offSay('Chỉ admin được sửa lịch xếp thử.','warn'); return; }
-  if(!offPlan||!offPlan.shifts||!offPlan.shifts[id]) return;
-  if(el.classList.contains('editing')) return;
+  if(!offPlan||!offPlan.shifts||!offPlan.shifts[id]||el.classList.contains('editing')) return;
   const cur=offPlan.shifts[id][dayIdx]||'';
   const codes=['','C9','E','HC','M','SN','NL','P'];
   el.classList.add('editing');
-  el.innerHTML='<select class="op-dd">'+codes.map(c=>{
-    const sel=(c===cur)?' selected':'';
-    return '<option value="'+c+'"'+sel+'>'+(c||'—')+'</option>';
-  }).join('')+'</select>';
-  const sel=el.querySelector('select');
-  sel.focus();
+  el.innerHTML='<select class="op-dd">'+codes.map(c=>'<option value="'+c+'"'+(c===cur?' selected':'')+'>'+(c||'—')+'</option>').join('')+'</select>';
+  const sel=el.querySelector('select'); sel.focus();
   try{ sel.showPicker&&sel.showPicker(); }catch(ex){}
   let done=false;
   const finish=code=>{
-    if(done) return; done=true;
-    el.classList.remove('editing');
+    if(done) return; done=true; el.classList.remove('editing');
     if(code!==undefined) offPlanSetShift(id, dayIdx, code);
     else { el.textContent=cur||'–'; el.className='pv rg-cell s-'+(cur||'')+' ed'; }
   };
   sel.onchange=()=>finish(sel.value);
   sel.onblur=()=>setTimeout(()=>finish(undefined),120);
-  sel.onkeydown=ev=>{
-    if(ev.key==='Escape') finish(undefined);
-    if(ev.key==='Enter') finish(sel.value);
-  };
+  sel.onkeydown=ev=>{ if(ev.key==='Escape') finish(undefined); if(ev.key==='Enter') finish(sel.value); };
 }
 
 async function offCreate(){
@@ -3237,14 +3187,14 @@ function renderOff(){
   });
   const mineRegs=regs.filter(r=>r.id===offMe).sort((a,b)=>a.date<b.date?-1:1);
   const mineHtml=mineRegs.length?mineRegs.map(r=>'<li class="'+(offMove&&offMove.date===r.date?'moving':'')+'"><span class="tg '+r.type+'">'+(r.type==='SN'?'SN':'Off')+'</span><b>'+offLbl(r.date)+'</b><span class="grow"></span><button type="button" data-act="move" data-date="'+r.date+'">Đổi ngày</button><button type="button" class="x" data-act="cancel" data-date="'+r.date+'">Hủy</button></li>').join(''):'<li class="none">Bạn chưa đăng ký ngày nào.</li>';
-  const saveTxt=offLoading?'Đang tải đăng ký…':offSaveState==='saving'?'Đang lưu…':offSaveState==='draft'?(offDirty?'Bản nháp · chưa lưu máy chủ':''):offSaveState==='saved'?'Đã lưu lên máy chủ':offSaveState==='err'?'Lưu lỗi':'';
+  const saveTxt=offLoading?'Đang tải đăng ký…':offSaveState==='saving'?'Đang lưu…':offSaveState==='draft'?(offDirty?'Bản nháp · chưa lưu':''):offSaveState==='saved'?'Đã lưu lên máy chủ':offSaveState==='err'?'Lưu lỗi':'';
   const hasRoster=EMP.length>0&&!!currentGhFile;
   let plan='';
   if(admin){
     let body='';
     if(offPlan&&offPlan.key===offPeriodKey()){
       const head='<span class="pv h"></span>'+DAYS.map((d,i)=>'<span class="pv h'+(sun.has(i)?' sun':'')+'">'+d[0]+'</span>').join('');
-      const rows=offPlan.stats.map(x=>'<span class="pv nm">'+offShort(x.e.name)+'</span>'+offPlan.shifts[x.id].map((c,i)=>'<span class="pv rg-cell s-'+(c||'')+' ed" data-act="opcell" data-id="'+x.id+'" data-i="'+i+'" title="Bấm để sửa ca">'+(c||'–')+'</span>').join('')).join('');
+      const rows=offPlan.stats.map(x=>'<span class="pv nm">'+offShort(x.e.name)+'</span>'+offPlan.shifts[x.id].map((c,i)=>'<span class="pv rg-cell s-'+(c||'')+' ed" data-act="opcell" data-id="'+x.id+'" data-i="'+i+'" title="Bấm để sửa">'+(c||'–')+'</span>').join('')).join('');
       const stat=offPlan.stats.map(x=>{
         const cls=x.diff>12?'low':(x.diff<-24?'low':'ok');
         const tag=x.diff>0?('+'+x.diff+'h'):(x.diff<0?(x.diff+'h'):'đủ');
@@ -3252,7 +3202,7 @@ function renderOff(){
       }).join('');
       body='<div class="op-scroll"><div class="op-grid" style="--n:'+DAYS.length+'">'+head+rows+'</div></div><ul class="op-stat">'+stat+'</ul>'+(offPlan.warns.length?'<ul class="op-warn">'+offPlan.warns.slice(0,8).map(w=>'<li>'+w+'</li>').join('')+'</ul>':'<p class="op-ok">Mỗi ngày đều có người phủ ca sáng, giờ công và ngày công gần với kế hoạch.</p>')+'<div class="off-actions"><button type="button" class="btn-action" data-act="replan">Xếp lại (phương án khác)</button><button type="button" class="btn-action primary" data-act="create">'+(hasRoster?'Xác nhận · ghi đè lịch tháng '+mm+'/'+yy:'Xác nhận · tạo lịch tháng '+mm+'/'+yy)+'</button></div>';
     }
-    plan='<section class="off-auto"><div class="off-autohead"><div><h3>Tạo lịch tự động · tháng '+mm+'/'+yy+' <span class="demo">demo</span></h3><p>Xếp theo off/SN · <b>bám giờ công kế hoạch '+TARGET_HOURS+'h</b>. <b>Bấm ô ca để sửa</b>. '+(hasRoster?'Xác nhận ghi đè ca DSP PQC.':'Xác nhận tạo file lịch mới.')+'</p></div><button type="button" class="btn-action primary" data-act="plan">'+(offPlan?'Xếp lại từ đầu':'Xếp thử')+'</button></div>'+body+'</section>';
+    plan='<section class="off-auto"><div class="off-autohead"><div><h3>Tạo lịch tự động · tháng '+mm+'/'+yy+' <span class="demo">demo</span></h3><p>Xếp đồng thời '+people.length+' người theo các ngày off/SN đã đăng ký. '+(hasRoster?'Tháng này đã có lịch — chỉ ghi đè ca của DSP PQC.':'Tháng này chưa có lịch — sẽ tạo file lịch mới.')+'</p></div><button type="button" class="btn-action primary" data-act="plan">'+(offPlan?'Xếp lại từ đầu':'Xếp thử')+'</button></div>'+body+'</section>';
   } else {
     const prog=people.map(e=>'<li><b>'+offShort(e.name)+'</b><span>'+regs.filter(r=>r.id===empKey(e)).length+' ngày</span></li>').join('');
     plan='<section class="off-auto"><div class="off-autohead"><div><h3>Tình hình đăng ký</h3><p>Admin sẽ tạo lịch tự động sau khi mọi người đăng ký off xong.</p></div></div><ul class="op-stat">'+prog+'</ul></section>';
@@ -3260,12 +3210,12 @@ function renderOff(){
   box.innerHTML='<div class="off-top"><div><h2>Đăng ký off · DSP PQC · '+mm+'/'+yy+'</h2><p>Kỳ '+DAYS[0][0]+'/'+DAYS[0][2]+' → '+DAYS[DAYS.length-1][0]+'/'+DAYS[DAYS.length-1][2]+' · tối đa <b>'+max+'/'+people.length+'</b> người off cùng ngày · '+(hasRoster?'đã có lịch tháng này':'chưa có lịch — vẫn đăng ký trước được')+'</p></div>'
    +'<div class="off-ctl"><label>Bạn là <select id="offMe"><option value="">— chọn tên —</option>'+people.map(e=>'<option value="'+empKey(e)+'"'+(empKey(e)===offMe?' selected':'')+'>'+e.name+'</option>').join('')+'</select></label>'
    +'<div class="seg"><button type="button" data-act="type" data-v="OFF" class="'+(offType==='OFF'?'on':'')+'">Off</button><button type="button" data-act="type" data-v="SN" class="'+(offType==='SN'?'on':'')+'">SN</button></div>'
-   +'<button type="button" class="btn-action primary" data-act="save" title="Đẩy bản nháp lên máy chủ" '+(offBusy||!offDirty?'disabled':'')+'>Lưu đăng ký</button>'
-   +'<button type="button" class="off-refresh" data-act="refresh" title="Tải lại từ máy chủ">Làm mới</button>'
+   +'<button type="button" class="btn-action primary" data-act="save" '+(offBusy||!offDirty?'disabled':'')+'>Lưu đăng ký</button>'
+   +'<button type="button" class="off-refresh" data-act="refresh">Làm mới</button>'
    +'<span class="off-save '+(offLoading?'':offSaveState)+'">'+saveTxt+'</span></div></div>'
    +'<div class="off-note '+(offMsg?offMsg.type:'hint')+'" role="status" aria-live="polite">'+(offMove?'Đang đổi ngày '+offLbl(offMove.date)+' — bấm vào ngày mới (bấm lại ngày cũ để thôi). ':'')+(offMsg?offMsg.msg:(offMove?'':'Bấm vào một ngày để đăng ký, bấm lại ngày của bạn để hủy. Số thứ tự trên tên là thứ tự đăng ký. Có thể đăng ký trước cho tháng sau.'))+'</div>'
    +'<div class="off-main"><section class="off-cal"><div class="oc-head">'+['T2','T3','T4','T5','T6','T7','CN'].map(x=>'<span>'+x+'</span>').join('')+'</div><div class="oc-grid">'+cells+'</div></section>'
-   +'<aside class="off-side"><h3>Đăng ký của bạn</h3><ul class="mine">'+mineHtml+'</ul><h3>Quy tắc xếp lịch</h3><ul class="rules"><li><b>Bước 1:</b> mỗi ngày đúng <b>1 C9</b> — chia đều</li><li><b>Bước 2:</b> xếp <b>E</b> khi còn thiếu ≥12h; <b>dừng khi đạt giờ công kế hoạch</b> (<b>'+TARGET_HOURS+'h</b>)</li><li><b>Bước 3:</b> <b>HC</b> chỉ bù khi thiếu &lt;12h (không nhét khi đủ/dư)</li><li>Sau E → không E hôm sau · Off/SN giữ nguyên · lễ trống = NL</li></ul></aside></div>'+plan;
+   +'<aside class="off-side"><h3>Đăng ký của bạn</h3><ul class="mine">'+mineHtml+'</ul><h3>Quy tắc xếp lịch</h3><ul class="rules"><li><b>Sau ca E:</b> được <b>E liên tiếp</b>, nhưng <b>không</b> xếp C9/M/HC ngày hôm sau (trừ khi bắt buộc để có C9)</li><li><b>B1:</b> mỗi ngày đúng <b>1 C9</b> — chia đều</li><li><b>B2:</b> xếp <b>E</b> khi thiếu ≥12h; dừng khi đạt giờ công kế hoạch (<b>'+TARGET_HOURS+'h</b>)</li><li><b>B3:</b> <b>HC</b> chỉ bù khi thiếu &lt;12h</li><li>Off/SN giữ nguyên · lễ trống = NL</li></ul></aside></div>'+plan;
 }
 (function(){
   const box=document.getElementById('offView');
@@ -3281,7 +3231,7 @@ function renderOff(){
     else if(a==='create') offCreate();
     else if(a==='save') offSaveToServer();
     else if(a==='refresh'){
-      if(offDirty && !confirm('Bạn đang có bản nháp chưa lưu. Tải lại sẽ mất thay đổi trên máy này. Tiếp tục?')) return;
+      if(offDirty && !confirm('Bản nháp chưa lưu sẽ mất. Tiếp tục?')) return;
       offDirty=false; offLoadedKey=''; offLoad(true);
     }
   });
