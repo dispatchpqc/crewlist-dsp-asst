@@ -3021,8 +3021,7 @@ function offAutoPlan(){
     else { s.consec=0; s.last=code||''; }
     s.h+=hrsOf(code);
   };
-  // Ngày trống / off → reset chuỗi ngày liên tiếp
-  const rest=(id)=>{ st[id].consec=0; st[id].last=st[id].last==='E'?'E':''; };
+  const rest=(id)=>{ st[id].consec=0; if(st[id].last!=='E') st[id].last=''; };
   for(let i=0;i<D;i++){
     people.forEach(e=>{
       const id=empKey(e), f=fixed[id][i];
@@ -3031,14 +3030,25 @@ function offAutoPlan(){
     });
   }
   const ids=people.map(empKey);
-  // Sau E: được E tiếp; KHÔNG C9/M/HC ngày hôm sau
   const afterE=(id,i)=> i>0 && out[id][i-1]==='E';
   const freeDay=(id,i)=> !fixed[id][i] && out[id][i]==='';
   const hasOffReg=(i)=> ids.some(id=>fixed[id][i]==='OFF');
   const dayWorkers=(i)=> ids.filter(id=>isWork(out[id][i]));
-  const byNeed=(a,b)=> (st[a].h-st[b].h) || ((st[a].c.E||0)-(st[b].c.E||0)) || ((st[a].c.C9||0)-(st[b].c.C9||0)) || (ids.indexOf(a)-ids.indexOf(b));
+  // Ưu tiên người còn thiếu giờ; tránh đẩy người đã đủ/dư
+  const byNeed=(a,b)=>{
+    const ua=st[a].h < targetH ? 0 : 1, ub=st[b].h < targetH ? 0 : 1;
+    if(ua!==ub) return ua-ub; // thiếu trước, đã đủ/dư sau
+    return (st[a].h-st[b].h) || ((st[a].c.E||0)-(st[b].c.E||0)) || ((st[a].c.C9||0)-(st[b].c.C9||0)) || (ids.indexOf(a)-ids.indexOf(b));
+  };
+  // Khi bắt buộc C9: chọn người lệch target ít nhất sau khi nhận C9
+  const byC9=(a,b)=>{
+    const da=Math.abs(st[a].h+12-targetH), db=Math.abs(st[b].h+12-targetH);
+    const ua=st[a].h < targetH ? 0 : 1, ub=st[b].h < targetH ? 0 : 1;
+    if(ua!==ub) return ua-ub;
+    return da-db || (st[a].c.C9||0)-(st[b].c.C9||0) || (st[a].h-st[b].h);
+  };
 
-  // —— Pass 1: từng ngày — 1 C9; nếu không off thì +1 E (max 2 người) ——
+  // —— Pass 1: từng ngày ——
   for(let i=0;i<D;i++){
     const onlyC9 = hasOffReg(i);
 
@@ -3048,12 +3058,14 @@ function offAutoPlan(){
       if(c9cand.length) warns.push('Ngày '+DAYS[i][0]+'/'+DAYS[i][2]+': buộc C9 cho người vừa E.');
     }
     if(c9cand.length){
-      c9cand.sort((a,b)=>(st[a].c.C9||0)-(st[b].c.C9||0)||st[a].h-st[b].h||(ids.indexOf(a)+i+offSeed)-(ids.indexOf(b)+i+offSeed));
+      // Ưu tiên người còn thiếu; nếu ai cũng đủ thì ít lệch target nhất
+      c9cand.sort(byC9);
       put(c9cand[0],i,'C9');
     } else if(!ids.every(id=>fixed[id][i]==='OFF'||fixed[id][i]==='SN')){
       warns.push('Ngày '+DAYS[i][0]+'/'+DAYS[i][2]+': thiếu C9.');
     }
 
+    // E chỉ khi sau E vẫn ≤ target (không đẩy dư)
     if(!onlyC9 && dayWorkers(i).length < 2){
       const eCand=ids.filter(id=>freeDay(id,i) && st[id].h+12<=targetH && st[id].consec<6);
       if(eCand.length){
@@ -3062,7 +3074,6 @@ function offAutoPlan(){
       }
     }
 
-    // Người không được xếp hôm nay → reset consec
     ids.forEach(id=>{
       if(out[id][i]==='' || fixed[id][i]==='OFF') rest(id);
     });
@@ -3072,7 +3083,7 @@ function offAutoPlan(){
     }
   }
 
-  // —— Pass 2: bù E cho người thiếu — max 2 người/ngày, rải đều ——
+  // —— Pass 2: bù E cho người còn thiếu (không vượt target) ——
   const dayOrder=[];
   for(let k=0;k<D;k++) dayOrder.push(k);
   dayOrder.sort((a,b)=>Math.min(a,D-1-a)-Math.min(b,D-1-b)||a-b);
@@ -3088,7 +3099,6 @@ function offAutoPlan(){
         if(hasOffReg(i)) continue;
         if(dayWorkers(i).length >= 2) continue;
         if(!freeDay(id,i)) continue;
-        // Đếm consec thực từ lịch (không tin st sau pass 1)
         let cons=0;
         for(let j=i-1;j>=0;j--){
           if(isWork(out[id][j])) cons++;
@@ -3104,7 +3114,7 @@ function offAutoPlan(){
     if(!added) break;
   }
 
-  // —— Pass 3: HC bù <12h ——
+  // —— Pass 3: HC bù thiếu <12h (không vượt target) ——
   for(let i=0;i<D;i++){
     if(hasOffReg(i)) continue;
     if(dayWorkers(i).length >= 2) continue;
@@ -3132,6 +3142,7 @@ function offAutoPlan(){
   });
   return {shifts:out,stats,warns};
 }
+
 
 
 
