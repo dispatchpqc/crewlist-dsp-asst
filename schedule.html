@@ -3046,26 +3046,23 @@ function offCancel(date){
 }
 
 /** Xếp lịch tự động cho DSP PQC: M, E, C9, SN, NL
- * Quy tắc giờ công:
- * - Chỉ bám giờ công kế hoạch (TARGET_HOURS). Không cố đủ ngày công.
- * - Thiếu giờ được chấp nhận; dư tối đa +24h (2 ca × 12h).
- * Quy tắc ca:
- * - Sau E → ngày hôm sau OFF (trừ khi chỉ còn 1 người rảnh).
- * - 1 người trực → C9.
- * - Đội < 4 người: ưu tiên C9; đội ≥ 4 người: ưu tiên M.
- * - Chia đều loại ca; tối đa 6 ngày liên tiếp; lễ = NL.
+ * Ưu tiên #1: MỖI NGÀY có ít nhất 1 người trực (M/E/C9) nếu còn ai không đăng ký off.
+ * Giờ công: bám TARGET_HOURS; thiếu được; dư tối đa +24h (nới nếu bắt buộc để phủ ngày).
+ * Sau E → ưu tiên OFF hôm sau (chỉ bắt làm khi cần phủ ngày).
+ * Đội < 4: ưu tiên C9 · đội ≥ 4: ưu tiên M · 1 người trực → C9.
  */
 function offAutoPlan(){
   const people=offPeople(), D=DAYS.length, regs=getOffRegs(), n=people.length;
-  const MAX_H = TARGET_HOURS + 24; // dư tối đa 2 ca 12h
+  const MAX_H = TARGET_HOURS + 24;
   const fixed={}, st={}, out={}, warns=[];
   people.forEach(e=>{ const k=empKey(e); fixed[k]={}; st[k]={h:0,consec:0,last:'',d:0,c:{M:0,E:0,C9:0}}; out[k]=new Array(D).fill(''); });
   regs.forEach(r=>{ const i=DAYS.findIndex((_,x)=>offIso(x)===r.date); if(i>=0&&fixed[r.id]) fixed[r.id][i]=r.type; });
   const hol=new Set(HOL_IDX);
   const hrsOf=code=>SHIFT_HOURS[code]||0;
-  const canTake=(x,code)=>{
+  const canTake=(x,code,relax)=>{
     if(code!=='M'&&code!=='E'&&code!=='C9') return true;
-    return x.s.h + hrsOf(code) <= MAX_H;
+    const cap = relax ? MAX_H + 12 : MAX_H; // nới thêm 1 ca khi bắt buộc phủ ngày
+    return x.s.h + hrsOf(code) <= cap;
   };
   const put=(x,i,code)=>{
     out[x.id][i]=code; const s=x.s;
@@ -3073,61 +3070,69 @@ function offAutoPlan(){
     else s.consec=0;
     s.last=code; s.h+=hrsOf(code);
   };
+  const preferM = n >= 4;
+  const primaryCode = preferM ? 'M' : 'C9';
+  const fallbackCode = preferM ? 'C9' : 'M';
+
   for(let i=0;i<D;i++){
     const lbl=DAYS[i][0]+'/'+DAYS[i][2], avail=[];
     people.forEach((e,k)=>{ const id=empKey(e), f=fixed[id][i], x={e,id,k,s:st[id]};
       if(f==='SN') put(x,i,'SN'); else if(f==='OFF') put(x,i,''); else avail.push(x); });
     const rot=x=>(x.k+i+offSeed)%Math.max(1,n);
-    // Sát TARGET: ưu tiên người thiếu giờ nhiều nhất, rồi cân bằng loại ca
     const score=(x,t)=>(x.s.h - TARGET_HOURS)*2 + 3*(x.s.c[t]||0) + 0.25*((x.s.c.M||0)+(x.s.c.E||0)+(x.s.c.C9||0));
     const pickBy=(list,t)=>list.slice().sort((a,b)=>score(a,t)-score(b,t)||rot(a)-rot(b))[0];
-
-    // Sau E → OFF; chỉ bắt làm nếu không còn ai
-    const fresh=avail.filter(x=>x.s.last!=='E'&&x.s.consec<6);
-    const rested=avail.filter(x=>x.s.last==='E');
-    let cand=fresh.filter(x=>canTake(x,'M')||canTake(x,'C9'));
-    if(!cand.length){
-      // Thử người đã đủ/gần đủ giờ trong fresh (vẫn dưới MAX)
-      cand=fresh.filter(x=>x.s.h < MAX_H);
-    }
-    if(!cand.length&&avail.length){
-      cand=avail.filter(x=>x.s.consec<6 && x.s.h < MAX_H);
-      if(cand.length) warns.push('Ngày '+lbl+': buộc xếp người vừa làm E (không còn ai rảnh).');
-    }
-    // Loại người đã chạm trần giờ
-    cand=cand.filter(x=>canTake(x,'C9')||canTake(x,'M'));
-
-    let pick=null;
-    const picks={};
-    // Đội < 4 người: ưu tiên C9; đội ≥ 4 người: ưu tiên M
-    const preferM = n >= 4;
-    const primaryCode = preferM ? 'M' : 'C9';
-    const fallbackCode = preferM ? 'C9' : 'M';
-    // Sát giờ công kế hoạch: ưu tiên người còn thiếu; ca phụ chỉ khi sau ca vẫn ≤ TARGET
     const underTarget=x=>x.s.h < TARGET_HOURS;
     const fitsTarget=(x,code)=>x.s.h + hrsOf(code) <= TARGET_HOURS;
-    if(!cand.length){
-      warns.push('Ngày '+lbl+': không ai nhận thêm ca (off hết hoặc đã đủ/vượt trần giờ công).');
-    } else if(cand.length===1){
-      // 1 người trực → C9 (phủ bắt buộc)
-      const x=cand[0];
-      const code=canTake(x,'C9')?'C9':(canTake(x,'M')?'M':'');
-      if(code){ pick=x; put(pick,i,code); }
-      else warns.push('Ngày '+lbl+': '+offShort(x.e.name)+' đã chạm trần giờ, không xếp thêm.');
-    } else {
-      // Ca chính: ưu tiên người còn thiếu giờ; chỉ vượt TARGET khi không còn ai dưới TARGET
-      const needPrimary=cand.filter(x=>canTake(x,primaryCode)||canTake(x,fallbackCode));
-      const preferUnder=needPrimary.filter(underTarget);
-      const pool=preferUnder.length?preferUnder:needPrimary;
-      const forPri=pool.filter(x=>canTake(x,primaryCode));
-      pick=pickBy(forPri.length?forPri:pool, primaryCode);
-      if(pick && canTake(pick, primaryCode)) put(pick,i, primaryCode);
-      else if(pick && canTake(pick, fallbackCode)) put(pick,i, fallbackCode);
-      else pick=null;
 
-      // Ca phụ: CHỈ xếp nếu sau ca vẫn ≤ TARGET (không đẩy dư)
-      const rest=cand.filter(x=>x!==pick && x.s.consec<6 && underTarget(x));
-      if(rest.length>=1){
+    // --- Xây cand theo tầng nới lỏng: ưu tiên phủ ngày ---
+    // T1: không vừa E, consec<6, dưới MAX_H
+    // T2: consec<6, dưới MAX_H (cho phép vừa E)
+    // T3: dưới MAX_H (cho phép consec≥6)
+    // T4: bất kỳ ai còn trong avail (bắt buộc phủ, nới trần giờ)
+    let tier=1, cand=[], forcedE=false, forcedOver=false;
+    const t1=avail.filter(x=>x.s.last!=='E'&&x.s.consec<6&&(canTake(x,'C9')||canTake(x,'M')));
+    const t2=avail.filter(x=>x.s.consec<6&&(canTake(x,'C9')||canTake(x,'M')));
+    const t3=avail.filter(x=>canTake(x,'C9')||canTake(x,'M'));
+    if(t1.length){ cand=t1; tier=1; }
+    else if(t2.length){ cand=t2; tier=2; forcedE=true; }
+    else if(t3.length){ cand=t3; tier=3; }
+    else if(avail.length){
+      cand=avail.slice(); tier=4; forcedOver=true;
+      warns.push('Ngày '+lbl+': buộc xếp dù vượt trần giờ để có người trực.');
+    }
+    if(forcedE) warns.push('Ngày '+lbl+': buộc xếp người vừa làm E để có người trực.');
+
+    const rested=avail.filter(x=>x.s.last==='E' && !cand.includes(x));
+    let pick=null;
+    const picks={};
+    const relax=tier>=4;
+
+    if(!cand.length){
+      warns.push('Ngày '+lbl+': không ai trực (tất cả đã đăng ký off).');
+    } else {
+      // Luôn xếp đúng 1 ca chính → đảm bảo có người trực
+      const code1 = (cand.length===1 || !preferM) ? 'C9' : primaryCode;
+      const code2 = code1==='C9' ? 'M' : 'C9';
+      const preferUnder=cand.filter(underTarget);
+      const pool=preferUnder.length?preferUnder:cand;
+      const forPri=pool.filter(x=>canTake(x,code1,relax));
+      pick=pickBy(forPri.length?forPri:pool, code1);
+      if(pick){
+        if(canTake(pick,code1,relax)) put(pick,i,code1);
+        else if(canTake(pick,code2,relax)) put(pick,i,code2);
+        else if(relax){ put(pick,i,code1); } // phủ ngày dù hơi vượt
+        else pick=null;
+      }
+      if(!pick && cand.length){
+        // Fallback cuối: ai cũng được, miễn còn trong cand
+        pick=pickBy(cand,'C9');
+        put(pick,i, canTake(pick,'C9',true)?'C9':'M');
+        warns.push('Ngày '+lbl+': xếp '+offShort(pick.e.name)+' để đảm bảo có người trực.');
+      }
+
+      // Ca phụ: chỉ khi còn thiếu giờ (≤ TARGET), không ảnh hưởng phủ ngày
+      if(pick && cand.length>1){
+        const rest=cand.filter(x=>x!==pick && x.s.consec<6 && underTarget(x));
         const forE=rest.filter(x=>fitsTarget(x,'E') && canTake(x,'E'));
         if(forE.length){
           const ePick=pickBy(forE,'E');
@@ -3135,8 +3140,7 @@ function offAutoPlan(){
         }
         const afterE=rest.filter(x=>!picks[x.id]);
         const secondCode = preferM ? 'C9' : 'M';
-        // Thêm ca phụ thứ 2 chỉ khi người đó còn thiếu ≥ 12h
-        const for2=afterE.filter(x=>fitsTarget(x, secondCode) && canTake(x, secondCode));
+        const for2=afterE.filter(x=>fitsTarget(x,secondCode) && canTake(x,secondCode));
         if(for2.length && Object.keys(picks).length<1){
           const p2=pickBy(for2, secondCode);
           if(p2) picks[p2.id]=secondCode;
@@ -3146,28 +3150,49 @@ function offAutoPlan(){
 
     const nxtFree=i+1<D?people.map(empKey).filter(id=>!fixed[id][i+1]):[];
     const soleNext=nxtFree.length===1?nxtFree[0]:null;
+    const assigned=new Set();
+    if(pick) assigned.add(pick.id);
     cand.filter(x=>x!==pick).forEach(x=>{
       let code=picks[x.id]||'';
       if(code==='E'&&x.id===soleNext) code=canTake(x,'C9')?'C9':'';
       if(code && !canTake(x,code)) code='';
       if(!code&&hol.has(i)) code='NL';
-      if(code) put(x,i,code);
+      if(code){ put(x,i,code); assigned.add(x.id); }
     });
+    // Người vừa E không được chọn phủ → OFF (hoặc NL ngày lễ)
     rested.forEach(x=>{
+      if(assigned.has(x.id)) return;
       if(hol.has(i)) put(x,i,'NL');
-      else put(x,i,''); // OFF sau E
+      else put(x,i,'');
+    });
+    // Người avail khác chưa gán gì
+    avail.forEach(x=>{
+      if(assigned.has(x.id) || out[x.id][i]!=='') return;
+      if(hol.has(i)) put(x,i,'NL');
+      else put(x,i,'');
     });
     if(hol.has(i)) people.forEach(e=>{
       const id=empKey(e);
       if(out[id][i]===''&&!fixed[id][i]){ out[id][i]='NL'; st[id].h+=hrsOf('NL'); }
     });
   }
+
+  // Kiểm tra phủ ngày sau khi xếp
+  for(let i=0;i<D;i++){
+    const has=people.some(e=>{ const c=out[empKey(e)][i]; return c==='M'||c==='E'||c==='C9'; });
+    if(!has){
+      const lbl=DAYS[i][0]+'/'+DAYS[i][2];
+      const anyOff=people.every(e=>fixed[empKey(e)][i]==='OFF'||fixed[empKey(e)][i]==='SN');
+      if(!anyOff) warns.push('Ngày '+lbl+': chưa có người trực — kiểm tra đăng ký off.');
+    }
+  }
+
   const stats=people.map(e=>{
     const id=empKey(e), sh=out[id], c={};
     sh.forEach(x=>{ if(x) c[x]=(c[x]||0)+1; });
     const h=calcTotal(sh), diff=h-TARGET_HOURS, days=sh.filter(x=>['M','E','C9','SN','NL','HC','P'].includes(x)).length;
-    if(diff>24) warns.push(offShort(e.name)+' dư '+diff+'h (>'+MAX_H+'h trần) — kiểm tra lại.');
-    else if(diff<-24) warns.push(offShort(e.name)+' thiếu '+(-diff)+'h so với giờ công kế hoạch (nhiều off) — chấp nhận được, admin chỉnh nếu cần.');
+    if(diff>24) warns.push(offShort(e.name)+' dư '+diff+'h — có thể do phải phủ ngày.');
+    else if(diff<-24) warns.push(offShort(e.name)+' thiếu '+(-diff)+'h so với giờ công kế hoạch.');
     return {e,id,h,diff,days,c};
   });
   return {shifts:out,stats,warns};
@@ -3225,7 +3250,7 @@ function renderOff(){
         const tag=x.diff>0?('+'+x.diff+'h'):(x.diff<0?(x.diff+'h'):'đủ');
         return '<li><b>'+offShort(x.e.name)+'</b><span class="hrs '+cls+'">'+x.h+'h <small>/ '+TARGET_HOURS+'h</small> <small>('+tag+')</small></span><em>'+['M','E','C9','SN','NL'].map(k=>k+' '+(x.c[k]||0)).join(' · ')+'</em></li>';
       }).join('');
-      body='<div class="op-scroll"><div class="op-grid" style="--n:'+DAYS.length+'">'+head+rows+'</div></div><ul class="op-stat">'+stat+'</ul>'+(offPlan.warns.length?'<ul class="op-warn">'+offPlan.warns.slice(0,8).map(w=>'<li>'+w+'</li>').join('')+'</ul>':'<p class="op-ok">Mỗi ngày có người phủ ca sáng; giờ công bám kế hoạch (thiếu được, dư tối đa +24h).</p>')+'<div class="off-actions"><button type="button" class="btn-action" data-act="replan">Xếp lại (phương án khác)</button><button type="button" class="btn-action primary" data-act="create">'+(hasRoster?'Xác nhận · ghi đè lịch tháng '+mm+'/'+yy:'Xác nhận · tạo lịch tháng '+mm+'/'+yy)+'</button></div>';
+      body='<div class="op-scroll"><div class="op-grid" style="--n:'+DAYS.length+'">'+head+rows+'</div></div><ul class="op-stat">'+stat+'</ul>'+(offPlan.warns.length?'<ul class="op-warn">'+offPlan.warns.slice(0,8).map(w=>'<li>'+w+'</li>').join('')+'</ul>':'<p class="op-ok">Mỗi ngày có ít nhất 1 người trực; giờ công bám kế hoạch (thiếu được, dư tối đa +24h).</p>')+'<div class="off-actions"><button type="button" class="btn-action" data-act="replan">Xếp lại (phương án khác)</button><button type="button" class="btn-action primary" data-act="create">'+(hasRoster?'Xác nhận · ghi đè lịch tháng '+mm+'/'+yy:'Xác nhận · tạo lịch tháng '+mm+'/'+yy)+'</button></div>';
     }
     plan='<section class="off-auto"><div class="off-autohead"><div><h3>Tạo lịch tự động · tháng '+mm+'/'+yy+' <span class="demo">demo</span></h3><p>Xếp đồng thời '+people.length+' người theo các ngày off/SN đã đăng ký. '+(hasRoster?'Tháng này đã có lịch — chỉ ghi đè ca của DSP PQC.':'Tháng này chưa có lịch — sẽ tạo file lịch mới.')+'</p></div><button type="button" class="btn-action primary" data-act="plan">'+(offPlan?'Xếp lại từ đầu':'Xếp thử')+'</button></div>'+body+'</section>';
   } else {
@@ -3240,7 +3265,7 @@ function renderOff(){
    +'<span class="off-save '+(offLoading?'':offSaveState)+'">'+saveTxt+'</span></div></div>'
    +'<div class="off-note '+(offMsg?offMsg.type:'hint')+'" role="status" aria-live="polite">'+(offMove?'Đang đổi ngày '+offLbl(offMove.date)+' — bấm vào ngày mới (bấm lại ngày cũ để thôi). ':'')+(offMsg?offMsg.msg:(offMove?'':'Bấm vào một ngày để đăng ký, bấm lại ngày của bạn để hủy. Số thứ tự trên tên là thứ tự đăng ký. Có thể đăng ký trước cho tháng sau.'))+'</div>'
    +'<div class="off-main"><section class="off-cal"><div class="oc-head">'+['T2','T3','T4','T5','T6','T7','CN'].map(x=>'<span>'+x+'</span>').join('')+'</div><div class="oc-grid">'+cells+'</div></section>'
-   +'<aside class="off-side"><h3>Đăng ký của bạn</h3><ul class="mine">'+mineHtml+'</ul><h3>Quy tắc xếp lịch</h3><ul class="rules"><li><b>Chỉ theo giờ công kế hoạch</b> (<b>'+TARGET_HOURS+'h</b>) — không cố đủ ngày công; thiếu được, dư tối đa <b>+24h</b> (2 ca × 12h)</li><li><b>Sau ca E → ngày hôm sau OFF</b> (không xếp M/E/C9), trừ khi chỉ còn đúng 1 người rảnh</li><li>Ngày chỉ còn <b>1 người trực</b> → xếp <b>C9</b> (09:00–21:00)</li><li>Đội <b>&lt; 4 người</b>: ưu tiên <b>C9</b> · đội <b>≥ 4 người</b>: mới ưu tiên <b>M</b></li><li>Chia đều <b>M / E / C9</b> giữa các thành viên</li><li>Hết chỗ off thì ngày đó bị khóa, hiện người đăng ký trước</li><li>Ngày off giữ nguyên · ngày <b>SN</b> xếp đúng như đăng ký</li><li>Tối đa 6 ngày liên tiếp · ngày lễ không trực = <b>NL</b></li></ul></aside></div>'+plan;
+   +'<aside class="off-side"><h3>Đăng ký của bạn</h3><ul class="mine">'+mineHtml+'</ul><h3>Quy tắc xếp lịch</h3><ul class="rules"><li><b>Ưu tiên #1:</b> mỗi ngày có <b>ít nhất 1 người trực</b> (nếu còn ai không off)</li><li><b>Giờ công kế hoạch</b> (<b>'+TARGET_HOURS+'h</b>) — thiếu được, dư tối đa <b>+24h</b> (nới nếu bắt buộc để phủ ngày)</li><li><b>Sau ca E → ưu tiên OFF</b> hôm sau; chỉ bắt làm khi cần người trực</li><li>1 người trực → <b>C9</b> · đội <b>&lt; 4</b>: ưu tiên C9 · đội <b>≥ 4</b>: ưu tiên M</li><li>Chia đều <b>M / E / C9</b> · tối đa 6 ngày liên tiếp · lễ không trực = <b>NL</b></li><li>Ngày off / SN giữ đúng đăng ký</li></ul></aside></div>'+plan;
 }
 (function(){
   const box=document.getElementById('offView');
