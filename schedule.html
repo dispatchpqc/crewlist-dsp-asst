@@ -3021,6 +3021,7 @@ function offAutoPlan(){
     else { s.consec=0; s.last=code||''; }
     s.h+=hrsOf(code);
   };
+  // Pre-fill OFF / SN
   for(let i=0;i<D;i++){
     people.forEach(e=>{
       const id=empKey(e), f=fixed[id][i];
@@ -3029,72 +3030,53 @@ function offAutoPlan(){
     });
   }
   const ids=people.map(empKey);
-  // Sau E: được E tiếp, KHÔNG được C9/M/HC
+  // Sau E: được E tiếp; KHÔNG được C9/M/HC ngày hôm sau
   const afterE=(id,i)=> i>0 && out[id][i-1]==='E';
   const freeDay=(id,i)=> !fixed[id][i] && out[id][i]==='';
 
-  // B1: 1 C9/ngày — không xếp người vừa E hôm qua
+  // Xếp TỪNG NGÀY theo thứ tự: C9 → E → HC (để biết hôm qua đã E chưa)
   for(let i=0;i<D;i++){
-    let cand=ids.filter(id=>freeDay(id,i) && !afterE(id,i));
-    if(!cand.length){
-      cand=ids.filter(id=>freeDay(id,i)); // bắt buộc phủ C9
-      if(cand.length) warns.push('Ngày '+DAYS[i][0]+'/'+DAYS[i][2]+': buộc xếp C9 cho người vừa E.');
+    // —— C9: đúng 1 người, không sau E ——
+    let c9cand=ids.filter(id=>freeDay(id,i) && !afterE(id,i));
+    if(!c9cand.length){
+      c9cand=ids.filter(id=>freeDay(id,i)); // bắt buộc phủ
+      if(c9cand.length) warns.push('Ngày '+DAYS[i][0]+'/'+DAYS[i][2]+': buộc C9 cho người vừa E.');
     }
-    if(!cand.length){
-      if(!ids.every(id=>fixed[id][i]==='OFF'||fixed[id][i]==='SN'))
-        warns.push('Ngày '+DAYS[i][0]+'/'+DAYS[i][2]+': thiếu C9.');
-      continue;
+    if(c9cand.length){
+      c9cand.sort((a,b)=>(st[a].c.C9||0)-(st[b].c.C9||0)||st[a].h-st[b].h||(ids.indexOf(a)+i+offSeed)-(ids.indexOf(b)+i+offSeed));
+      put(c9cand[0],i,'C9');
+    } else if(!ids.every(id=>fixed[id][i]==='OFF'||fixed[id][i]==='SN')){
+      warns.push('Ngày '+DAYS[i][0]+'/'+DAYS[i][2]+': thiếu C9.');
     }
-    cand.sort((a,b)=>(st[a].c.C9||0)-(st[b].c.C9||0)||st[a].h-st[b].h||(ids.indexOf(a)+i+offSeed)-(ids.indexOf(b)+i+offSeed));
-    put(cand[0],i,'C9');
-  }
 
-  function resync(){
-    ids.forEach(id=>{ st[id]={h:0,consec:0,last:'',d:0,c:{HC:0,C9:0,M:0,E:0}}; });
-    for(let i=0;i<D;i++){
-      ids.forEach(id=>{
-        const code=out[id][i];
-        if(!code){ st[id].consec=0; st[id].last=''; return; }
-        const s=st[id];
-        if(isWork(code)){ s.consec++; s.d++; s.c[code]=(s.c[code]||0)+1; s.last=code; }
-        else { s.consec=0; s.last=code; }
-        s.h+=hrsOf(code);
-      });
-    }
-  }
-  resync();
-
-  // B2: E — được E liên tiếp; chỉ khi h+12<=target
-  for(let i=0;i<D;i++){
-    const cand=ids.filter(id=>{
+    // —— E: được E liên tiếp; chỉ khi h+12 ≤ target ——
+    const eCand=ids.filter(id=>{
       if(!freeDay(id,i)) return false;
-      // sau E vẫn được E
       if(st[id].h + 12 > targetH) return false;
       if(st[id].consec>=6) return false;
       return true;
     });
-    if(!cand.length) continue;
-    cand.sort((a,b)=>st[a].h-st[b].h||(st[a].c.E||0)-(st[b].c.E||0)||ids.indexOf(a)-ids.indexOf(b));
-    put(cand[0],i,'E');
-  }
+    if(eCand.length){
+      eCand.sort((a,b)=>st[a].h-st[b].h||(st[a].c.E||0)-(st[b].c.E||0)||ids.indexOf(a)-ids.indexOf(b));
+      put(eCand[0],i,'E');
+    }
 
-  // B3: HC — KHÔNG sau E; chỉ bù thiếu <12h
-  resync();
-  for(let i=0;i<D;i++){
-    const cand=ids.filter(id=>{
+    // —— HC: không sau E; chỉ bù thiếu <12h ——
+    const hcCand=ids.filter(id=>{
       if(!freeDay(id,i)) return false;
-      if(afterE(id,i)) return false; // không HC sau E
-      const need=targetH-st[id].h;
+      if(afterE(id,i)) return false;
+      const need=targetH - st[id].h;
       return need>0 && need<12 && st[id].h+8<=targetH;
     });
-    if(!cand.length) continue;
-    cand.sort((a,b)=>st[a].h-st[b].h||(st[a].c.HC||0)-(st[b].c.HC||0));
-    put(cand[0],i,'HC');
-  }
+    if(hcCand.length){
+      hcCand.sort((a,b)=>st[a].h-st[b].h||(st[a].c.HC||0)-(st[b].c.HC||0));
+      put(hcCand[0],i,'HC');
+    }
 
-  for(let i=0;i<D;i++){
-    if(!hol.has(i)) continue;
-    ids.forEach(id=>{ if(out[id][i]===''&&!fixed[id][i]) put(id,i,'NL'); });
+    // NL ngày lễ còn trống
+    if(hol.has(i)){
+      ids.forEach(id=>{ if(out[id][i]==='' && !fixed[id][i]) put(id,i,'NL'); });
+    }
   }
 
   const stats=people.map(e=>{
@@ -3107,6 +3089,7 @@ function offAutoPlan(){
   });
   return {shifts:out,stats,warns};
 }
+
 
 
 /** Admin xác nhận: tạo (hoặc ghi đè ca DSP PQC của) lịch tháng đang chọn rồi lưu lên máy chủ */
