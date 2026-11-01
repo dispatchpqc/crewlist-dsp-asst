@@ -881,6 +881,9 @@ body{background:#FBF8F2}
 .op-ok{font-size:12px;color:var(--ok);margin:8px 0}
 .off-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 .off-empty{padding:40px 16px;text-align:center;color:var(--ink-soft);font-size:13px}
+.off-refresh{font:inherit;font-size:12px;font-weight:700;padding:7px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}.off-refresh:hover{border-color:var(--ink)}
+.hrs small{font-weight:600;color:var(--ink-soft);font-size:11px}
+.op-stat .hrs{min-width:86px}
 </style>
 </head>
 <body>
@@ -1841,12 +1844,7 @@ function parseRosterWorkbook(wb){
       if(/giờ công kế hoạch/.test(k)) plan.h=v; else if(/công kế hoạch/.test(k)) plan.d=v;
     });
   }
-  const offreg=[];
-  const wsO=wb.Sheets['DangKyOff'];
-  if(wsO) XLSX.utils.sheet_to_json(wsO,{header:1,defval:''}).slice(1).forEach(r=>{
-    if(r[0]&&r[1]) offreg.push({id:String(r[0]),date:String(r[1]),type:String(r[2])==='SN'?'SN':'OFF',ts:Number(r[3])||0});
-  });
-  return {year, month, employees:list, plan, offreg};
+  return {year, month, employees:list, plan};
 }
 
 /** Tạo sheet: dòng 1 = ngày THẬT (định dạng hiển thị số ngày), dòng 2 = thứ, dữ liệu từ dòng 3 */
@@ -1881,11 +1879,6 @@ function buildWorkbookFromEmp(){
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
   // Công kế hoạch / giờ công kế hoạch đã chỉnh của tháng này: lưu cùng file lịch (sheet CauHinh)
-  const offRegs=getOffRegs();
-  if(offRegs.length){
-    const rr=[['id','Ngày','Loại','ts']]; offRegs.forEach(r=>rr.push([r.id,r.date,r.type,r.ts]));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rr), 'DangKyOff');
-  }
   const ov=getPlanOv();
   if(ov.d!=null||ov.h!=null){
     const cfg=[['Mục','Giá trị']];
@@ -1985,13 +1978,13 @@ async function loadFromGitHub(year, month){
     const wb=XLSX.read(buf,{type:'array'});
     const parsed=parseRosterWorkbook(wb);
     EMP=parsed.employees.map((e,i)=>{ const sh=(e.shifts||[]).slice(0,DAYS.length); while(sh.length<DAYS.length) sh.push(''); return {...e, shifts:sh, key:i}; });
-    applyServerPlan(parsed.plan); applyNotes(EMP); setOffRegs(parsed.offreg||[]);
+    applyServerPlan(parsed.plan); applyNotes(EMP);
     currentGhFile={ path:best.path, sha:best.sha, name:best.name };
     // Đã đồng bộ SHA file lịch → hết cờ "bản mới", nhưng KHÔNG xóa remoteBusy
     remoteNewer = false;
     document.getElementById('loadStatus').textContent='Đã tải lịch';
     renderAll();
-    setView('duty');
+    setView(view==='off'?'off':'duty');
     // Hỏi GitHub TRƯỚC khi vẽ pill — tránh nháy xanh trong lúc checks còn pending
     try{ await checkRemoteDeployStatus(); }catch(e){}
     if(remoteBusy){
@@ -2877,62 +2870,103 @@ function closeChangelog(){
   closeModal();
 }
 
-/* ===== Đăng ký off + xếp lịch tự động (demo DSP PQC) ===== */
-const OFF_DEPT='PQC';
-let offMe=null, offType='OFF', offMove=null, offPlan=null, offSeed=0, offSaveT=null, offSaveState='', offMsg=null;
+/* ===== Đăng ký off (riêng) + xếp lịch tự động (riêng) — demo DSP PQC ===== */
+const OFF_DEPT='PQC', OFF_DIR='data/dangky-off';
+let offMe=null, offType='OFF', offMove=null, offPlan=null, offSeed=0, offSaveState='', offMsg=null;
+let offSha=null, offLoadedKey='', offLoading=false, offBusy=false;
 try{ offMe=localStorage.getItem('offMe')||null; }catch(e){}
-function offPeriodKey(){ return document.getElementById('selYear').value+'-'+document.getElementById('selMonth').value; }
+function offYM(){ return [+document.getElementById('selYear').value, +document.getElementById('selMonth').value]; }
+function offPeriodKey(){ const [y,m]=offYM(); return y+'-'+m; }
+function offPath(){ const [y,m]=offYM(); return OFF_DIR+'/'+y+'-'+String(m).padStart(2,'0')+'.json'; }
 function getOffRegs(){ try{ return JSON.parse(localStorage.getItem('offreg_'+offPeriodKey())||'[]')||[]; }catch(e){ return []; } }
 function setOffRegs(a){ try{ if(a&&a.length) localStorage.setItem('offreg_'+offPeriodKey(),JSON.stringify(a)); else localStorage.removeItem('offreg_'+offPeriodKey()); }catch(e){} }
 function offIso(i){ const d=DAYS[i]; return d[3]+'-'+String(d[2]).padStart(2,'0')+'-'+String(d[0]).padStart(2,'0'); }
 function offLbl(date){ const p=date.split('-'); return p[2]+'/'+p[1]; }
-function offPeople(){ return EMP.filter(e=>e.dept===OFF_DEPT); }
+/** Danh sách DSP PQC: từ lịch đang mở; tháng chưa có lịch thì dùng danh sách đã nhớ từ lịch gần nhất */
+function offPeople(){
+  const cur=EMP.filter(e=>e.dept===OFF_DEPT).map(e=>({id:e.id,name:e.name}));
+  if(cur.length){ try{ localStorage.setItem('offPeople',JSON.stringify(cur)); }catch(e){} return cur; }
+  try{ return JSON.parse(localStorage.getItem('offPeople')||'[]')||[]; }catch(e){ return []; }
+}
 function offShort(n){ return String(n||'').trim().split(/\s+/).slice(-2).join(' '); }
 function offMax(){ return Math.max(1,offPeople().length-1); }
 function offSay(msg,type){ offMsg=msg?{msg,type:type||'ok'}:null; renderOff(); }
-function offQueueSave(){
-  offSaveState='saving'; clearTimeout(offSaveT);
-  offSaveT=setTimeout(async()=>{
-    try{ await saveToGitHub(); offSaveState='saved'; }catch(e){ offSaveState='err'; }
-    if(view==='off') renderOff();
-  },1500);
-}
-function offCommit(regs,msg){ setOffRegs(regs); offPlan=null; offQueueSave(); offSay(msg,'ok'); }
 function offFullMsg(day,people){
   const names=day.map(r=>{ const e=people.find(x=>empKey(x)===r.id); return e?offShort(e.name):'?'; });
   return 'Ngày '+offLbl(day[0].date)+' đã đủ '+day.length+'/'+people.length+' người off — '+names.join(', ')+' đã đăng ký trước. Hãy chọn ngày khác.';
 }
-function offCell(i){
+/* --- đọc/ghi file đăng ký của từng tháng: data/dangky-off/YYYY-MM.json (không đụng file lịch) --- */
+async function offFetchRegs(){
+  const path=offPath(), tok=getToken();
+  const r=tok
+    ? await fetch(`${GH.apiBase}/${path}?ref=${GH.branch}&t=${Date.now()}`,{headers:{'Accept':'application/vnd.github+json','Authorization':'Bearer '+tok}})
+    : await fetch(`${GH.rawBase}/${path}?t=${Date.now()}`);
+  if(r.status===404){ offSha=null; return []; }
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const j=await r.json();
+  if(tok){ offSha=j.sha; return (JSON.parse(decodeURIComponent(escape(atob(String(j.content).replace(/\n/g,''))))).regs)||[]; }
+  return j.regs||[];
+}
+async function offLoad(){
+  if(offLoading) return; offLoading=true; const key=offPeriodKey();
+  try{ setOffRegs(await offFetchRegs()); }catch(e){ offMsg={msg:'Không tải được đăng ký từ máy chủ, đang dùng bản đã lưu trên máy này.',type:'warn'}; }
+  offLoadedKey=key; offLoading=false; if(view==='off') renderOff();
+}
+/** Đọc bản mới nhất → áp dụng thay đổi → ghi lại. Nhờ vậy người đăng ký sau luôn thấy người đăng ký trước. */
+async function offMutate(fn){
+  if(offBusy) return;
   if(!requireEditable('Đăng nhập để đăng ký off.')) return;
+  if(!getToken()){ openTokenModal('Cần khóa truy cập máy chủ để lưu đăng ký off.'); return; }
+  offBusy=true; offSaveState='saving'; renderOff();
+  try{
+    for(let t=0;t<3;t++){
+      const regs=await offFetchRegs(); const res=fn(regs);
+      if(res.error){ setOffRegs(regs); offSaveState=''; offMsg={msg:res.error,type:'err'}; break; }
+      if(res.noop){ offSaveState=''; offMsg=null; break; }
+      const body={message:'Dang ky off '+offPeriodKey(),branch:GH.branch,
+        content:btoa(unescape(encodeURIComponent(JSON.stringify({period:offPeriodKey(),regs:res.regs}))))};
+      if(offSha) body.sha=offSha;
+      const put=await fetch(`${GH.apiBase}/${offPath()}`,{method:'PUT',headers:{'Accept':'application/vnd.github+json','Authorization':'Bearer '+getToken(),'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(put.status===409||put.status===422) continue;
+      if(!put.ok) throw new Error('HTTP '+put.status);
+      offSha=(await put.json()).content.sha; setOffRegs(res.regs); offPlan=null; offSaveState='saved'; offMsg={msg:res.msg,type:'ok'}; break;
+    }
+  }catch(e){ offSaveState='err'; offMsg={msg:'Không lưu được đăng ký: '+(e.message||e),type:'err'}; }
+  offBusy=false; renderOff();
+}
+function offCell(i){
   if(!offMe){ offSay('Chọn tên của bạn ở góc trên trước khi đăng ký.','warn'); return; }
-  const people=offPeople(), date=offIso(i); let regs=getOffRegs();
-  const day=regs.filter(r=>r.date===date).sort((a,b)=>a.ts-b.ts);
-  const mine=day.find(r=>r.id===offMe);
-  if(offMove){
-    const old=offMove;
-    if(date===old.date){ offMove=null; offSay(null); return; }
-    if(mine){ offSay('Bạn đã có đăng ký ở ngày '+offLbl(date)+'.','warn'); return; }
-    if(day.length>=offMax()){ offSay(offFullMsg(day,people),'err'); return; }
-    regs=regs.filter(r=>!(r.id===offMe&&r.date===old.date));
-    regs.push({id:offMe,date,type:old.type,ts:Date.now()});
-    offMove=null; offCommit(regs,'Đã đổi '+offLbl(old.date)+' → '+offLbl(date)+'.'); return;
-  }
-  if(mine){ offCommit(regs.filter(r=>!(r.id===offMe&&r.date===date)),'Đã hủy đăng ký ngày '+offLbl(date)+'.'); return; }
-  if(day.length>=offMax()){ offSay(offFullMsg(day,people),'err'); return; }
-  regs.push({id:offMe,date,type:offType,ts:Date.now()});
-  const before=day.map(r=>{ const e=people.find(x=>empKey(x)===r.id); return e?offShort(e.name):'?'; });
-  offCommit(regs,'Đã đăng ký '+(offType==='SN'?'SN':'off')+' ngày '+offLbl(date)+(before.length?' · '+before.join(', ')+' đã đăng ký trước bạn.':'.'));
+  const people=offPeople(), date=offIso(i), me=offMe, type=offType, move=offMove, max=offMax();
+  offMove=null;
+  offMutate(regs=>{
+    const day=regs.filter(r=>r.date===date).sort((a,b)=>a.ts-b.ts), mine=day.find(r=>r.id===me);
+    const names=day.map(r=>{ const e=people.find(x=>empKey(x)===r.id); return e?offShort(e.name):'?'; });
+    if(move){
+      if(date===move.date) return {noop:true};
+      if(mine) return {error:'Bạn đã có đăng ký ở ngày '+offLbl(date)+'.'};
+      if(day.length>=max) return {error:offFullMsg(day,people)};
+      const out=regs.filter(r=>!(r.id===me&&r.date===move.date)); out.push({id:me,date,type:move.type,ts:Date.now()});
+      return {regs:out,msg:'Đã đổi '+offLbl(move.date)+' → '+offLbl(date)+'.'};
+    }
+    if(mine) return {regs:regs.filter(r=>!(r.id===me&&r.date===date)),msg:'Đã hủy đăng ký ngày '+offLbl(date)+'.'};
+    if(day.length>=max) return {error:offFullMsg(day,people)};
+    return {regs:regs.concat([{id:me,date,type,ts:Date.now()}]),msg:'Đã đăng ký '+(type==='SN'?'SN':'off')+' ngày '+offLbl(date)+(names.length?' · '+names.join(', ')+' đã đăng ký trước bạn.':'.')};
+  });
+}
+function offCancel(date){
+  const me=offMe; if(!me) return;
+  offMutate(regs=>({regs:regs.filter(r=>!(r.id===me&&r.date===date)),msg:'Đã hủy đăng ký ngày '+offLbl(date)+'.'}));
 }
 
 /** Xếp lịch tự động cho DSP PQC: M, E, C9, SN, NL */
 function offAutoPlan(){
   const people=offPeople(), D=DAYS.length, regs=getOffRegs(), n=people.length;
   const fixed={}, st={}, out={}, warns=[];
-  people.forEach(e=>{ const k=empKey(e); fixed[k]={}; st[k]={h:0,consec:0,last:''}; out[k]=new Array(D).fill(''); });
+  people.forEach(e=>{ const k=empKey(e); fixed[k]={}; st[k]={h:0,consec:0,last:'',d:0,c:{M:0,E:0,C9:0}}; out[k]=new Array(D).fill(''); });
   regs.forEach(r=>{ const i=DAYS.findIndex((_,x)=>offIso(x)===r.date); if(i>=0&&fixed[r.id]) fixed[r.id][i]=r.type; });
   const hol=new Set(HOL_IDX);
   const put=(x,i,code)=>{ out[x.id][i]=code; const s=x.s;
-    if(code==='M'||code==='E'||code==='C9'){ s.consec++; } else s.consec=0;
+    if(code==='M'||code==='E'||code==='C9'){ s.consec++; s.d++; s.c[code]++; } else s.consec=0;
     s.last=code; s.h+=SHIFT_HOURS[code]||0; };
   for(let i=0;i<D;i++){
     const exp=TARGET_HOURS*(i+1)/D, lbl=DAYS[i][0]+'/'+DAYS[i][2], avail=[];
@@ -2943,43 +2977,72 @@ function offAutoPlan(){
     let cand=avail.filter(x=>x.s.last!=='E'&&x.s.consec<6);
     if(!cand.length&&avail.length){ cand=avail.filter(x=>x.s.consec<6); if(cand.length) warns.push('Ngày '+lbl+': phải xếp ca M ngay sau ca E.'); }
     if(!cand.length&&avail.length){ cand=avail.slice(); warns.push('Ngày '+lbl+': có người làm quá 6 ngày liên tiếp.'); }
-    let pick=null;
-    if(cand.length){ cand.sort(byNeed); pick=cand[0]; put(pick,i,'M'); }
+    // Chia đều: mỗi loại ca (M, E, C9) chọn người có ít ca loại đó nhất, kết hợp tiến độ giờ công
+    const score=(x,t)=>(x.s.h-exp)/12+2.5*x.s.c[t];
+    const pickBy=(list,t)=>list.slice().sort((a,b)=>score(a,t)-score(b,t)||rot(a)-rot(b))[0];
+    const othersOf=q=>avail.filter(x=>x!==q&&x.s.consec<6&&x.s.d<PLAN_DAYS&&(exp-x.s.h)>=6);
+    let pick=null, others=[];
+    if(cand.length){
+      pick=pickBy(cand,'M'); others=othersOf(pick);
+      // Ngày chỉ có 1 người trực (đội ≤3 người): C9 09:00–21:00 phủ cả ngày, chọn người có ít C9 nhất; đội ≥4 người giữ ưu tiên M
+      let solo=n<=3&&others.length===0;
+      if(solo){ const alt=pickBy(cand,'C9'); if(othersOf(alt).length===0) pick=alt; else solo=false; }
+      put(pick,i,solo?'C9':'M');
+    }
     else warns.push('Ngày '+lbl+': không ai trực được ca M (tất cả đã đăng ký off).');
-    let slotE=true, slotC=true;
-    avail.filter(x=>x!==pick).sort(byNeed).forEach(x=>{
-      const need=exp-x.s.h; let code='';
-      if(x.s.consec<6){ if(need>=6&&slotE){ code='E'; slotE=false; } else if(need>=6&&slotC){ code='C9'; slotC=false; } }
-      if(!code&&hol.has(i)) code='NL';
-      put(x,i,code);
-    });
+    const tot=t=>people.reduce((a,e)=>a+st[empKey(e)].c[t],0);
+    const oth=avail.filter(x=>x!==pick), picks={};
+    if(others.length&&pick){
+      const list=others.slice().sort(byNeed);
+      if(list.length>=2){
+        const e1=pickBy(list,'E'); const rest=list.filter(x=>x!==e1);
+        picks[e1.id]='E'; picks[pickBy(rest,'C9').id]='C9';
+      } else {
+        const x=list[0]; picks[x.id]=(x.s.c.E!==x.s.c.C9?(x.s.c.E<x.s.c.C9?'E':'C9'):(tot('E')<=tot('C9')?'E':'C9'));
+      }
+    }
+    // Ngày mai chỉ còn đúng 1 người rảnh (người khác đã đăng ký off): người đó không nhận ca E hôm nay để còn nghỉ đủ
+    const nxtFree=i+1<D?people.map(empKey).filter(id=>!fixed[id][i+1]):[], soleNext=nxtFree.length===1?nxtFree[0]:null;
+    oth.forEach(x=>{ let code=picks[x.id]||''; if(code==='E'&&x.id===soleNext) code='C9'; if(!code&&hol.has(i)) code='NL'; put(x,i,code); });
     if(hol.has(i)) people.forEach(e=>{ const id=empKey(e); if(out[id][i]===''&&!fixed[id][i]){ out[id][i]='NL'; st[id].h+=8; } });
   }
+  // Chỉ để tham khảo: lệch giờ/ngày công so với kế hoạch được chấp nhận, admin chỉnh tay sau
   const stats=people.map(e=>{ const id=empKey(e), sh=out[id], c={}; sh.forEach(x=>{ if(x) c[x]=(c[x]||0)+1; });
-    const h=calcTotal(sh); const diff=h-TARGET_HOURS;
-    if(diff<-6) warns.push(offShort(e.name)+' thiếu '+(-diff)+'h so với giờ công kế hoạch (nhiều ngày off).');
-    return {e,id,h,diff,c}; });
+    const h=calcTotal(sh), diff=h-TARGET_HOURS, days=sh.filter(x=>x).length;
+    if(diff<-12) warns.push(offShort(e.name)+' lệch '+diff+'h so với giờ công kế hoạch (nhiều ngày off) — admin chỉnh thêm sau nếu cần.');
+    return {e,id,h,diff,days,c}; });
   return {shifts:out,stats,warns};
 }
-function offApply(){
-  if(!offPlan) return;
-  if(!requireEditable('Đăng nhập để áp dụng lịch tự động.')) return;
-  offPeople().forEach(e=>{ const sh=offPlan.shifts[empKey(e)]; if(sh) e.shifts=sh.slice(); });
-  applyNotes(EMP); renderAll(); offQueueSave();
-  setBanner('Đã áp dụng lịch tự động cho DSP PQC. Đang lưu lên máy chủ…','ok');
+/** Admin xác nhận: tạo (hoặc ghi đè ca DSP PQC của) lịch tháng đang chọn rồi lưu lên máy chủ */
+async function offCreate(){
+  if(!isAdmin()){ offSay('Chỉ admin được tạo lịch tự động.','err'); return; }
+  if(!offPlan||offPlan.key!==offPeriodKey()){ offSay('Hãy bấm «Xếp thử» cho tháng này trước.','warn'); return; }
+  if(!requireEditable('Đăng nhập để tạo lịch.')) return;
+  const [y,m]=offYM(), mm=String(m).padStart(2,'0');
+  if(EMP.length&&currentGhFile&&!confirm('Tháng '+mm+'/'+y+' đã có lịch. Ghi đè ca của DSP PQC bằng lịch tự động?')) return;
+  if(!EMP.length){
+    let skel=[]; try{ skel=JSON.parse(localStorage.getItem('rosterSkel')||'[]')||[]; }catch(e){}
+    if(!skel.some(e=>e.dept===OFF_DEPT)) skel=skel.concat(offPeople().map(p=>({dept:OFF_DEPT,id:p.id,name:p.name})));
+    EMP=skel.map((e,i)=>({id:e.id,name:e.name,dept:e.dept,shifts:new Array(DAYS.length).fill(''),key:i}));
+    currentGhFile=null;
+  }
+  EMP.forEach(e=>{ if(e.dept===OFF_DEPT){ const sh=offPlan.shifts[empKey(e)]; if(sh) e.shifts=sh.slice(); } });
+  applyNotes(EMP); renderAll();
+  await saveToGitHub();
 }
 
 function renderOff(){
   const box=document.getElementById('offView'); if(!box) return;
+  if(offLoadedKey!==offPeriodKey()&&!offLoading) offLoad();
   const people=offPeople();
-  if(!DAYS.length||!people.length){ box.innerHTML='<div class="off-empty">Chưa có lịch DSP PQC của tháng này để đăng ký off. Hãy tải lịch trước.</div>'; return; }
+  if(!DAYS.length||!people.length){ box.innerHTML='<div class="off-empty">Chưa có danh sách DSP PQC để đăng ký off. Hãy tải một tháng đã có lịch trước.</div>'; return; }
   if(!offMe||!people.some(e=>empKey(e)===offMe)) offMe=null;
   const regs=getOffRegs(), max=offMax(), WK={T2:0,T3:1,T4:2,T5:3,T6:4,T7:5,CN:6};
   const byDate={}; regs.forEach(r=>{ (byDate[r.date]=byDate[r.date]||[]).push(r); });
   Object.values(byDate).forEach(l=>l.sort((a,b)=>a.ts-b.ts));
   const nm=id=>{ const e=people.find(x=>empKey(x)===id); return e?offShort(e.name):'?'; };
-  const sun=new Set(SUN_IDX), hol=new Set(HOL_IDX);
-  const lead=WK[DAYS[0][1]]||0;
+  const sun=new Set(SUN_IDX), hol=new Set(HOL_IDX), lead=WK[DAYS[0][1]]||0, admin=isAdmin();
+  const [yy,mo]=offYM(), mm=String(mo).padStart(2,'0');
   let cells='<span class="oc-pad"></span>'.repeat(lead);
   DAYS.forEach((d,i)=>{
     const date=offIso(i), day=byDate[date]||[], mine=day.some(r=>r.id===offMe), full=day.length>=max&&!mine;
@@ -2990,22 +3053,29 @@ function renderOff(){
   });
   const mineRegs=regs.filter(r=>r.id===offMe).sort((a,b)=>a.date<b.date?-1:1);
   const mineHtml=mineRegs.length?mineRegs.map(r=>'<li class="'+(offMove&&offMove.date===r.date?'moving':'')+'"><span class="tg '+r.type+'">'+(r.type==='SN'?'SN':'Off')+'</span><b>'+offLbl(r.date)+'</b><span class="grow"></span><button type="button" data-act="move" data-date="'+r.date+'">Đổi ngày</button><button type="button" class="x" data-act="cancel" data-date="'+r.date+'">Hủy</button></li>').join(''):'<li class="none">Bạn chưa đăng ký ngày nào.</li>';
-  const saveTxt=offSaveState==='saving'?'Đang lưu…':offSaveState==='saved'?'Đã lưu lên máy chủ':offSaveState==='err'?'Lưu lỗi — thử lại':'';
+  const saveTxt=offLoading?'Đang tải đăng ký…':offSaveState==='saving'?'Đang lưu…':offSaveState==='saved'?'Đã lưu lên máy chủ':offSaveState==='err'?'Lưu lỗi':'';
+  const hasRoster=EMP.length>0&&!!currentGhFile;
   let plan='';
-  if(offPlan){
-    const head='<span class="pv h"></span>'+DAYS.map((d,i)=>'<span class="pv h'+(sun.has(i)?' sun':'')+'">'+d[0]+'</span>').join('');
-    const rows=offPlan.stats.map(s=>'<span class="pv nm">'+offShort(s.e.name)+'</span>'+offPlan.shifts[s.id].map((c,i)=>'<span class="pv rg-cell s-'+c+'">'+c+'</span>').join('')).join('');
-    const stat=offPlan.stats.map(s=>'<li><b>'+offShort(s.e.name)+'</b><span class="hrs '+(s.diff<-6?'low':'ok')+'">'+s.h+'h</span><em>'+['M','E','C9','SN','NL'].map(k=>k+' '+(s.c[k]||0)).join(' · ')+'</em></li>').join('');
-    plan='<div class="op-scroll"><div class="op-grid" style="--n:'+DAYS.length+'">'+head+rows+'</div></div><ul class="op-stat">'+stat+'</ul>'+(offPlan.warns.length?'<ul class="op-warn">'+offPlan.warns.slice(0,8).map(w=>'<li>'+w+'</li>').join('')+'</ul>':'<p class="op-ok">Mỗi ngày đều có người trực ca M, không vi phạm quy tắc nào.</p>')+'<div class="off-actions"><button type="button" class="btn-action" data-act="replan">Xếp lại (phương án khác)</button><button type="button" class="btn-action primary" data-act="apply">Áp dụng vào lịch</button></div>';
+  if(admin){
+    let body='';
+    if(offPlan&&offPlan.key===offPeriodKey()){
+      const head='<span class="pv h"></span>'+DAYS.map((d,i)=>'<span class="pv h'+(sun.has(i)?' sun':'')+'">'+d[0]+'</span>').join('');
+      const rows=offPlan.stats.map(x=>'<span class="pv nm">'+offShort(x.e.name)+'</span>'+offPlan.shifts[x.id].map(c=>'<span class="pv rg-cell s-'+c+'">'+c+'</span>').join('')).join('');
+      const stat=offPlan.stats.map(x=>'<li><b>'+offShort(x.e.name)+'</b><span class="hrs '+(x.diff<-12?'low':'ok')+'">'+x.h+'h <small>/ '+TARGET_HOURS+'h</small></span><em>'+x.days+' / '+PLAN_DAYS+' công · '+['M','E','C9','SN','NL'].map(k=>k+' '+(x.c[k]||0)).join(' · ')+'</em></li>').join('');
+      body='<div class="op-scroll"><div class="op-grid" style="--n:'+DAYS.length+'">'+head+rows+'</div></div><ul class="op-stat">'+stat+'</ul>'+(offPlan.warns.length?'<ul class="op-warn">'+offPlan.warns.slice(0,8).map(w=>'<li>'+w+'</li>').join('')+'</ul>':'<p class="op-ok">Mỗi ngày đều có người phủ ca sáng, giờ công và ngày công gần với kế hoạch.</p>')+'<div class="off-actions"><button type="button" class="btn-action" data-act="replan">Xếp lại (phương án khác)</button><button type="button" class="btn-action primary" data-act="create">'+(hasRoster?'Xác nhận · ghi đè lịch tháng '+mm+'/'+yy:'Xác nhận · tạo lịch tháng '+mm+'/'+yy)+'</button></div>';
+    }
+    plan='<section class="off-auto"><div class="off-autohead"><div><h3>Tạo lịch tự động · tháng '+mm+'/'+yy+' <span class="demo">demo</span></h3><p>Xếp đồng thời '+people.length+' người theo các ngày off/SN đã đăng ký. '+(hasRoster?'Tháng này đã có lịch — chỉ ghi đè ca của DSP PQC.':'Tháng này chưa có lịch — sẽ tạo file lịch mới.')+'</p></div><button type="button" class="btn-action primary" data-act="plan">'+(offPlan?'Xếp lại từ đầu':'Xếp thử')+'</button></div>'+body+'</section>';
+  } else {
+    const prog=people.map(e=>'<li><b>'+offShort(e.name)+'</b><span>'+regs.filter(r=>r.id===empKey(e)).length+' ngày</span></li>').join('');
+    plan='<section class="off-auto"><div class="off-autohead"><div><h3>Tình hình đăng ký</h3><p>Admin sẽ tạo lịch tự động sau khi mọi người đăng ký off xong.</p></div></div><ul class="op-stat">'+prog+'</ul></section>';
   }
-  box.innerHTML='<div class="off-top"><div><h2>Đăng ký off · DSP PQC</h2><p>Kỳ '+DAYS[0][0]+'/'+DAYS[0][2]+' → '+DAYS[DAYS.length-1][0]+'/'+DAYS[DAYS.length-1][2]+' · tối đa <b>'+max+'/'+people.length+'</b> người off cùng một ngày</p></div>'
+  box.innerHTML='<div class="off-top"><div><h2>Đăng ký off · DSP PQC · '+mm+'/'+yy+'</h2><p>Kỳ '+DAYS[0][0]+'/'+DAYS[0][2]+' → '+DAYS[DAYS.length-1][0]+'/'+DAYS[DAYS.length-1][2]+' · tối đa <b>'+max+'/'+people.length+'</b> người off cùng ngày · '+(hasRoster?'đã có lịch tháng này':'chưa có lịch — vẫn đăng ký trước được')+'</p></div>'
    +'<div class="off-ctl"><label>Bạn là <select id="offMe"><option value="">— chọn tên —</option>'+people.map(e=>'<option value="'+empKey(e)+'"'+(empKey(e)===offMe?' selected':'')+'>'+e.name+'</option>').join('')+'</select></label>'
    +'<div class="seg"><button type="button" data-act="type" data-v="OFF" class="'+(offType==='OFF'?'on':'')+'">Off</button><button type="button" data-act="type" data-v="SN" class="'+(offType==='SN'?'on':'')+'">SN</button></div>'
-   +'<span class="off-save '+offSaveState+'">'+saveTxt+'</span></div></div>'
-   +'<div class="off-note '+(offMsg?offMsg.type:'hint')+'" role="status" aria-live="polite">'+(offMove?'Đang đổi ngày '+offLbl(offMove.date)+' — bấm vào ngày mới (bấm lại ngày cũ để thôi). ':'')+(offMsg?offMsg.msg:(offMove?'':'Bấm vào một ngày để đăng ký, bấm lại ngày của bạn để hủy. Số thứ tự trên tên là thứ tự đăng ký.'))+'</div>'
+   +'<button type="button" class="off-refresh" data-act="refresh" title="Tải lại đăng ký mới nhất">Làm mới</button><span class="off-save '+(offLoading?'':offSaveState)+'">'+saveTxt+'</span></div></div>'
+   +'<div class="off-note '+(offMsg?offMsg.type:'hint')+'" role="status" aria-live="polite">'+(offMove?'Đang đổi ngày '+offLbl(offMove.date)+' — bấm vào ngày mới (bấm lại ngày cũ để thôi). ':'')+(offMsg?offMsg.msg:(offMove?'':'Bấm vào một ngày để đăng ký, bấm lại ngày của bạn để hủy. Số thứ tự trên tên là thứ tự đăng ký. Có thể đăng ký trước cho tháng sau.'))+'</div>'
    +'<div class="off-main"><section class="off-cal"><div class="oc-head">'+['T2','T3','T4','T5','T6','T7','CN'].map(x=>'<span>'+x+'</span>').join('')+'</div><div class="oc-grid">'+cells+'</div></section>'
-   +'<aside class="off-side"><h3>Đăng ký của bạn</h3><ul class="mine">'+mineHtml+'</ul><h3>Quy tắc xếp lịch</h3><ul class="rules"><li>Mỗi ngày ít nhất 1 người trực ca <b>M</b> (ưu tiên sáng)</li><li>Không đủ chỗ off thì ngày đó bị khóa, hiện người đăng ký trước</li><li>Ngày off giữ nguyên · ngày <b>SN</b> xếp đúng như đăng ký</li><li>Không xếp M ngay sau E · tối đa 6 ngày liên tiếp</li><li>Ngày lễ: người không trực nhận <b>NL</b></li><li>Cân giờ về giờ công kế hoạch (<b>'+TARGET_HOURS+'h</b>)</li></ul></aside></div>'
-   +'<section class="off-auto"><div class="off-autohead"><div><h3>Xếp lịch tự động <span class="demo">demo</span></h3><p>Dùng các ngày off/SN đã đăng ký để xếp M, E, C9, SN, NL cho DSP PQC.</p></div><button type="button" class="btn-action primary" data-act="plan">'+(offPlan?'Xếp lại từ đầu':'Xếp thử')+'</button></div>'+plan+'</section>';
+   +'<aside class="off-side"><h3>Đăng ký của bạn</h3><ul class="mine">'+mineHtml+'</ul><h3>Quy tắc xếp lịch</h3><ul class="rules"><li>Mỗi ngày ít nhất 1 người phủ ca sáng: ưu tiên <b>M</b>; ngày chỉ có 1 người trực thì xếp <b>C9</b> (09:00–21:00)</li><li>Hết chỗ off thì ngày đó bị khóa, hiện người đăng ký trước</li><li>Ngày off giữ nguyên · ngày <b>SN</b> xếp đúng như đăng ký</li><li>Không xếp M ngay sau E · tối đa 6 ngày liên tiếp</li><li>Ngày lễ: người không trực nhận <b>NL</b></li><li>Xếp theo giờ công chuẩn (<b>'+TARGET_HOURS+'h</b>) và ngày công chuẩn (<b>'+PLAN_DAYS+'</b>) — lệch một chút được, admin chỉnh sau</li></ul></aside></div>'+plan;
 }
 (function(){
   const box=document.getElementById('offView');
@@ -3014,18 +3084,18 @@ function renderOff(){
     const b=ev.target.closest('[data-act]'); if(!b) return; const a=b.dataset.act;
     if(a==='cell') offCell(+b.dataset.i);
     else if(a==='type'){ offType=b.dataset.v; renderOff(); }
-    else if(a==='cancel'){ if(!requireEditable('Đăng nhập để hủy đăng ký.')) return; offCommit(getOffRegs().filter(r=>!(r.id===offMe&&r.date===b.dataset.date)),'Đã hủy đăng ký ngày '+offLbl(b.dataset.date)+'.'); }
+    else if(a==='cancel') offCancel(b.dataset.date);
     else if(a==='move'){ const r=getOffRegs().find(r=>r.id===offMe&&r.date===b.dataset.date); offMove=r&&!(offMove&&offMove.date===r.date)?{date:r.date,type:r.type}:null; offSay(null); }
-    else if(a==='plan'){ offSeed=0; offPlan=offAutoPlan(); renderOff(); }
-    else if(a==='replan'){ offSeed++; offPlan=offAutoPlan(); renderOff(); }
-    else if(a==='apply') offApply();
+    else if(a==='plan'||a==='replan'){ offSeed=a==='plan'?0:offSeed+1; offPlan=offAutoPlan(); offPlan.key=offPeriodKey(); renderOff(); }
+    else if(a==='create') offCreate();
+    else if(a==='refresh'){ offLoadedKey=''; renderOff(); }
   });
   document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&offMove){ offMove=null; renderOff(); } });
 })();
-
 function renderAll(){
   rebuildDeptChips();
   renderGrid(); renderCards(); renderDuty();
+  if(EMP.length){ try{ localStorage.setItem('rosterSkel',JSON.stringify(EMP.map(e=>({dept:e.dept,id:e.id,name:e.name})))); const pq=EMP.filter(e=>e.dept===OFF_DEPT).map(e=>({id:e.id,name:e.name})); if(pq.length) localStorage.setItem('offPeople',JSON.stringify(pq)); }catch(e){} }
   if(view==='off') renderOff();
   document.getElementById('kpiEmp').textContent=EMP.length||'–';
   document.getElementById('kpiPlan').textContent=PLAN_DAYS;
@@ -3052,7 +3122,7 @@ function setView(v){
   document.getElementById('btnCards').classList.toggle('active',v==='cards');
   document.getElementById('btnOff').classList.toggle('active',v==='off');
   document.getElementById('offView').style.display=v==='off'?'block':'none';
-  if(v==='off') renderOff();
+  if(v==='off'){ offLoadedKey=''; renderOff(); }
   dutyView.style.display=v==='duty'?'block':'none';
   gridView.style.display=v==='grid'?'block':'none';
   cardsView.style.display=v==='cards'?'block':'none';
