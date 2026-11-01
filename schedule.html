@@ -815,6 +815,72 @@ body{background:#FBF8F2}
 .roster-grid .rg-day{transition:none}
 .kpi.editable{cursor:pointer;transition:border-color .15s}
 .kpi.editable:hover,.kpi.editable:focus-visible{border-color:var(--gold-deep);outline:none}
+
+/* ===== Đăng ký off ===== */
+#offView{padding:4px 0 40px}
+.off-top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:12px}
+.off-top h2{margin:0;font-size:20px;font-weight:800;letter-spacing:-.01em}
+.off-top p{margin:3px 0 0;font-size:12.5px;color:var(--ink-soft)}
+.off-ctl{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.off-ctl label{font-size:12px;font-weight:700;color:var(--ink-soft);display:flex;align-items:center;gap:8px}
+.off-ctl select{font:inherit;font-size:13px;font-weight:600;padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);min-width:190px}
+.seg{display:inline-flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:var(--paper)}
+.seg button{font:inherit;font-size:12.5px;font-weight:800;padding:8px 16px;border:0;background:transparent;color:var(--ink-soft);cursor:pointer}
+.seg button.on{background:var(--gold);color:#2A1D14}
+.off-save{font-size:11.5px;color:var(--ink-soft);min-width:110px}.off-save.saved{color:var(--ok)}.off-save.err{color:var(--red)}
+.off-note{font-size:12.5px;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--sun);color:var(--ink-soft);margin-bottom:12px}
+.off-note.ok{background:#EAF5EC;border-color:#BFDDC5;color:#2F6B3E}.off-note.warn{background:#FFF4D6;border-color:#EDD48A;color:#7A5A00}.off-note.err{background:#FDECEC;border-color:#EBB4B4;color:#9B1C1C}
+.off-main{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+@media(max-width:900px){.off-main{grid-template-columns:1fr}}
+.off-cal,.off-side,.off-auto{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px}
+.oc-head,.oc-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.oc-head span{font-size:11px;font-weight:800;color:var(--ink-soft);text-align:center;padding:2px 0 8px}
+.oc{font:inherit;text-align:left;display:flex;flex-direction:column;gap:5px;min-height:92px;padding:7px 7px 6px;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);cursor:pointer;transition:border-color .12s,background .12s}
+.oc:hover{border-color:var(--gold-deep)}
+.oc.sun{background:#FFF7E8}.oc.hol{background:#F2F8EF}
+.oc.mine{border-color:var(--gold-deep);box-shadow:inset 0 0 0 1.5px var(--gold);background:#FFF3D0}
+.oc.full{cursor:not-allowed;background-image:repeating-linear-gradient(135deg,rgba(0,0,0,.05) 0 2px,transparent 2px 7px)}
+.oc.target:hover{border-color:var(--ok);box-shadow:inset 0 0 0 1.5px var(--ok)}
+.oc-d{display:flex;justify-content:space-between;align-items:baseline}
+.oc-d b{font-size:15px;font-variant-numeric:tabular-nums}.oc-d b small{font-size:10px;color:var(--ink-soft);font-weight:700}
+.oc-d em{font-style:normal;font-size:10px;font-weight:700;color:var(--ink-soft)}
+.oc-pad{min-height:1px}
+.oc-l{display:flex;flex-direction:column;gap:3px;flex:1}
+.op{display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;padding:2px 6px 2px 3px;border-radius:6px;background:var(--sun);border:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.op em{font-style:normal;font-size:9px;font-weight:800;min-width:14px;height:14px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--ink);color:var(--paper)}
+.op.SN{background:#D5DAE2;border-color:#B8C0CC;color:#36404E}
+.op.me{background:var(--gold);border-color:var(--gold-deep);color:#2A1D14}.op.me em{background:#2A1D14;color:var(--gold)}
+.oc-cap{display:flex;gap:3px}.oc-cap i{width:100%;max-width:18px;height:3px;border-radius:2px;background:var(--line)}.oc-cap i.on{background:var(--red)}
+.off-side h3,.off-auto h3{margin:0 0 8px;font-size:13px;font-weight:800}
+.off-side h3:not(:first-child){margin-top:18px}
+.mine,.rules,.op-stat,.op-warn{list-style:none;margin:0;padding:0}
+.mine li{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px}
+.mine li.moving{background:var(--sun)}.mine li.none{color:var(--ink-soft);border:0}
+.mine .grow{flex:1}
+.mine button{font:inherit;font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:7px;border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
+.mine button.x{color:var(--red-deep)}.mine button:hover{border-color:var(--ink)}
+.tg{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:6px;background:var(--sun);border:1px solid var(--line)}.tg.SN{background:#D5DAE2;border-color:#B8C0CC;color:#36404E}
+.rules li{font-size:12px;color:var(--ink-soft);padding:5px 0 5px 14px;position:relative;line-height:1.4}
+.rules li::before{content:'';position:absolute;left:2px;top:11px;width:5px;height:5px;border-radius:50%;background:var(--gold-deep)}
+.rules b{color:var(--ink)}
+.off-auto{margin-top:16px}
+.off-autohead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.off-autohead p{margin:2px 0 0;font-size:12px;color:var(--ink-soft)}
+.demo{font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px;background:var(--gold-pale);color:var(--gold-deep);vertical-align:middle;margin-left:6px}
+.op-scroll{overflow-x:auto;padding-bottom:6px}
+.op-grid{display:grid;grid-template-columns:120px repeat(var(--n),30px);gap:3px;width:max-content}
+.op-grid .pv{height:26px;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;border-radius:7px;min-width:0;padding:0;border:0}
+.op-grid .pv.h,.op-grid .pv.nm{background:transparent}
+.op-grid .pv.h{height:20px;color:var(--ink-soft);font-weight:700}.op-grid .pv.h.sun{color:var(--red)}
+.op-grid .pv.nm{justify-content:flex-start;font-size:12px;font-weight:700;color:var(--ink)}
+.op-stat{display:grid;gap:6px;margin:12px 0}
+.op-stat li{display:flex;align-items:baseline;gap:12px;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line-soft)}
+.op-stat b{min-width:130px}.op-stat em{font-style:normal;color:var(--ink-soft);font-size:11.5px}
+.hrs{font-weight:800;font-variant-numeric:tabular-nums;min-width:48px}.hrs.ok{color:var(--ok)}.hrs.low{color:var(--red)}
+.op-warn{margin:8px 0}.op-warn li{font-size:12px;color:#9B1C1C;padding:3px 0}
+.op-ok{font-size:12px;color:var(--ok);margin:8px 0}
+.off-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.off-empty{padding:40px 16px;text-align:center;color:var(--ink-soft);font-size:13px}
 </style>
 </head>
 <body>
@@ -907,6 +973,7 @@ body{background:#FBF8F2}
     <button id="btnDuty" class="active">Đang trực</button>
     <button id="btnGrid">Bảng đầy đủ</button>
     <button id="btnCards">Lịch cá nhân</button>
+    <button id="btnOff">Đăng ký off</button>
   </div>
 </div>
 <main>
@@ -915,6 +982,7 @@ body{background:#FBF8F2}
   <div id="dutyView"></div>
   <div id="gridView" style="display:none"></div>
   <div id="cardsView" style="display:none"></div>
+  <div id="offView" style="display:none"></div>
 </main>
 <div class="maint-overlay" id="maintOverlay" aria-live="polite">
   <div class="maint-card">
@@ -1773,7 +1841,12 @@ function parseRosterWorkbook(wb){
       if(/giờ công kế hoạch/.test(k)) plan.h=v; else if(/công kế hoạch/.test(k)) plan.d=v;
     });
   }
-  return {year, month, employees:list, plan};
+  const offreg=[];
+  const wsO=wb.Sheets['DangKyOff'];
+  if(wsO) XLSX.utils.sheet_to_json(wsO,{header:1,defval:''}).slice(1).forEach(r=>{
+    if(r[0]&&r[1]) offreg.push({id:String(r[0]),date:String(r[1]),type:String(r[2])==='SN'?'SN':'OFF',ts:Number(r[3])||0});
+  });
+  return {year, month, employees:list, plan, offreg};
 }
 
 /** Tạo sheet: dòng 1 = ngày THẬT (định dạng hiển thị số ngày), dòng 2 = thứ, dữ liệu từ dòng 3 */
@@ -1808,6 +1881,11 @@ function buildWorkbookFromEmp(){
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
   // Công kế hoạch / giờ công kế hoạch đã chỉnh của tháng này: lưu cùng file lịch (sheet CauHinh)
+  const offRegs=getOffRegs();
+  if(offRegs.length){
+    const rr=[['id','Ngày','Loại','ts']]; offRegs.forEach(r=>rr.push([r.id,r.date,r.type,r.ts]));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rr), 'DangKyOff');
+  }
   const ov=getPlanOv();
   if(ov.d!=null||ov.h!=null){
     const cfg=[['Mục','Giá trị']];
@@ -1907,7 +1985,7 @@ async function loadFromGitHub(year, month){
     const wb=XLSX.read(buf,{type:'array'});
     const parsed=parseRosterWorkbook(wb);
     EMP=parsed.employees.map((e,i)=>{ const sh=(e.shifts||[]).slice(0,DAYS.length); while(sh.length<DAYS.length) sh.push(''); return {...e, shifts:sh, key:i}; });
-    applyServerPlan(parsed.plan); applyNotes(EMP);
+    applyServerPlan(parsed.plan); applyNotes(EMP); setOffRegs(parsed.offreg||[]);
     currentGhFile={ path:best.path, sha:best.sha, name:best.name };
     // Đã đồng bộ SHA file lịch → hết cờ "bản mới", nhưng KHÔNG xóa remoteBusy
     remoteNewer = false;
@@ -2798,9 +2876,157 @@ function closeChangelog(){
   try{ localStorage.setItem(CHANGELOG_KEY, '1'); }catch(e){}
   closeModal();
 }
+
+/* ===== Đăng ký off + xếp lịch tự động (demo DSP PQC) ===== */
+const OFF_DEPT='PQC';
+let offMe=null, offType='OFF', offMove=null, offPlan=null, offSeed=0, offSaveT=null, offSaveState='', offMsg=null;
+try{ offMe=localStorage.getItem('offMe')||null; }catch(e){}
+function offPeriodKey(){ return document.getElementById('selYear').value+'-'+document.getElementById('selMonth').value; }
+function getOffRegs(){ try{ return JSON.parse(localStorage.getItem('offreg_'+offPeriodKey())||'[]')||[]; }catch(e){ return []; } }
+function setOffRegs(a){ try{ if(a&&a.length) localStorage.setItem('offreg_'+offPeriodKey(),JSON.stringify(a)); else localStorage.removeItem('offreg_'+offPeriodKey()); }catch(e){} }
+function offIso(i){ const d=DAYS[i]; return d[3]+'-'+String(d[2]).padStart(2,'0')+'-'+String(d[0]).padStart(2,'0'); }
+function offLbl(date){ const p=date.split('-'); return p[2]+'/'+p[1]; }
+function offPeople(){ return EMP.filter(e=>e.dept===OFF_DEPT); }
+function offShort(n){ return String(n||'').trim().split(/\s+/).slice(-2).join(' '); }
+function offMax(){ return Math.max(1,offPeople().length-1); }
+function offSay(msg,type){ offMsg=msg?{msg,type:type||'ok'}:null; renderOff(); }
+function offQueueSave(){
+  offSaveState='saving'; clearTimeout(offSaveT);
+  offSaveT=setTimeout(async()=>{
+    try{ await saveToGitHub(); offSaveState='saved'; }catch(e){ offSaveState='err'; }
+    if(view==='off') renderOff();
+  },1500);
+}
+function offCommit(regs,msg){ setOffRegs(regs); offPlan=null; offQueueSave(); offSay(msg,'ok'); }
+function offFullMsg(day,people){
+  const names=day.map(r=>{ const e=people.find(x=>empKey(x)===r.id); return e?offShort(e.name):'?'; });
+  return 'Ngày '+offLbl(day[0].date)+' đã đủ '+day.length+'/'+people.length+' người off — '+names.join(', ')+' đã đăng ký trước. Hãy chọn ngày khác.';
+}
+function offCell(i){
+  if(!requireEditable('Đăng nhập để đăng ký off.')) return;
+  if(!offMe){ offSay('Chọn tên của bạn ở góc trên trước khi đăng ký.','warn'); return; }
+  const people=offPeople(), date=offIso(i); let regs=getOffRegs();
+  const day=regs.filter(r=>r.date===date).sort((a,b)=>a.ts-b.ts);
+  const mine=day.find(r=>r.id===offMe);
+  if(offMove){
+    const old=offMove;
+    if(date===old.date){ offMove=null; offSay(null); return; }
+    if(mine){ offSay('Bạn đã có đăng ký ở ngày '+offLbl(date)+'.','warn'); return; }
+    if(day.length>=offMax()){ offSay(offFullMsg(day,people),'err'); return; }
+    regs=regs.filter(r=>!(r.id===offMe&&r.date===old.date));
+    regs.push({id:offMe,date,type:old.type,ts:Date.now()});
+    offMove=null; offCommit(regs,'Đã đổi '+offLbl(old.date)+' → '+offLbl(date)+'.'); return;
+  }
+  if(mine){ offCommit(regs.filter(r=>!(r.id===offMe&&r.date===date)),'Đã hủy đăng ký ngày '+offLbl(date)+'.'); return; }
+  if(day.length>=offMax()){ offSay(offFullMsg(day,people),'err'); return; }
+  regs.push({id:offMe,date,type:offType,ts:Date.now()});
+  const before=day.map(r=>{ const e=people.find(x=>empKey(x)===r.id); return e?offShort(e.name):'?'; });
+  offCommit(regs,'Đã đăng ký '+(offType==='SN'?'SN':'off')+' ngày '+offLbl(date)+(before.length?' · '+before.join(', ')+' đã đăng ký trước bạn.':'.'));
+}
+
+/** Xếp lịch tự động cho DSP PQC: M, E, C9, SN, NL */
+function offAutoPlan(){
+  const people=offPeople(), D=DAYS.length, regs=getOffRegs(), n=people.length;
+  const fixed={}, st={}, out={}, warns=[];
+  people.forEach(e=>{ const k=empKey(e); fixed[k]={}; st[k]={h:0,consec:0,last:''}; out[k]=new Array(D).fill(''); });
+  regs.forEach(r=>{ const i=DAYS.findIndex((_,x)=>offIso(x)===r.date); if(i>=0&&fixed[r.id]) fixed[r.id][i]=r.type; });
+  const hol=new Set(HOL_IDX);
+  const put=(x,i,code)=>{ out[x.id][i]=code; const s=x.s;
+    if(code==='M'||code==='E'||code==='C9'){ s.consec++; } else s.consec=0;
+    s.last=code; s.h+=SHIFT_HOURS[code]||0; };
+  for(let i=0;i<D;i++){
+    const exp=TARGET_HOURS*(i+1)/D, lbl=DAYS[i][0]+'/'+DAYS[i][2], avail=[];
+    people.forEach((e,k)=>{ const id=empKey(e), f=fixed[id][i], x={e,id,k,s:st[id]};
+      if(f==='SN') put(x,i,'SN'); else if(f==='OFF') put(x,i,''); else avail.push(x); });
+    const rot=x=>(x.k+i+offSeed)%Math.max(1,n);
+    const byNeed=(a,b)=>(a.s.h-exp)-(b.s.h-exp)||rot(a)-rot(b);
+    let cand=avail.filter(x=>x.s.last!=='E'&&x.s.consec<6);
+    if(!cand.length&&avail.length){ cand=avail.filter(x=>x.s.consec<6); if(cand.length) warns.push('Ngày '+lbl+': phải xếp ca M ngay sau ca E.'); }
+    if(!cand.length&&avail.length){ cand=avail.slice(); warns.push('Ngày '+lbl+': có người làm quá 6 ngày liên tiếp.'); }
+    let pick=null;
+    if(cand.length){ cand.sort(byNeed); pick=cand[0]; put(pick,i,'M'); }
+    else warns.push('Ngày '+lbl+': không ai trực được ca M (tất cả đã đăng ký off).');
+    let slotE=true, slotC=true;
+    avail.filter(x=>x!==pick).sort(byNeed).forEach(x=>{
+      const need=exp-x.s.h; let code='';
+      if(x.s.consec<6){ if(need>=6&&slotE){ code='E'; slotE=false; } else if(need>=6&&slotC){ code='C9'; slotC=false; } }
+      if(!code&&hol.has(i)) code='NL';
+      put(x,i,code);
+    });
+    if(hol.has(i)) people.forEach(e=>{ const id=empKey(e); if(out[id][i]===''&&!fixed[id][i]){ out[id][i]='NL'; st[id].h+=8; } });
+  }
+  const stats=people.map(e=>{ const id=empKey(e), sh=out[id], c={}; sh.forEach(x=>{ if(x) c[x]=(c[x]||0)+1; });
+    const h=calcTotal(sh); const diff=h-TARGET_HOURS;
+    if(diff<-6) warns.push(offShort(e.name)+' thiếu '+(-diff)+'h so với giờ công kế hoạch (nhiều ngày off).');
+    return {e,id,h,diff,c}; });
+  return {shifts:out,stats,warns};
+}
+function offApply(){
+  if(!offPlan) return;
+  if(!requireEditable('Đăng nhập để áp dụng lịch tự động.')) return;
+  offPeople().forEach(e=>{ const sh=offPlan.shifts[empKey(e)]; if(sh) e.shifts=sh.slice(); });
+  applyNotes(EMP); renderAll(); offQueueSave();
+  setBanner('Đã áp dụng lịch tự động cho DSP PQC. Đang lưu lên máy chủ…','ok');
+}
+
+function renderOff(){
+  const box=document.getElementById('offView'); if(!box) return;
+  const people=offPeople();
+  if(!DAYS.length||!people.length){ box.innerHTML='<div class="off-empty">Chưa có lịch DSP PQC của tháng này để đăng ký off. Hãy tải lịch trước.</div>'; return; }
+  if(!offMe||!people.some(e=>empKey(e)===offMe)) offMe=null;
+  const regs=getOffRegs(), max=offMax(), WK={T2:0,T3:1,T4:2,T5:3,T6:4,T7:5,CN:6};
+  const byDate={}; regs.forEach(r=>{ (byDate[r.date]=byDate[r.date]||[]).push(r); });
+  Object.values(byDate).forEach(l=>l.sort((a,b)=>a.ts-b.ts));
+  const nm=id=>{ const e=people.find(x=>empKey(x)===id); return e?offShort(e.name):'?'; };
+  const sun=new Set(SUN_IDX), hol=new Set(HOL_IDX);
+  const lead=WK[DAYS[0][1]]||0;
+  let cells='<span class="oc-pad"></span>'.repeat(lead);
+  DAYS.forEach((d,i)=>{
+    const date=offIso(i), day=byDate[date]||[], mine=day.some(r=>r.id===offMe), full=day.length>=max&&!mine;
+    const cls=['oc',sun.has(i)?'sun':'',hol.has(i)?'hol':'',mine?'mine':'',full?'full':'',offMove&&!full&&!mine?'target':''].join(' ');
+    const pills=day.map((r,k)=>'<span class="op '+r.type+(r.id===offMe?' me':'')+'"><em>'+(k+1)+'</em>'+nm(r.id)+(r.type==='SN'?' · SN':'')+'</span>').join('');
+    const dots=Array.from({length:max},(_,k)=>'<i class="'+(k<day.length?'on':'')+'"></i>').join('');
+    cells+='<button type="button" class="'+cls+'" data-act="cell" data-i="'+i+'" title="'+(full?offFullMsg(day,people):d[1]+' '+d[0]+'/'+d[2])+'"><span class="oc-d"><b>'+d[0]+(d[0]===1||i===0?'<small>/'+d[2]+'</small>':'')+'</b><em>'+d[1]+'</em></span><span class="oc-l">'+pills+'</span><span class="oc-cap">'+dots+'</span></button>';
+  });
+  const mineRegs=regs.filter(r=>r.id===offMe).sort((a,b)=>a.date<b.date?-1:1);
+  const mineHtml=mineRegs.length?mineRegs.map(r=>'<li class="'+(offMove&&offMove.date===r.date?'moving':'')+'"><span class="tg '+r.type+'">'+(r.type==='SN'?'SN':'Off')+'</span><b>'+offLbl(r.date)+'</b><span class="grow"></span><button type="button" data-act="move" data-date="'+r.date+'">Đổi ngày</button><button type="button" class="x" data-act="cancel" data-date="'+r.date+'">Hủy</button></li>').join(''):'<li class="none">Bạn chưa đăng ký ngày nào.</li>';
+  const saveTxt=offSaveState==='saving'?'Đang lưu…':offSaveState==='saved'?'Đã lưu lên máy chủ':offSaveState==='err'?'Lưu lỗi — thử lại':'';
+  let plan='';
+  if(offPlan){
+    const head='<span class="pv h"></span>'+DAYS.map((d,i)=>'<span class="pv h'+(sun.has(i)?' sun':'')+'">'+d[0]+'</span>').join('');
+    const rows=offPlan.stats.map(s=>'<span class="pv nm">'+offShort(s.e.name)+'</span>'+offPlan.shifts[s.id].map((c,i)=>'<span class="pv rg-cell s-'+c+'">'+c+'</span>').join('')).join('');
+    const stat=offPlan.stats.map(s=>'<li><b>'+offShort(s.e.name)+'</b><span class="hrs '+(s.diff<-6?'low':'ok')+'">'+s.h+'h</span><em>'+['M','E','C9','SN','NL'].map(k=>k+' '+(s.c[k]||0)).join(' · ')+'</em></li>').join('');
+    plan='<div class="op-scroll"><div class="op-grid" style="--n:'+DAYS.length+'">'+head+rows+'</div></div><ul class="op-stat">'+stat+'</ul>'+(offPlan.warns.length?'<ul class="op-warn">'+offPlan.warns.slice(0,8).map(w=>'<li>'+w+'</li>').join('')+'</ul>':'<p class="op-ok">Mỗi ngày đều có người trực ca M, không vi phạm quy tắc nào.</p>')+'<div class="off-actions"><button type="button" class="btn-action" data-act="replan">Xếp lại (phương án khác)</button><button type="button" class="btn-action primary" data-act="apply">Áp dụng vào lịch</button></div>';
+  }
+  box.innerHTML='<div class="off-top"><div><h2>Đăng ký off · DSP PQC</h2><p>Kỳ '+DAYS[0][0]+'/'+DAYS[0][2]+' → '+DAYS[DAYS.length-1][0]+'/'+DAYS[DAYS.length-1][2]+' · tối đa <b>'+max+'/'+people.length+'</b> người off cùng một ngày</p></div>'
+   +'<div class="off-ctl"><label>Bạn là <select id="offMe"><option value="">— chọn tên —</option>'+people.map(e=>'<option value="'+empKey(e)+'"'+(empKey(e)===offMe?' selected':'')+'>'+e.name+'</option>').join('')+'</select></label>'
+   +'<div class="seg"><button type="button" data-act="type" data-v="OFF" class="'+(offType==='OFF'?'on':'')+'">Off</button><button type="button" data-act="type" data-v="SN" class="'+(offType==='SN'?'on':'')+'">SN</button></div>'
+   +'<span class="off-save '+offSaveState+'">'+saveTxt+'</span></div></div>'
+   +'<div class="off-note '+(offMsg?offMsg.type:'hint')+'" role="status" aria-live="polite">'+(offMove?'Đang đổi ngày '+offLbl(offMove.date)+' — bấm vào ngày mới (bấm lại ngày cũ để thôi). ':'')+(offMsg?offMsg.msg:(offMove?'':'Bấm vào một ngày để đăng ký, bấm lại ngày của bạn để hủy. Số thứ tự trên tên là thứ tự đăng ký.'))+'</div>'
+   +'<div class="off-main"><section class="off-cal"><div class="oc-head">'+['T2','T3','T4','T5','T6','T7','CN'].map(x=>'<span>'+x+'</span>').join('')+'</div><div class="oc-grid">'+cells+'</div></section>'
+   +'<aside class="off-side"><h3>Đăng ký của bạn</h3><ul class="mine">'+mineHtml+'</ul><h3>Quy tắc xếp lịch</h3><ul class="rules"><li>Mỗi ngày ít nhất 1 người trực ca <b>M</b> (ưu tiên sáng)</li><li>Không đủ chỗ off thì ngày đó bị khóa, hiện người đăng ký trước</li><li>Ngày off giữ nguyên · ngày <b>SN</b> xếp đúng như đăng ký</li><li>Không xếp M ngay sau E · tối đa 6 ngày liên tiếp</li><li>Ngày lễ: người không trực nhận <b>NL</b></li><li>Cân giờ về giờ công kế hoạch (<b>'+TARGET_HOURS+'h</b>)</li></ul></aside></div>'
+   +'<section class="off-auto"><div class="off-autohead"><div><h3>Xếp lịch tự động <span class="demo">demo</span></h3><p>Dùng các ngày off/SN đã đăng ký để xếp M, E, C9, SN, NL cho DSP PQC.</p></div><button type="button" class="btn-action primary" data-act="plan">'+(offPlan?'Xếp lại từ đầu':'Xếp thử')+'</button></div>'+plan+'</section>';
+}
+(function(){
+  const box=document.getElementById('offView');
+  box.addEventListener('change',e=>{ if(e.target.id==='offMe'){ offMe=e.target.value||null; try{ localStorage.setItem('offMe',offMe||''); }catch(x){} offMove=null; renderOff(); } });
+  box.addEventListener('click',ev=>{
+    const b=ev.target.closest('[data-act]'); if(!b) return; const a=b.dataset.act;
+    if(a==='cell') offCell(+b.dataset.i);
+    else if(a==='type'){ offType=b.dataset.v; renderOff(); }
+    else if(a==='cancel'){ if(!requireEditable('Đăng nhập để hủy đăng ký.')) return; offCommit(getOffRegs().filter(r=>!(r.id===offMe&&r.date===b.dataset.date)),'Đã hủy đăng ký ngày '+offLbl(b.dataset.date)+'.'); }
+    else if(a==='move'){ const r=getOffRegs().find(r=>r.id===offMe&&r.date===b.dataset.date); offMove=r&&!(offMove&&offMove.date===r.date)?{date:r.date,type:r.type}:null; offSay(null); }
+    else if(a==='plan'){ offSeed=0; offPlan=offAutoPlan(); renderOff(); }
+    else if(a==='replan'){ offSeed++; offPlan=offAutoPlan(); renderOff(); }
+    else if(a==='apply') offApply();
+  });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&offMove){ offMove=null; renderOff(); } });
+})();
+
 function renderAll(){
   rebuildDeptChips();
   renderGrid(); renderCards(); renderDuty();
+  if(view==='off') renderOff();
   document.getElementById('kpiEmp').textContent=EMP.length||'–';
   document.getElementById('kpiPlan').textContent=PLAN_DAYS;
   document.getElementById('kpiDays').textContent=DAYS.length||'–';
@@ -2824,6 +3050,9 @@ function setView(v){
   document.getElementById('btnDuty').classList.toggle('active',v==='duty');
   document.getElementById('btnGrid').classList.toggle('active',v==='grid');
   document.getElementById('btnCards').classList.toggle('active',v==='cards');
+  document.getElementById('btnOff').classList.toggle('active',v==='off');
+  document.getElementById('offView').style.display=v==='off'?'block':'none';
+  if(v==='off') renderOff();
   dutyView.style.display=v==='duty'?'block':'none';
   gridView.style.display=v==='grid'?'block':'none';
   cardsView.style.display=v==='cards'?'block':'none';
@@ -2832,6 +3061,7 @@ function setView(v){
 document.getElementById('btnDuty').onclick=()=>setView('duty');
 document.getElementById('btnGrid').onclick=()=>setView('grid');
 document.getElementById('btnCards').onclick=()=>setView('cards');
+document.getElementById('btnOff').onclick=()=>setView('off');
 
 /* Custom month/year dropdown */
 (function initMonthYearDD(){
