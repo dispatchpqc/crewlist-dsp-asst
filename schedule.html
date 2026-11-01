@@ -827,7 +827,7 @@ body{background:#FBF8F2}
 .seg{display:inline-flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:var(--paper)}
 .seg button{font:inherit;font-size:12.5px;font-weight:800;padding:8px 16px;border:0;background:transparent;color:var(--ink-soft);cursor:pointer}
 .seg button.on{background:var(--gold);color:#2A1D14}
-.off-save{font-size:11.5px;color:var(--ink-soft);min-width:110px}.off-save.saved{color:var(--ok)}.off-save.err{color:var(--red)}
+.off-save{font-size:11.5px;color:var(--ink-soft);min-width:110px}.off-save.saved{color:var(--ok)}.off-save.err{color:var(--red)}.off-save.draft{color:var(--gold-deep);font-weight:700}
 .off-note{font-size:12.5px;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--sun);color:var(--ink-soft);margin-bottom:12px}
 .off-note.ok{background:#EAF5EC;border-color:#BFDDC5;color:#2F6B3E}.off-note.warn{background:#FFF4D6;border-color:#EDD48A;color:#7A5A00}.off-note.err{background:#FDECEC;border-color:#EBB4B4;color:#9B1C1C}
 .off-main{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
@@ -2875,7 +2875,7 @@ const OFF_DEPT='PQC', OFF_DIR='data/dangky-off';
 /* endpoint Worker (giống feedback) — nếu có trong config.js thì mọi người đăng ký được mà không cần PAT trên máy */
 const OFF_EP = (window.SUNPQ && SUNPQ.offEndpoint) || '';
 let offMe=null, offType='OFF', offMove=null, offPlan=null, offSeed=0, offSaveState='', offMsg=null;
-let offSha=null, offLoadedKey='', offLoading=false, offBusy=false;
+let offSha=null, offLoadedKey='', offLoading=false, offBusy=false, offDirty=false;
 try{ offMe=localStorage.getItem('offMe')||null; }catch(e){}
 function offYM(){ return [+document.getElementById('selYear').value, +document.getElementById('selMonth').value]; }
 function offPeriodKey(){ const [y,m]=offYM(); return y+'-'+m; }
@@ -2897,10 +2897,11 @@ function offFullMsg(day,people){
   const names=day.map(r=>{ const e=people.find(x=>empKey(x)===r.id); return e?offShort(e.name):'?'; });
   return 'Ngày '+offLbl(day[0].date)+' đã đủ '+day.length+'/'+people.length+' người off — '+names.join(', ')+' đã đăng ký trước. Hãy chọn ngày khác.';
 }
-/* --- đọc/ghi file đăng ký của từng tháng: data/dangky-off/YYYY-MM.json (không đụng file lịch) --- */
+/* --- đọc/ghi file đăng ký của từng tháng: data/dangky-off/YYYY-MM.json ---
+ * Chọn ngày = draft local (không ghi GitHub) → bấm «Lưu đăng ký» mới đẩy lên máy chủ.
+ * Tránh mỗi lần bấm ngày kích hoạt cập nhật trang / khóa chỉnh sửa. */
 async function offFetchRegs(){
   const path=offPath(), tok=getToken();
-  // Ưu tiên Worker nếu có (trả JSON {regs, sha?})
   if(OFF_EP){
     try{
       const r=await fetch(OFF_EP+'?period='+encodeURIComponent(offPeriodKey())+'&t='+Date.now(),{cache:'no-store'});
@@ -2916,69 +2917,105 @@ async function offFetchRegs(){
   if(tok){ offSha=j.sha; return (JSON.parse(decodeURIComponent(escape(atob(String(j.content).replace(/\n/g,''))))).regs)||[]; }
   return j.regs||[];
 }
-async function offLoad(){
-  if(offLoading) return; offLoading=true; const key=offPeriodKey();
-  try{ setOffRegs(await offFetchRegs()); }catch(e){ offMsg={msg:'Không tải được đăng ký từ máy chủ, đang dùng bản đã lưu trên máy này.',type:'warn'}; }
+async function offLoad(force){
+  if(offLoading) return;
+  if(offDirty && !force){
+    // Giữ draft đang sửa; không ghi đè bằng bản máy chủ
+    offLoadedKey=offPeriodKey();
+    if(view==='off') renderOff();
+    return;
+  }
+  offLoading=true; const key=offPeriodKey();
+  try{
+    setOffRegs(await offFetchRegs());
+    offDirty=false; offSaveState='';
+  }catch(e){
+    offMsg={msg:'Không tải được đăng ký từ máy chủ, đang dùng bản đã lưu trên máy này.',type:'warn'};
+  }
   offLoadedKey=key; offLoading=false; if(view==='off') renderOff();
 }
-/** Lưu đăng ký: Worker (nếu có) → GitHub API (nếu có Key) → fallback localStorage */
-async function offMutate(fn){
+/** Chỉ sửa draft trên máy — không ghi GitHub, không khóa trang */
+function offDraftMutate(fn){
+  if(!requireLogin('Đăng nhập để đăng ký off.')) return;
+  if(siteMaint.on && !isAdmin()){
+    setBanner('🔧 <b>Hệ thống đang bảo trì</b> — tạm thời chỉ xem.','err');
+    return;
+  }
+  const regs=getOffRegs();
+  const res=fn(regs);
+  if(res.error){ offMsg={msg:res.error,type:'err'}; renderOff(); return; }
+  if(res.noop){ offMsg=null; renderOff(); return; }
+  setOffRegs(res.regs);
+  offDirty=true;
+  offPlan=null;
+  offSaveState='draft';
+  offMsg={msg:(res.msg||'Đã cập nhật')+' · <b>bản nháp trên máy này</b> — bấm «Lưu đăng ký» để đẩy lên máy chủ.',type:'ok'};
+  renderOff();
+}
+/** Đẩy bản nháp hiện tại lên máy chủ (Worker / GitHub). Chỉ lúc này mới ghi remote. */
+async function offSaveToServer(){
   if(offBusy) return;
-  if(!requireEditable('Đăng nhập để đăng ký off.')) return;
+  if(!requireEditable('Đăng nhập để lưu đăng ký off.')) return;
+  if(!offDirty && offSaveState==='saved'){
+    offMsg={msg:'Không có thay đổi mới để lưu.',type:'ok'}; renderOff(); return;
+  }
+  const regs=getOffRegs();
   offBusy=true; offSaveState='saving'; renderOff();
   try{
-    // 1) Có Worker endpoint → mọi người ghi được, không cần PAT
     if(OFF_EP){
-      let base=[];
-      try{ base=await offFetchRegs(); }catch(e){ base=getOffRegs(); }
-      const res=fn(base);
-      if(res.error){ setOffRegs(base); offSaveState=''; offMsg={msg:res.error,type:'err'}; }
-      else if(res.noop){ offSaveState=''; offMsg=null; }
-      else {
-        const r=await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({period:offPeriodKey(),regs:res.regs,action:'put'})});
-        if(!r.ok) throw new Error('HTTP '+r.status);
-        setOffRegs(res.regs); offPlan=null; offSaveState='saved'; offMsg={msg:res.msg,type:'ok'};
-      }
+      const r=await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({period:offPeriodKey(),regs,action:'put'})});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      offDirty=false; offSaveState='saved';
+      offMsg={msg:'Đã lưu đăng ký lên máy chủ.',type:'ok'};
     } else if(getToken()){
-      // 2) Có Key trên trình duyệt → ghi thẳng GitHub
+      // Lấy bản mới nhất, gộp đăng ký của mình (tránh ghi đè người khác vừa lưu)
+      let remote=[];
+      try{ remote=await offFetchRegs(); }catch(e){ remote=[]; }
+      const me=offMe;
+      const mineLocal=regs.filter(r=>r.id===me);
+      const others=remote.filter(r=>r.id!==me);
+      // Giữ đăng ký người khác từ server + đăng ký của mình từ draft
+      const merged=others.concat(mineLocal);
+      // Kiểm tra đủ chỗ theo max (theo từng ngày, chỉ đếm người khác + mình)
+      const people=offPeople(), max=offMax();
+      const byDate={};
+      merged.forEach(r=>{ (byDate[r.date]=byDate[r.date]||[]).push(r); });
+      for(const date of Object.keys(byDate)){
+        const day=byDate[date];
+        if(day.length>max){
+          offSaveState='draft';
+          offMsg={msg:offFullMsg(day,people)+' Hãy bỏ bớt ngày của bạn rồi lưu lại.',type:'err'};
+          offBusy=false; renderOff(); return;
+        }
+      }
       for(let t=0;t<3;t++){
-        const regs=await offFetchRegs(); const res=fn(regs);
-        if(res.error){ setOffRegs(regs); offSaveState=''; offMsg={msg:res.error,type:'err'}; break; }
-        if(res.noop){ offSaveState=''; offMsg=null; break; }
+        if(t>0){ try{ remote=await offFetchRegs(); }catch(e){} }
         const body={message:'Dang ky off '+offPeriodKey(),branch:GH.branch,
-          content:btoa(unescape(encodeURIComponent(JSON.stringify({period:offPeriodKey(),regs:res.regs}))))};
+          content:btoa(unescape(encodeURIComponent(JSON.stringify({period:offPeriodKey(),regs:merged}))))};
         if(offSha) body.sha=offSha;
         const put=await fetch(`${GH.apiBase}/${offPath()}`,{method:'PUT',headers:{'Accept':'application/vnd.github+json','Authorization':'Bearer '+getToken(),'Content-Type':'application/json'},body:JSON.stringify(body)});
-        if(put.status===409||put.status===422) continue;
+        if(put.status===409||put.status===422){ offSha=null; continue; }
         if(put.status===401||put.status===403){
-          // Key hết hạn / không đủ quyền → vẫn lưu local để không mất đăng ký
-          setOffRegs(res.regs); offPlan=null; offSaveState='err';
-          offMsg={msg:'Key máy chủ không hợp lệ (HTTP '+put.status+'). Đã lưu đăng ký trên máy này. Admin cần cập nhật khóa (nút 🔑) hoặc cấu hình SUNPQ.offEndpoint trong config.js.',type:'err'};
+          offSaveState='draft';
+          offMsg={msg:'Key máy chủ không hợp lệ (HTTP '+put.status+'). Bản nháp vẫn còn trên máy này. Admin cập nhật khóa (🔑) hoặc cấu hình SUNPQ.offEndpoint.',type:'err'};
           break;
         }
         if(!put.ok) throw new Error('HTTP '+put.status);
-        offSha=(await put.json()).content.sha; setOffRegs(res.regs); offPlan=null; offSaveState='saved'; offMsg={msg:res.msg,type:'ok'}; break;
+        offSha=(await put.json()).content.sha;
+        setOffRegs(merged);
+        offDirty=false; offSaveState='saved';
+        offMsg={msg:'Đã lưu đăng ký lên máy chủ.',type:'ok'};
+        break;
       }
     } else {
-      // 3) Không có Key / Worker → lưu local + hướng dẫn
-      const regs=getOffRegs(); const res=fn(regs);
-      if(res.error){ offSaveState=''; offMsg={msg:res.error,type:'err'}; }
-      else if(res.noop){ offSaveState=''; offMsg=null; }
-      else {
-        setOffRegs(res.regs); offPlan=null; offSaveState='err';
-        offMsg={msg:(res.msg||'Đã ghi nhận trên máy này')+' — chưa đẩy lên máy chủ (thiếu khóa). Admin đăng nhập → 🔑 nhập Key, hoặc cấu hình SUNPQ.offEndpoint trong config.js để mọi người đăng ký được.',type:'warn'};
-      }
+      offSaveState='draft';
+      offMsg={msg:'Chưa có khóa máy chủ — bản nháp chỉ lưu trên máy này. Admin nhập Key (🔑) hoặc cấu hình SUNPQ.offEndpoint trong config.js.',type:'warn'};
     }
   }catch(e){
-    // Lỗi mạng / 401…: cố gắng không mất đăng ký trên máy
-    try{
-      const regs=getOffRegs(); const res=fn(regs);
-      if(res && res.regs) setOffRegs(res.regs);
-    }catch(x){}
-    offSaveState='err';
+    offSaveState='draft';
     const m=String(e.message||e);
     if(/401|403/.test(m))
-      offMsg={msg:'Không lưu được lên máy chủ (HTTP 401/403 — khóa hết hạn hoặc không đủ quyền). Đã giữ đăng ký trên máy này. Admin cập nhật Key hoặc cấu hình Worker offEndpoint.',type:'err'};
+      offMsg={msg:'Không lưu được lên máy chủ (HTTP 401/403). Bản nháp vẫn còn trên máy này.',type:'err'};
     else
       offMsg={msg:'Không lưu được đăng ký: '+m,type:'err'};
   }
@@ -2988,7 +3025,7 @@ function offCell(i){
   if(!offMe){ offSay('Chọn tên của bạn ở góc trên trước khi đăng ký.','warn'); return; }
   const people=offPeople(), date=offIso(i), me=offMe, type=offType, move=offMove, max=offMax();
   offMove=null;
-  offMutate(regs=>{
+  offDraftMutate(regs=>{
     const day=regs.filter(r=>r.date===date).sort((a,b)=>a.ts-b.ts), mine=day.find(r=>r.id===me);
     const names=day.map(r=>{ const e=people.find(x=>empKey(x)===r.id); return e?offShort(e.name):'?'; });
     if(move){
@@ -2996,112 +3033,133 @@ function offCell(i){
       if(mine) return {error:'Bạn đã có đăng ký ở ngày '+offLbl(date)+'.'};
       if(day.length>=max) return {error:offFullMsg(day,people)};
       const out=regs.filter(r=>!(r.id===me&&r.date===move.date)); out.push({id:me,date,type:move.type,ts:Date.now()});
-      return {regs:out,msg:'Đã đổi '+offLbl(move.date)+' → '+offLbl(date)+'.'};
+      return {regs:out,msg:'Đã đổi '+offLbl(move.date)+' → '+offLbl(date)};
     }
-    if(mine) return {regs:regs.filter(r=>!(r.id===me&&r.date===date)),msg:'Đã hủy đăng ký ngày '+offLbl(date)+'.'};
+    if(mine) return {regs:regs.filter(r=>!(r.id===me&&r.date===date)),msg:'Đã bỏ đăng ký ngày '+offLbl(date)};
     if(day.length>=max) return {error:offFullMsg(day,people)};
-    return {regs:regs.concat([{id:me,date,type,ts:Date.now()}]),msg:'Đã đăng ký '+(type==='SN'?'SN':'off')+' ngày '+offLbl(date)+(names.length?' · '+names.join(', ')+' đã đăng ký trước bạn.':'.')};
+    return {regs:regs.concat([{id:me,date,type,ts:Date.now()}]),msg:'Đã chọn '+(type==='SN'?'SN':'off')+' ngày '+offLbl(date)+(names.length?' · '+names.join(', ')+' đã đăng ký trước':'' )};
   });
 }
 function offCancel(date){
   const me=offMe; if(!me) return;
-  offMutate(regs=>({regs:regs.filter(r=>!(r.id===me&&r.date===date)),msg:'Đã hủy đăng ký ngày '+offLbl(date)+'.'}));
+  offDraftMutate(regs=>({regs:regs.filter(r=>!(r.id===me&&r.date===date)),msg:'Đã bỏ đăng ký ngày '+offLbl(date)}));
 }
 
 /** Xếp lịch tự động cho DSP PQC: M, E, C9, SN, NL
- * Quy tắc:
- * - Sau ca E (chiều/đêm) → ngày hôm sau phải OFF (không xếp M/E/C9), trừ khi chỉ còn đúng 1 người rảnh.
- * - Ngày chỉ còn 1 người trực → xếp C9 (09:00–21:00) cho người đó (ưu tiên người ít C9 nhất).
- * - Ngày ≥2 người: ưu tiên phủ ca sáng bằng M; đội ≥4 người luôn ưu tiên M.
- * - Chia đều M / E / C9 giữa các thành viên.
- * - Tối đa 6 ngày liên tiếp; ngày lễ người không trực = NL.
+ * Quy tắc giờ công:
+ * - Chỉ bám giờ công kế hoạch (TARGET_HOURS). Không cố đủ ngày công.
+ * - Thiếu giờ được chấp nhận; dư tối đa +24h (2 ca × 12h).
+ * Quy tắc ca:
+ * - Sau E → ngày hôm sau OFF (trừ khi chỉ còn 1 người rảnh).
+ * - 1 người trực → C9; ≥2 người → ưu tiên M phủ sáng, chia E/C9.
+ * - Chia đều loại ca; tối đa 6 ngày liên tiếp; lễ = NL.
  */
 function offAutoPlan(){
   const people=offPeople(), D=DAYS.length, regs=getOffRegs(), n=people.length;
+  const MAX_H = TARGET_HOURS + 24; // dư tối đa 2 ca 12h
   const fixed={}, st={}, out={}, warns=[];
   people.forEach(e=>{ const k=empKey(e); fixed[k]={}; st[k]={h:0,consec:0,last:'',d:0,c:{M:0,E:0,C9:0}}; out[k]=new Array(D).fill(''); });
   regs.forEach(r=>{ const i=DAYS.findIndex((_,x)=>offIso(x)===r.date); if(i>=0&&fixed[r.id]) fixed[r.id][i]=r.type; });
   const hol=new Set(HOL_IDX);
-  const put=(x,i,code)=>{ out[x.id][i]=code; const s=x.s;
-    if(code==='M'||code==='E'||code==='C9'){ s.consec++; s.d++; s.c[code]=(s.c[code]||0)+1; } else s.consec=0;
-    s.last=code; s.h+=SHIFT_HOURS[code]||0; };
+  const hrsOf=code=>SHIFT_HOURS[code]||0;
+  const canTake=(x,code)=>{
+    if(code!=='M'&&code!=='E'&&code!=='C9') return true;
+    return x.s.h + hrsOf(code) <= MAX_H;
+  };
+  const put=(x,i,code)=>{
+    out[x.id][i]=code; const s=x.s;
+    if(code==='M'||code==='E'||code==='C9'){ s.consec++; s.d++; s.c[code]=(s.c[code]||0)+1; }
+    else s.consec=0;
+    s.last=code; s.h+=hrsOf(code);
+  };
   for(let i=0;i<D;i++){
-    const exp=TARGET_HOURS*(i+1)/D, lbl=DAYS[i][0]+'/'+DAYS[i][2], avail=[];
+    const lbl=DAYS[i][0]+'/'+DAYS[i][2], avail=[];
     people.forEach((e,k)=>{ const id=empKey(e), f=fixed[id][i], x={e,id,k,s:st[id]};
       if(f==='SN') put(x,i,'SN'); else if(f==='OFF') put(x,i,''); else avail.push(x); });
     const rot=x=>(x.k+i+offSeed)%Math.max(1,n);
-    // Ưu tiên người ít giờ + ít loại ca đó
-    const score=(x,t)=>(x.s.h-exp)/10 + 3.5*(x.s.c[t]||0) + 0.4*((x.s.c.M||0)+(x.s.c.E||0)+(x.s.c.C9||0));
+    // Ưu tiên người còn thiếu giờ công nhất + ít loại ca đó; không vượt MAX_H
+    const score=(x,t)=>(x.s.h - TARGET_HOURS) + 4*(x.s.c[t]||0) + 0.3*((x.s.c.M||0)+(x.s.c.E||0)+(x.s.c.C9||0));
     const pickBy=(list,t)=>list.slice().sort((a,b)=>score(a,t)-score(b,t)||rot(a)-rot(b))[0];
 
-    // Người vừa làm E hôm qua → ưu tiên OFF hôm nay (chỉ bắt làm khi không còn ai khác)
+    // Sau E → OFF; chỉ bắt làm nếu không còn ai
     const fresh=avail.filter(x=>x.s.last!=='E'&&x.s.consec<6);
-    const rested=avail.filter(x=>x.s.last==='E'); // cần nghỉ sau E
-    let cand=fresh.slice();
-    if(!cand.length&&avail.length){
-      // Bắt buộc dùng người vừa E (không còn ai khác) — cảnh báo
-      cand=avail.filter(x=>x.s.consec<6);
-      if(!cand.length) cand=avail.slice();
-      warns.push('Ngày '+lbl+': buộc xếp người vừa làm E (không còn ai rảnh) — nên cho off sau ca E.');
+    const rested=avail.filter(x=>x.s.last==='E');
+    let cand=fresh.filter(x=>canTake(x,'M')||canTake(x,'C9'));
+    if(!cand.length){
+      // Thử người đã đủ/gần đủ giờ trong fresh (vẫn dưới MAX)
+      cand=fresh.filter(x=>x.s.h < MAX_H);
     }
+    if(!cand.length&&avail.length){
+      cand=avail.filter(x=>x.s.consec<6 && x.s.h < MAX_H);
+      if(cand.length) warns.push('Ngày '+lbl+': buộc xếp người vừa làm E (không còn ai rảnh).');
+    }
+    // Loại người đã chạm trần giờ
+    cand=cand.filter(x=>canTake(x,'C9')||canTake(x,'M'));
 
     let pick=null;
     const picks={};
-    // Người được chọn làm việc hôm nay chỉ lấy từ cand; rested mặc định OFF
-    if(cand.length===0){
-      warns.push('Ngày '+lbl+': không ai trực được (tất cả đã đăng ký off).');
-    } else if(cand.length===1 && avail.filter(x=>x.s.last!=='E').length<=1){
-      // Chỉ 1 người còn thực sự rảnh (hoặc buộc dùng người vừa E) → C9
-      pick=pickBy(cand,'C9');
-      put(pick,i,'C9');
+    if(!cand.length){
+      warns.push('Ngày '+lbl+': không ai nhận thêm ca (off hết hoặc đã đủ/vượt trần giờ công).');
     } else if(cand.length===1){
-      pick=pickBy(cand,'C9');
-      put(pick,i,'C9');
+      // 1 người → C9 nếu còn room, không thì M
+      const x=cand[0];
+      const code=canTake(x,'C9')?'C9':(canTake(x,'M')?'M':'');
+      if(code){ pick=x; put(pick,i,code); }
+      else warns.push('Ngày '+lbl+': '+offShort(x.e.name)+' đã chạm trần giờ, không xếp thêm.');
     } else {
-      // ≥2 người rảnh (không vừa E): phủ sáng bằng M, chia E/C9 cho phần còn
-      pick=pickBy(cand,'M');
-      put(pick,i,'M');
-      // Chỉ giao việc cho người không vừa làm E
-      const rest=cand.filter(x=>x!==pick && x.s.consec<6);
-      if(rest.length===1){
-        const x=rest[0];
-        const preferE=(x.s.c.E||0)<(x.s.c.C9||0) || ((x.s.c.E||0)===(x.s.c.C9||0) && (people.reduce((a,e)=>a+(st[empKey(e)].c.E||0),0) <= people.reduce((a,e)=>a+(st[empKey(e)].c.C9||0),0)));
-        picks[x.id]=preferE?'E':'C9';
-      } else if(rest.length>=2){
-        const ePick=pickBy(rest,'E');
-        picks[ePick.id]='E';
-        const afterE=rest.filter(x=>x!==ePick);
-        if(afterE.length){
-          const c9Pick=pickBy(afterE,'C9');
-          picks[c9Pick.id]='C9';
-          afterE.filter(x=>x!==c9Pick).forEach(x=>{
-            const preferE=(x.s.c.E||0)<=(x.s.c.C9||0);
-            picks[x.id]=preferE?'E':'C9';
-          });
+      // ≥2: phủ sáng bằng M (ưu tiên người thiếu giờ)
+      const forM=cand.filter(x=>canTake(x,'M'));
+      pick=pickBy(forM.length?forM:cand,'M');
+      if(pick && canTake(pick,'M')) put(pick,i,'M');
+      else if(pick && canTake(pick,'C9')) put(pick,i,'C9');
+      else pick=null;
+
+      // Phụ: E / C9 cho người còn room, không giao hết mọi người — chỉ khi còn thiếu phủ hoặc cần chia ca
+      // Mục tiêu: không đẩy giờ vượt TARGET quá nhiều; chỉ xếp thêm nếu người đó còn dưới TARGET+12 (1 ca dư)
+      const rest=cand.filter(x=>x!==pick && x.s.consec<6 && x.s.h + 12 <= MAX_H);
+      // Chỉ xếp tối đa thêm 1–2 ca phụ tùy số người, ưu tiên người thiếu giờ
+      if(rest.length>=1){
+        // Có thể xếp E cho 1 người thiếu giờ nhất (nếu còn dưới TARGET hoặc chỉ dư nhẹ)
+        const forE=rest.filter(x=>x.s.h + 12 <= TARGET_HOURS + 12);
+        if(forE.length){
+          const ePick=pickBy(forE,'E');
+          if(ePick && canTake(ePick,'E')) picks[ePick.id]='E';
+        }
+        const afterE=rest.filter(x=>!picks[x.id]);
+        const forC9=afterE.filter(x=>x.s.h + 12 <= TARGET_HOURS + 12);
+        if(forC9.length && Object.keys(picks).length<2){
+          const c9Pick=pickBy(forC9,'C9');
+          if(c9Pick && canTake(c9Pick,'C9')) picks[c9Pick.id]='C9';
         }
       }
     }
-    // Ngày mai chỉ còn đúng 1 người rảnh: tránh giao E hôm nay cho người đó
+
     const nxtFree=i+1<D?people.map(empKey).filter(id=>!fixed[id][i+1]):[];
     const soleNext=nxtFree.length===1?nxtFree[0]:null;
-    // Giao ca cho phần rest; người vừa E (rested) để trống = OFF
     cand.filter(x=>x!==pick).forEach(x=>{
       let code=picks[x.id]||'';
-      if(code==='E'&&x.id===soleNext) code='C9';
+      if(code==='E'&&x.id===soleNext) code=canTake(x,'C9')?'C9':'';
+      if(code && !canTake(x,code)) code='';
       if(!code&&hol.has(i)) code='NL';
       if(code) put(x,i,code);
     });
-    // Người vừa làm E: giữ OFF (trống); ngày lễ thì NL
     rested.forEach(x=>{
-      if(hol.has(i)){ put(x,i,'NL'); }
-      else { put(x,i,''); } // OFF sau ca E
+      if(hol.has(i)) put(x,i,'NL');
+      else put(x,i,''); // OFF sau E
     });
-    if(hol.has(i)) people.forEach(e=>{ const id=empKey(e); if(out[id][i]===''&&!fixed[id][i]){ out[id][i]='NL'; st[id].h+=8; } });
+    if(hol.has(i)) people.forEach(e=>{
+      const id=empKey(e);
+      if(out[id][i]===''&&!fixed[id][i]){ out[id][i]='NL'; st[id].h+=hrsOf('NL'); }
+    });
   }
-  const stats=people.map(e=>{ const id=empKey(e), sh=out[id], c={}; sh.forEach(x=>{ if(x) c[x]=(c[x]||0)+1; });
-    const h=calcTotal(sh), diff=h-TARGET_HOURS, days=sh.filter(x=>x).length;
-    if(diff<-12) warns.push(offShort(e.name)+' lệch '+diff+'h so với giờ công kế hoạch (nhiều ngày off) — admin chỉnh thêm sau nếu cần.');
-    return {e,id,h,diff,days,c}; });
+  const stats=people.map(e=>{
+    const id=empKey(e), sh=out[id], c={};
+    sh.forEach(x=>{ if(x) c[x]=(c[x]||0)+1; });
+    const h=calcTotal(sh), diff=h-TARGET_HOURS, days=sh.filter(x=>['M','E','C9','SN','NL','HC','P'].includes(x)).length;
+    if(diff>24) warns.push(offShort(e.name)+' dư '+diff+'h (>'+MAX_H+'h trần) — kiểm tra lại.');
+    else if(diff<-24) warns.push(offShort(e.name)+' thiếu '+(-diff)+'h so với giờ công kế hoạch (nhiều off) — chấp nhận được, admin chỉnh nếu cần.');
+    return {e,id,h,diff,days,c};
+  });
   return {shifts:out,stats,warns};
 }
 /** Admin xác nhận: tạo (hoặc ghi đè ca DSP PQC của) lịch tháng đang chọn rồi lưu lên máy chủ */
@@ -3144,7 +3202,7 @@ function renderOff(){
   });
   const mineRegs=regs.filter(r=>r.id===offMe).sort((a,b)=>a.date<b.date?-1:1);
   const mineHtml=mineRegs.length?mineRegs.map(r=>'<li class="'+(offMove&&offMove.date===r.date?'moving':'')+'"><span class="tg '+r.type+'">'+(r.type==='SN'?'SN':'Off')+'</span><b>'+offLbl(r.date)+'</b><span class="grow"></span><button type="button" data-act="move" data-date="'+r.date+'">Đổi ngày</button><button type="button" class="x" data-act="cancel" data-date="'+r.date+'">Hủy</button></li>').join(''):'<li class="none">Bạn chưa đăng ký ngày nào.</li>';
-  const saveTxt=offLoading?'Đang tải đăng ký…':offSaveState==='saving'?'Đang lưu…':offSaveState==='saved'?'Đã lưu lên máy chủ':offSaveState==='err'?'Lưu lỗi':'';
+  const saveTxt=offLoading?'Đang tải đăng ký…':offSaveState==='saving'?'Đang lưu…':offSaveState==='draft'?(offDirty?'Bản nháp · chưa lưu máy chủ':''):offSaveState==='saved'?'Đã lưu lên máy chủ':offSaveState==='err'?'Lưu lỗi':'';
   const hasRoster=EMP.length>0&&!!currentGhFile;
   let plan='';
   if(admin){
@@ -3152,8 +3210,12 @@ function renderOff(){
     if(offPlan&&offPlan.key===offPeriodKey()){
       const head='<span class="pv h"></span>'+DAYS.map((d,i)=>'<span class="pv h'+(sun.has(i)?' sun':'')+'">'+d[0]+'</span>').join('');
       const rows=offPlan.stats.map(x=>'<span class="pv nm">'+offShort(x.e.name)+'</span>'+offPlan.shifts[x.id].map(c=>'<span class="pv rg-cell s-'+c+'">'+c+'</span>').join('')).join('');
-      const stat=offPlan.stats.map(x=>'<li><b>'+offShort(x.e.name)+'</b><span class="hrs '+(x.diff<-12?'low':'ok')+'">'+x.h+'h <small>/ '+TARGET_HOURS+'h</small></span><em>'+x.days+' / '+PLAN_DAYS+' công · '+['M','E','C9','SN','NL'].map(k=>k+' '+(x.c[k]||0)).join(' · ')+'</em></li>').join('');
-      body='<div class="op-scroll"><div class="op-grid" style="--n:'+DAYS.length+'">'+head+rows+'</div></div><ul class="op-stat">'+stat+'</ul>'+(offPlan.warns.length?'<ul class="op-warn">'+offPlan.warns.slice(0,8).map(w=>'<li>'+w+'</li>').join('')+'</ul>':'<p class="op-ok">Mỗi ngày đều có người phủ ca sáng, giờ công và ngày công gần với kế hoạch.</p>')+'<div class="off-actions"><button type="button" class="btn-action" data-act="replan">Xếp lại (phương án khác)</button><button type="button" class="btn-action primary" data-act="create">'+(hasRoster?'Xác nhận · ghi đè lịch tháng '+mm+'/'+yy:'Xác nhận · tạo lịch tháng '+mm+'/'+yy)+'</button></div>';
+      const stat=offPlan.stats.map(x=>{
+        const cls=x.diff>24?'low':(x.diff<-24?'low':'ok');
+        const tag=x.diff>0?('+'+x.diff+'h'):(x.diff<0?(x.diff+'h'):'đủ');
+        return '<li><b>'+offShort(x.e.name)+'</b><span class="hrs '+cls+'">'+x.h+'h <small>/ '+TARGET_HOURS+'h</small> <small>('+tag+')</small></span><em>'+['M','E','C9','SN','NL'].map(k=>k+' '+(x.c[k]||0)).join(' · ')+'</em></li>';
+      }).join('');
+      body='<div class="op-scroll"><div class="op-grid" style="--n:'+DAYS.length+'">'+head+rows+'</div></div><ul class="op-stat">'+stat+'</ul>'+(offPlan.warns.length?'<ul class="op-warn">'+offPlan.warns.slice(0,8).map(w=>'<li>'+w+'</li>').join('')+'</ul>':'<p class="op-ok">Mỗi ngày có người phủ ca sáng; giờ công bám kế hoạch (thiếu được, dư tối đa +24h).</p>')+'<div class="off-actions"><button type="button" class="btn-action" data-act="replan">Xếp lại (phương án khác)</button><button type="button" class="btn-action primary" data-act="create">'+(hasRoster?'Xác nhận · ghi đè lịch tháng '+mm+'/'+yy:'Xác nhận · tạo lịch tháng '+mm+'/'+yy)+'</button></div>';
     }
     plan='<section class="off-auto"><div class="off-autohead"><div><h3>Tạo lịch tự động · tháng '+mm+'/'+yy+' <span class="demo">demo</span></h3><p>Xếp đồng thời '+people.length+' người theo các ngày off/SN đã đăng ký. '+(hasRoster?'Tháng này đã có lịch — chỉ ghi đè ca của DSP PQC.':'Tháng này chưa có lịch — sẽ tạo file lịch mới.')+'</p></div><button type="button" class="btn-action primary" data-act="plan">'+(offPlan?'Xếp lại từ đầu':'Xếp thử')+'</button></div>'+body+'</section>';
   } else {
@@ -3163,10 +3225,12 @@ function renderOff(){
   box.innerHTML='<div class="off-top"><div><h2>Đăng ký off · DSP PQC · '+mm+'/'+yy+'</h2><p>Kỳ '+DAYS[0][0]+'/'+DAYS[0][2]+' → '+DAYS[DAYS.length-1][0]+'/'+DAYS[DAYS.length-1][2]+' · tối đa <b>'+max+'/'+people.length+'</b> người off cùng ngày · '+(hasRoster?'đã có lịch tháng này':'chưa có lịch — vẫn đăng ký trước được')+'</p></div>'
    +'<div class="off-ctl"><label>Bạn là <select id="offMe"><option value="">— chọn tên —</option>'+people.map(e=>'<option value="'+empKey(e)+'"'+(empKey(e)===offMe?' selected':'')+'>'+e.name+'</option>').join('')+'</select></label>'
    +'<div class="seg"><button type="button" data-act="type" data-v="OFF" class="'+(offType==='OFF'?'on':'')+'">Off</button><button type="button" data-act="type" data-v="SN" class="'+(offType==='SN'?'on':'')+'">SN</button></div>'
-   +'<button type="button" class="off-refresh" data-act="refresh" title="Tải lại đăng ký mới nhất">Làm mới</button><span class="off-save '+(offLoading?'':offSaveState)+'">'+saveTxt+'</span></div></div>'
+   +'<button type="button" class="btn-action primary" data-act="save" title="Đẩy bản nháp lên máy chủ" '+(offBusy||!offDirty?'disabled':'')+'>Lưu đăng ký</button>'
+   +'<button type="button" class="off-refresh" data-act="refresh" title="Tải lại từ máy chủ (bỏ bản nháp chưa lưu)">Làm mới</button>'
+   +'<span class="off-save '+(offLoading?'':offSaveState)+'">'+saveTxt+'</span></div></div>'
    +'<div class="off-note '+(offMsg?offMsg.type:'hint')+'" role="status" aria-live="polite">'+(offMove?'Đang đổi ngày '+offLbl(offMove.date)+' — bấm vào ngày mới (bấm lại ngày cũ để thôi). ':'')+(offMsg?offMsg.msg:(offMove?'':'Bấm vào một ngày để đăng ký, bấm lại ngày của bạn để hủy. Số thứ tự trên tên là thứ tự đăng ký. Có thể đăng ký trước cho tháng sau.'))+'</div>'
    +'<div class="off-main"><section class="off-cal"><div class="oc-head">'+['T2','T3','T4','T5','T6','T7','CN'].map(x=>'<span>'+x+'</span>').join('')+'</div><div class="oc-grid">'+cells+'</div></section>'
-   +'<aside class="off-side"><h3>Đăng ký của bạn</h3><ul class="mine">'+mineHtml+'</ul><h3>Quy tắc xếp lịch</h3><ul class="rules"><li><b>Sau ca E → ngày hôm sau OFF</b> (không xếp M/E/C9), trừ khi chỉ còn đúng 1 người rảnh</li><li>Ngày chỉ còn <b>1 người trực</b> → xếp <b>C9</b> (09:00–21:00) cho người đó (ưu tiên người ít C9 nhất)</li><li>Ngày ≥2 người: ưu tiên phủ ca sáng bằng <b>M</b>; đội ≥4 người luôn ưu tiên M</li><li>Chia đều <b>M / E / C9</b> giữa các thành viên — không để 1 người ôm nhiều C9 (hoặc M) trong khi người khác ít</li><li>Hết chỗ off thì ngày đó bị khóa, hiện người đăng ký trước</li><li>Ngày off giữ nguyên · ngày <b>SN</b> xếp đúng như đăng ký</li><li>Tối đa 6 ngày liên tiếp</li><li>Ngày lễ: người không trực nhận <b>NL</b></li><li>Xếp theo giờ công chuẩn (<b>'+TARGET_HOURS+'h</b>) và ngày công chuẩn (<b>'+PLAN_DAYS+'</b>) — lệch một chút được, admin chỉnh sau</li></ul></aside></div>'+plan;
+   +'<aside class="off-side"><h3>Đăng ký của bạn</h3><ul class="mine">'+mineHtml+'</ul><h3>Quy tắc xếp lịch</h3><ul class="rules"><li><b>Chỉ theo giờ công kế hoạch</b> (<b>'+TARGET_HOURS+'h</b>) — không cố đủ ngày công; thiếu được, dư tối đa <b>+24h</b> (2 ca × 12h)</li><li><b>Sau ca E → ngày hôm sau OFF</b> (không xếp M/E/C9), trừ khi chỉ còn đúng 1 người rảnh</li><li>Ngày chỉ còn <b>1 người trực</b> → xếp <b>C9</b> (09:00–21:00)</li><li>Ngày ≥2 người: ưu tiên phủ ca sáng bằng <b>M</b></li><li>Chia đều <b>M / E / C9</b> giữa các thành viên</li><li>Hết chỗ off thì ngày đó bị khóa, hiện người đăng ký trước</li><li>Ngày off giữ nguyên · ngày <b>SN</b> xếp đúng như đăng ký</li><li>Tối đa 6 ngày liên tiếp · ngày lễ không trực = <b>NL</b></li></ul></aside></div>'+plan;
 }
 (function(){
   const box=document.getElementById('offView');
@@ -3179,7 +3243,11 @@ function renderOff(){
     else if(a==='move'){ const r=getOffRegs().find(r=>r.id===offMe&&r.date===b.dataset.date); offMove=r&&!(offMove&&offMove.date===r.date)?{date:r.date,type:r.type}:null; offSay(null); }
     else if(a==='plan'||a==='replan'){ offSeed=a==='plan'?0:offSeed+1; offPlan=offAutoPlan(); offPlan.key=offPeriodKey(); renderOff(); }
     else if(a==='create') offCreate();
-    else if(a==='refresh'){ offLoadedKey=''; renderOff(); }
+    else if(a==='save') offSaveToServer();
+    else if(a==='refresh'){
+      if(offDirty && !confirm('Bạn đang có bản nháp chưa lưu. Tải lại từ máy chủ sẽ mất thay đổi trên máy này. Tiếp tục?')) return;
+      offDirty=false; offLoadedKey=''; offLoad(true);
+    }
   });
   document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&offMove){ offMove=null; renderOff(); } });
 })();
