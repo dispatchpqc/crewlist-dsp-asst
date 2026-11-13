@@ -965,6 +965,10 @@ body{background:#FBF8F2}
 .rg-btn.primary{background:var(--red);border-color:var(--red);color:#fff}.rg-btn:disabled{opacity:.5;cursor:default}
 .rg-done{padding:30px 0;display:flex;flex-direction:column;gap:12px}.rg-done h2{margin:0;font-size:18px}.rg-done p{margin:0;font-size:13px;color:var(--ink-soft);line-height:1.5}
 .rg-linkbox{border:1px dashed var(--line);border-radius:10px;padding:10px;font-size:11px;word-break:break-all;color:var(--ink-soft)}
+.sh-body{display:flex;flex-direction:column;gap:10px}.sh-body textarea{width:100%;box-sizing:border-box;font:inherit;font-size:12.5px;line-height:1.5;padding:10px;border:1.5px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);resize:none}
+.sh-copy{justify-content:center;width:100%}.sh-apps{display:flex;gap:8px;flex-wrap:wrap}
+.sh-app{flex:1;min-width:110px;text-align:center;text-decoration:none;font:inherit;font-size:13px;font-weight:800;padding:10px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}.sh-app:hover{border-color:var(--ink)}
+.sh-hint{margin:0;font-size:11.5px;color:var(--ink-soft)}
 </style>
 </head>
 <body>
@@ -3407,8 +3411,8 @@ function renderOff(){
     else if(a==='plan'||a==='replan'){ offSeed=a==='plan'?0:offSeed+1; offPlan=offAutoPlan(); offPlan.key=offPeriodKey(); offMsg={msg:'Phương án '+(offSeed+1)+'.',type:'ok'}; renderOff(); }
     else if(a==='create') offCreate();
     else if(a==='save') offSaveToServer();
-    else if(a==='sharelink'){ offShare(offLink(''),'Đăng ký off tháng '+offYM()[1]+'/'+offYM()[0],'Đăng ký ngày off tháng '+String(offYM()[1]).padStart(2,'0')+'/'+offYM()[0]+' — mở link, chọn tên và chọn ngày:').then(r=>{ if(r==='copied') offSay('Đã sao chép link — dán vào nhóm Zalo.','ok'); }); }
-    else if(a==='copylink'){ offShare(offLink(b.dataset.u),'Đăng ký off','Chào '+b.dataset.n+', đăng ký ngày off tháng '+String(offYM()[1]).padStart(2,'0')+'/'+offYM()[0]+' tại đây:').then(r=>{ if(r==='copied') offSay('Đã sao chép link riêng của '+b.dataset.n+'.','ok'); }); }
+    else if(a==='sharelink'){ const mm=String(offYM()[1]).padStart(2,'0'), yy=offYM()[0]; offShareSheet(offLinkFor(''),'Gửi link đăng ký off','Tháng '+mm+'/'+yy+' · nhân viên tự chọn tên và ngày off','Đăng ký ngày off tháng '+mm+'/'+yy+' — mở link, chọn tên và bấm các ngày muốn nghỉ:'); }
+    else if(a==='copylink'){ const mm=String(offYM()[1]).padStart(2,'0'), yy=offYM()[0]; offShareSheet(offLinkFor(b.dataset.u),'Link riêng của '+b.dataset.n,'Tháng '+mm+'/'+yy+' · đã gắn sẵn tên','Chào '+b.dataset.n+', đăng ký ngày off tháng '+mm+'/'+yy+' tại đây:'); }
     else if(a==='refresh'){
       if(offDirty && !confirm('Bản nháp chưa lưu sẽ mất. Tiếp tục?')) return;
       offDirty=false; offLoadedKey=''; offLoad(true);
@@ -3425,6 +3429,28 @@ async function offShare(url,title,text){
   try{ if(navigator.share){ await navigator.share({title,text,url}); return 'shared'; } }catch(e){ if(e&&e.name==='AbortError') return 'cancel'; }
   try{ await navigator.clipboard.writeText(text+'\n'+url); return 'copied'; }catch(e){}
   prompt('Sao chép link:',url); return 'copied';
+}
+function offCopy(text){
+  return new Promise(res=>{
+    const fb=()=>{ try{ const t=document.createElement('textarea'); t.value=text; t.style.cssText='position:fixed;opacity:0'; document.body.appendChild(t); t.select(); const ok=document.execCommand('copy'); t.remove(); res(ok); }catch(e){ res(false); } };
+    if(navigator.clipboard&&window.isSecureContext) navigator.clipboard.writeText(text).then(()=>res(true),fb); else fb();
+  });
+}
+/** Hộp «Gửi link»: luôn hiện kết quả, có nút Zalo / Viber / Sao chép / Chia sẻ… */
+function offShareSheet(url,title,sub,msg){
+  const full=msg+'\n'+url, enc=encodeURIComponent;
+  modalBody.className='modal';
+  modalBody.innerHTML='<div class="mtop"><div><h3>'+title+'</h3><div class="mid">'+sub+'</div></div><button class="closeb" onclick="closeModal()">✕</button></div>'
+   +'<div class="sh-body"><textarea id="shMsg" readonly rows="4">'+full.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</textarea>'
+   +'<button type="button" class="btn-action primary sh-copy" id="shCopy">Sao chép tin nhắn</button>'
+   +'<div class="sh-apps"><a class="sh-app" id="shZalo" target="_blank" rel="noopener" href="https://sp.zalo.me/plugins/share?dl='+enc(url)+'&type=link">Gửi qua Zalo</a><a class="sh-app" id="shViber" href="viber://forward?text='+enc(full)+'">Gửi qua Viber</a>'+(navigator.share?'<button type="button" class="sh-app" id="shMore">Khác…</button>':'')+'</div>'
+   +'<p class="sh-hint">Nếu Zalo hoặc Viber không tự mở, bấm «Sao chép tin nhắn» rồi dán vào cuộc trò chuyện.</p></div>';
+  overlay.style.zIndex=10001; overlay.classList.add('show');
+  const ta=document.getElementById('shMsg'); ta.onfocus=()=>ta.select();
+  document.getElementById('shCopy').onclick=async e=>{ const b=e.currentTarget; const ok=await offCopy(full);
+    b.textContent=ok?'Đã sao chép ✓':'Chưa sao chép được — chọn chữ rồi nhấn Ctrl+C'; if(!ok) ta.select();
+    setTimeout(()=>{ b.textContent='Sao chép tin nhắn'; },2500); };
+  const more=document.getElementById('shMore'); if(more) more.onclick=()=>navigator.share({title:title,text:msg,url:url}).catch(()=>{});
 }
 function regB64(o){ return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
 function regUnb64(t){ t=t.replace(/-/g,'+').replace(/_/g,'/'); while(t.length%4) t+='='; return JSON.parse(decodeURIComponent(escape(atob(t)))); }
@@ -3499,7 +3525,7 @@ function regClick(ev){
   if(a==='type'){ regType=b.dataset.v; regRender(); }
   else if(a==='submit') regSubmit();
   else if(a==='again'){ regDone=null; regLoaded=false; regLoading=false; regLoad(); regRender(); }
-  else if(a==='sendlink'&&regDone&&regDone.link) offShare(regDone.link,'Phiếu đăng ký off',regDone.share);
+  else if(a==='sendlink'&&regDone&&regDone.link) offShareSheet(regDone.link,'Gửi phiếu cho admin','Phiếu đăng ký off của bạn',regDone.share);
 }
 async function offGhPut(regs,y,m){
   const tok=getToken(); const path=offPath(y,m), key=y+'-'+(+m);
