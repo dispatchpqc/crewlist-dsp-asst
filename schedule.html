@@ -7,6 +7,7 @@
 <title>Sun PhuQuoc Airways — Lịch trực</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <style>
 :root{
   --gold:#F5A300;--gold-deep:#D98600;--gold-pale:#FFE9BE;
@@ -973,6 +974,8 @@ body{background:#FBF8F2}
 .rg-live{margin-top:8px}.rg-live.off{color:var(--ink-soft);font-weight:600}
 .rg-live i,.off-live i{width:8px;height:8px;border-radius:50%;background:var(--ok);animation:livePulse 2s ease-out infinite}
 @media(prefers-reduced-motion:reduce){.rg-live i,.off-live i{animation:none}}
+.rp.pend,.op.pend{border-style:dashed}
+.rp.ok,.op.ok{border-style:solid;font-weight:800}.rp.ok::after,.op.ok::after{content:'✓';margin-left:3px;color:var(--ok);font-weight:800}
 </style>
 </head>
 <body>
@@ -1004,9 +1007,9 @@ body{background:#FBF8F2}
   <h1>Lịch trực <span class="accent" id="titleMonth">Tháng 09/2026</span></h1>
   <div class="kpirow">
     <div class="kpi"><div class="num" id="kpiEmp">–</div><div class="lbl">Nhân viên</div></div>
-    <div class="kpi editable" id="kpiPlanCard" role="button" tabindex="0" title="Bấm để chỉnh công kế hoạch của tháng này"><div class="num" id="kpiPlan">27</div><div class="lbl"><span id="kpiPlanLbl">Công kế hoạch</span></div></div>
+    <div class="kpi" id="kpiPlanCard"><div class="num" id="kpiPlan">27</div><div class="lbl"><span id="kpiPlanLbl">Công kế hoạch</span></div></div>
     <div class="kpi"><div class="num" id="kpiDays">31</div><div class="lbl">Ngày trong kỳ</div></div>
-    <div class="kpi editable" id="kpiHoursCard" role="button" tabindex="0" title="Bấm để chỉnh giờ công kế hoạch của tháng này"><div class="num" id="kpiAvg">–</div><div class="lbl"><span id="kpiHoursLbl">Giờ công kế hoạch</span></div></div>
+    <div class="kpi" id="kpiHoursCard"><div class="num" id="kpiAvg">–</div><div class="lbl"><span id="kpiHoursLbl">Giờ công kế hoạch</span></div></div>
     <div class="kpi"><div class="num" id="kpiShort">–</div><div class="lbl">Người thiếu giờ</div></div>
   </div>
 </header>
@@ -1050,6 +1053,7 @@ body{background:#FBF8F2}
   <button type="button" class="btn-action" id="btnSaveGh" title="Cần khóa truy cập máy chủ để lưu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg> Lưu lịch </button>
   <input type="file" id="fileExcel" accept=".xlsx,.xls" hidden>
   <button type="button" class="btn-action" id="btnTemplate" title="Tải mẫu Excel theo tháng đang chọn (kỳ 26→25, đúng số ngày tháng)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 15v-6"/><path d="M9 12l3 3 3-3"/></svg> Mẫu Excel</button>
+  <button type="button" class="btn-action" id="btnExport" title="Xuất lịch tháng đang xem ra Excel đã định dạng (có màu ca, tổng giờ, chú thích)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span>Xuất Excel</span></button>
   <button type="button" class="btn-action" id="btnUpload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3-3 3 3"/></svg> Upload lịch </button>
   <button type="button" class="btn-action" id="btnToken" title="Cài khóa truy cập máy chủ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.6 7.6a5 5 0 1 1-2.8-2.8L15 4h3v3l-4.4 4.4z"/></svg> Key </button>
   <span id="syncPill" class="sync-pill idle" title="Trạng thái đồng bộ lịch với máy chủ">
@@ -1695,7 +1699,7 @@ const FIXED_HOLIDAYS = [[1,1],[4,30],[5,1],[9,2],[11,24]];
 function holidaysForYear(y){ return HOLIDAYS_BY_YEAR[y]||FIXED_HOLIDAYS; }
 /* Công kế hoạch / giờ công kế hoạch: tự tính, hoặc do người dùng chỉnh riêng từng tháng (lưu trên trình duyệt này) */
 function planKey(){ return 'plan_'+document.getElementById('selYear').value+'-'+document.getElementById('selMonth').value; }
-function getPlanOv(){ try{ return JSON.parse(localStorage.getItem(planKey())||'{}')||{}; }catch(e){ return {}; } }
+function getPlanOv(){ return {}; }
 function setPlanOv(o){ try{ if(Object.keys(o).length) localStorage.setItem(planKey(),JSON.stringify(o)); else localStorage.removeItem(planKey()); }catch(e){} }
 function applyServerPlan(plan){
   const o={};
@@ -1703,7 +1707,8 @@ function applyServerPlan(plan){
   if(plan&&plan.h!=null) o.h=plan.h;
   setPlanOv(o); recomputeSunHol();
 }
-async function editPlan(kind){
+async function editPlan(kind){ return; // đã bỏ sửa tay: công/giờ công kế hoạch luôn tự tính
+
   if(!requireEditable('Đăng nhập để chỉnh công kế hoạch.')) return;
   const o=getPlanOv();
   const mm=document.getElementById('selMonth').value, yy=document.getElementById('selYear').value;
@@ -1734,10 +1739,8 @@ function recomputeSunHol(){
     if(holidaysForYear(yr).some(h=>h[0]===dd[2]&&h[1]===dd[0])) HOL_IDX.push(i);
   });
   /* Công kế hoạch = số ngày trong kỳ trừ Chủ nhật & ngày lễ · Giờ công tổng = công kế hoạch × 8h */
-  const off=new Set([...SUN_IDX,...HOL_IDX]);
-  const ov=getPlanOv();
-  PLAN_DAYS=ov.d!=null?ov.d:Math.max(0,DAYS.length-off.size);
-  TARGET_HOURS=ov.h!=null?ov.h:PLAN_DAYS*8;
+  PLAN_DAYS=Math.max(0,DAYS.length-SUN_IDX.length);   // ngày công kế hoạch = tổng ngày trong kỳ − số Chủ nhật
+  TARGET_HOURS=PLAN_DAYS*8;                           // giờ công kế hoạch = ngày công kế hoạch × 8
   try{ if(Array.isArray(EMP)&&EMP.length) applyNotes(EMP); }catch(e){}
 }
 function isToday(dd){
@@ -3029,7 +3032,7 @@ async function offSaveToServer(){
   offBusy=true; offSaveState='saving'; renderOff();
   try{
     if(OFF_EP){
-      const r=await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({period:offPeriodKey(),regs,action:'put'})});
+      const r=await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:(window.SUNPQ&&SUNPQ.offKey)||'',period:offPeriodKey(),regs,action:'put'})});
       if(!r.ok) throw new Error('HTTP '+r.status);
       offDirty=false; offSaveState='saved'; offMsg={msg:'Đã lưu đăng ký lên máy chủ.',type:'ok'};
     } else if(getToken()){
@@ -3087,7 +3090,46 @@ function offCancel(date){
 }
 
 /** Xếp auto: C9 đều → E đến target → HC bù; sau E ngày hôm sau OFF */
+
+/** ≥4 người: mỗi ngày đúng 1 M (sáng) + 1 E (tối); E hôm nay thì mai không M; chỉ còn 1 người rảnh → C9 */
+function offAutoPlanMulti(){
+  const people=offPeople(), D=DAYS.length, regs=getOffRegs(), n=people.length;
+  const ids=people.map(empKey), fixed={}, st={}, out={}, warns=[], hol=new Set(HOL_IDX);
+  ids.forEach(id=>{ fixed[id]={}; st[id]={h:0,consec:0,last:'',d:0,c:{M:0,E:0,C9:0}}; out[id]=new Array(D).fill(''); });
+  regs.forEach(r=>{ const i=DAYS.findIndex((_,x)=>offIso(x)===r.date); if(i>=0&&fixed[r.id]) fixed[r.id][i]=r.type; });
+  const isW=c=>c==='M'||c==='E'||c==='C9';
+  const put=(id,i,c)=>{ out[id][i]=c; const s2=st[id]; if(isW(c)){ s2.consec++; s2.d++; s2.c[c]++; } else s2.consec=0; s2.last=c; s2.h+=SHIFT_HOURS[c]||0; };
+  const jit=(id,i,t)=>{ if(!offSeed) return 0; let h=2166136261; const str=id+'|'+i+'|'+t+'|'+offSeed; for(let c=0;c<str.length;c++){ h^=str.charCodeAt(c); h=Math.imul(h,16777619); } return ((h>>>0)%1000)/1000; };
+  for(let i=0;i<D;i++){
+    const exp=TARGET_HOURS*(i+1)/D, lbl=DAYS[i][0]+'/'+DAYS[i][2], avail=[];
+    ids.forEach(id=>{ const f=fixed[id][i]; if(f==='SN') put(id,i,'SN'); else if(f==='OFF') put(id,i,''); else avail.push(id); });
+    const score=(id,t)=>(st[id].h-exp)/12+2.5*st[id].c[t]+jit(id,i,t)*1.5;
+    const used=new Set();
+    if(avail.length===0) warns.push('Ngày '+lbl+': tất cả đã đăng ký off, không có ai trực.');
+    else if(avail.length===1){ put(avail[0],i,'C9'); used.add(avail[0]); }   // chỉ còn 1 người → bắt buộc C9
+    else {
+      let cm=avail.filter(id=>st[id].last!=='E'&&st[id].consec<6);
+      if(!cm.length) cm=avail.filter(id=>st[id].last!=='E');
+      if(!cm.length){ cm=avail.slice(); warns.push('Ngày '+lbl+': buộc xếp M ngay sau ca E.'); }
+      cm.sort((a,b)=>score(a,'M')-score(b,'M')); const m=cm[0];
+      let ce=avail.filter(id=>id!==m&&st[id].consec<6); if(!ce.length) ce=avail.filter(id=>id!==m);
+      ce.sort((a,b)=>score(a,'E')-score(b,'E')); const e=ce[0];
+      put(m,i,'M'); put(e,i,'E'); used.add(m); used.add(e);
+      // người còn lại: C9 bù giờ khi đang thiếu nhiều (không sau E, ≤6 ngày liên tiếp)
+      const extra=avail.filter(id=>!used.has(id)&&st[id].last!=='E'&&st[id].consec<6&&st[id].d<PLAN_DAYS&&(exp-st[id].h)>=6).sort((a,b)=>st[a].h-st[b].h)[0];
+      if(extra){ put(extra,i,'C9'); used.add(extra); }
+    }
+    avail.filter(id=>!used.has(id)).forEach(id=>put(id,i,hol.has(i)?'NL':''));
+  }
+  // dư giờ: gỡ bớt ca C9 bù (không đụng M/E bắt buộc)
+  const total=id=>calcTotal(out[id]);
+  ids.forEach(id=>{ for(let g=0;g<D&&total(id)>TARGET_HOURS;g++){ const c9=[]; out[id].forEach((c,i)=>{ if(c==='C9'&&!fixed[id][i]) c9.push(i); }); if(!c9.length) break; const i=c9[Math.floor(Math.random()*c9.length)]; out[id][i]=hol.has(i)?'NL':''; } });
+  const stats=people.map((e,k)=>{ const id=ids[k], sh=out[id], c={}; sh.forEach(x=>{ if(x) c[x]=(c[x]||0)+1; }); const h=calcTotal(sh); return {e,id,h,diff:h-TARGET_HOURS,days:sh.filter(x=>x).length,c}; });
+  return {shifts:out,stats,warns,infos:[]};
+}
+
 function offAutoPlan(){
+  if(offPeople().length>=4) return offAutoPlanMulti();
   const people=offPeople(), D=DAYS.length, regs=getOffRegs(), n=people.length;
   const targetH = TARGET_HOURS;
   const WORK = ['HC','C9','M','E'];
@@ -3325,6 +3367,8 @@ async function offCreate(){
   EMP.forEach(e=>{ if(e.dept===OFF_DEPT){ const sh=offPlan.shifts[empKey(e)]; if(sh) e.shifts=sh.slice(); } });
   applyNotes(EMP); renderAll();
   await saveToGitHub();
+  // Đã đẩy lịch lên → các ngày off đã đăng ký chuyển sang «đã duyệt» (nhân viên thấy ✓)
+  try{ const rs=getOffRegs().map(r=>Object.assign({},r,{st:'ok'})); if(rs.length){ setOffRegs(rs); offDirty=true; await offSaveToServer(); } }catch(e){}
 }
 
 function renderOff(){
@@ -3343,7 +3387,7 @@ function renderOff(){
   DAYS.forEach((d,i)=>{
     const date=offIso(i), day=byDate[date]||[], mine=day.some(r=>r.id===offMe), full=day.length>=max&&!mine;
     const cls=['oc',sun.has(i)?'sun':'',hol.has(i)?'hol':'',mine?'mine':'',full?'full':'',offMove&&!full&&!mine?'target':''].join(' ');
-    const pills=day.map((r,k)=>'<span class="op '+r.type+(r.id===offMe?' me':'')+'"><em>'+(k+1)+'</em>'+nm(r.id)+(r.type==='SN'?' · SN':'')+'</span>').join('');
+    const pills=day.map((r,k)=>'<span class="op '+r.type+(r.id===offMe?' me':'')+(r.st==='ok'?' ok':' pend')+'"><em>'+(k+1)+'</em>'+nm(r.id)+(r.type==='SN'?' · SN':'')+'</span>').join('');
     const dots=Array.from({length:max},(_,k)=>'<i class="'+(k<day.length?'on':'')+'"></i>').join('');
     cells+='<button type="button" class="'+cls+'" data-act="cell" data-i="'+i+'" title="'+(full?offFullMsg(day,people):d[1]+' '+d[0]+'/'+d[2])+'"><span class="oc-d"><b>'+d[0]+(d[0]===1||i===0?'<small>/'+d[2]+'</small>':'')+'</b><em>'+d[1]+'</em></span><span class="oc-l">'+pills+'</span><span class="oc-cap">'+dots+'</span></button>';
   });
@@ -3391,7 +3435,7 @@ function renderOff(){
     const prog=people.map(e=>'<li><b>'+offShort(e.name)+'</b><span>'+regs.filter(r=>r.id===empKey(e)).length+' ngày</span></li>').join('');
     plan='<section class="off-auto"><div class="off-autohead"><div><h3>Tình hình đăng ký</h3><p>Admin sẽ tạo lịch tự động sau khi mọi người đăng ký off xong.</p></div></div><ul class="op-stat">'+prog+'</ul></section>';
   }
-  const linkCard='<h3>Gửi link đăng ký</h3><p class="lk-hint">Nhân viên mở link, tự chọn ngày off — không cần admin hỏi từng người.</p><button type="button" class="btn-action primary lk-main" data-act="sharelink">Gửi link tháng '+mm+'/'+yy+'</button><ul class="lk-list">'+people.map(e=>{ const k=empKey(e), c=regs.filter(r=>r.id===k).length; return '<li><span class="lk-nm">'+offShort(e.name)+'</span><span class="lk-st '+(c?'on':'')+'">'+(c?c+' ngày':'chưa đăng ký')+'</span><button type="button" data-act="copylink" data-u="'+k.replace(/"/g,'&quot;')+'" data-n="'+offShort(e.name)+'">Link riêng</button></li>'; }).join('')+'</ul>';
+  const linkCard='<h3>Gửi link đăng ký</h3><p class="lk-hint">Nhân viên mở link, tự chọn ngày off — không cần admin hỏi từng người.</p><button type="button" class="btn-action primary lk-main" data-act="sharelink">Gửi link tháng '+mm+'/'+yy+'</button><ul class="lk-list">'+people.map(e=>{ const k=empKey(e), c=regs.filter(r=>r.id===k).length; return '<li><span class="lk-nm">'+offShort(e.name)+'</span><span class="lk-st '+(c?'on':'')+'">'+(c?c+' ngày'+(regs.some(r=>r.id===k&&r.st!=='ok')?' · chờ duyệt':' · đã duyệt'):'chưa đăng ký')+'</span>'+(admin&&regs.some(r=>r.id===k&&r.st!=='ok')?'<button type="button" data-act="approve" data-u="'+k.replace(/"/g,'&quot;')+'">Duyệt</button>':'')+'<button type="button" data-act="copylink" data-u="'+k.replace(/"/g,'&quot;')+'" data-n="'+offShort(e.name)+'">Link riêng</button></li>'; }).join('')+'</ul>';
   box.innerHTML='<div class="off-top"><div><h2>Đăng ký off · DSP PQC · '+mm+'/'+yy+'</h2><p>Kỳ '+DAYS[0][0]+'/'+DAYS[0][2]+' → '+DAYS[DAYS.length-1][0]+'/'+DAYS[DAYS.length-1][2]+' · tối đa <b>'+max+'/'+people.length+'</b> người off cùng ngày · '+(hasRoster?'đã có lịch tháng này':'chưa có lịch — vẫn đăng ký trước được')+'</p></div>'
    +'<div class="off-ctl"><label>Bạn là <select id="offMe"><option value="">— chọn tên —</option>'+people.map(e=>'<option value="'+empKey(e)+'"'+(empKey(e)===offMe?' selected':'')+'>'+e.name+'</option>').join('')+'</select></label>'
    +'<div class="seg"><button type="button" data-act="type" data-v="OFF" class="'+(offType==='OFF'?'on':'')+'">Off</button><button type="button" data-act="type" data-v="SN" class="'+(offType==='SN'?'on':'')+'">SN</button></div>'
@@ -3417,6 +3461,7 @@ function renderOff(){
     else if(a==='save') offSaveToServer();
     else if(a==='sharelink'){ const mm=String(offYM()[1]).padStart(2,'0'), yy=offYM()[0]; offShareSheet(offLinkFor(''),'Gửi link đăng ký off','Tháng '+mm+'/'+yy+' · nhân viên tự chọn tên và ngày off','Đăng ký ngày off tháng '+mm+'/'+yy+' — mở link, chọn tên và bấm các ngày muốn nghỉ:'); }
     else if(a==='copylink'){ const mm=String(offYM()[1]).padStart(2,'0'), yy=offYM()[0]; offShareSheet(offLinkFor(b.dataset.u),'Link riêng của '+b.dataset.n,'Tháng '+mm+'/'+yy+' · đã gắn sẵn tên','Chào '+b.dataset.n+', đăng ký ngày off tháng '+mm+'/'+yy+' tại đây:'); }
+    else if(a==='approve'){ if(!isAdmin()) return; offApprove(b.dataset.u); }
     else if(a==='refresh'){
       if(offDirty && !confirm('Bản nháp chưa lưu sẽ mất. Tiếp tục?')) return;
       offDirty=false; offLoadedKey=''; offLoad(true);
@@ -3458,12 +3503,12 @@ function offShareSheet(url,title,sub,msg){
 }
 
 /* ===== Trực tiếp: giữ chỗ ngay khi bấm + tự cập nhật ===== */
-let regPollT=null, regStamp=0;
+let regPollT=null, regStamp=0, regOk=new Set();
 const regLive=()=>!!OFF_EP||!!getToken();
 function regStampTxt(){ if(!regStamp) return 'đang kết nối…'; const d=new Date(regStamp); return 'cập nhật '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0'); }
 async function regWrite(regs){
   if(OFF_EP){
-    const r=await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({period:regY+'-'+regM,regs,action:'put'})});
+    const r=await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:(window.SUNPQ&&SUNPQ.offKey)||'',period:regY+'-'+regM,regs,action:'put'})});
     if(!r.ok) throw new Error('HTTP '+r.status); return true;
   }
   const key=regY+'-'+regM, body={message:'Dang ky off '+key,branch:GH.branch,content:btoa(unescape(encodeURIComponent(JSON.stringify({period:key,regs}))))};
@@ -3480,15 +3525,32 @@ async function regToggle(date){
   const nm=l=>l.map(r=>{ const e=people.find(x=>empKey(x)===r.id); return e?offShort(e.name):'?'; }).join(', ');
   let ok=false;
   try{
+    if(OFF_EP){   // máy chủ xử lý nguyên tử: kiểm tra chỗ + ghi trong 1 bước có khóa → không thể 3 người trùng 1 ngày
+      const hm=(regRemote||[]).find(x=>x.id===me&&x.date===date);
+      if(hm&&hm.st==='ok'){ regMsg={msg:'Ngày '+offLbl(date)+' đã được admin duyệt, không tự hủy được. Liên hệ admin nếu cần đổi.',type:'warn'}; regBusy=false; regRender(); return; }
+      let j=null;
+      try{ const r=await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:(window.SUNPQ&&SUNPQ.offKey)||'',action:hm?'release':'hold',period:regY+'-'+regM,id:me,date,type,max})}); j=await r.json(); }catch(e){ j=null; }
+      if(j&&(j.ok||j.error==='full'||j.error==='locked')){
+        if(j.regs) regRemote=j.regs;
+        const on=(regRemote||[]).filter(x=>x.date===date&&x.id!==me).sort((a,b)=>a.ts-b.ts);
+        if(j.error==='full') regMsg={msg:offFullMsg(on,people),type:'err'};
+        else if(j.error==='locked') regMsg={msg:'Ngày '+offLbl(date)+' đã được admin duyệt, không tự hủy được. Liên hệ admin nếu cần đổi.',type:'warn'};
+        else if(hm) regMsg={msg:'Đã hủy ngày '+offLbl(date)+'.',type:'ok'};
+        else regMsg=on.length?{msg:'Đã giữ chỗ ngày '+offLbl(date)+' · '+nm(on)+' đã đăng ký trước bạn.',type:'warn'}:{msg:'Đã giữ chỗ ngày '+offLbl(date)+'.',type:'ok'};
+        regStamp=Date.now(); regPickMine(); regBusy=false; regRender(); return;
+      }
+      throw new Error('máy chủ đăng ký off không phản hồi');
+    }
     for(let t=0;t<4&&!ok;t++){
       const remote=await offFetchRegs(regY,regM);
-      const has=remote.some(r=>r.id===me&&r.date===date);
+      const mineR=remote.find(r=>r.id===me&&r.date===date), has=!!mineR;
       let next, kind;
+      if(has&&mineR.st==='ok'){ regRemote=remote; regMsg={msg:'Ngày '+offLbl(date)+' đã được admin duyệt, không tự hủy được. Liên hệ admin nếu cần đổi.',type:'warn'}; ok=true; break; }
       if(has){ next=remote.filter(r=>!(r.id===me&&r.date===date)); kind='cancel'; }
       else{
         const on=remote.filter(r=>r.date===date).sort((a,b)=>a.ts-b.ts);
         if(on.length>=max){ regRemote=remote; regMsg={msg:offFullMsg(on,people),type:'err'}; ok=true; break; }
-        next=remote.concat([{id:me,date,type,ts:Date.now()}]); kind='add';
+        next=remote.concat([{id:me,date,type,ts:Date.now(),st:'pending'}]); kind='add';
       }
       if(!(await regWrite(next))) continue;
       let after=await offFetchRegs(regY,regM);
@@ -3521,12 +3583,87 @@ function regStartPoll(){
   },4000);
 }
 /** Admin: tự làm mới danh sách đăng ký khi đang mở mục Đăng ký off (không đè bản nháp đang sửa) */
+async function offApprove(id){
+  const rs=getOffRegs().map(r=>r.id===id?Object.assign({},r,{st:'ok'}):r); setOffRegs(rs); offDirty=true; offMsg={msg:'Đã duyệt đăng ký off — nhân viên thấy ✓ ngay.',type:'ok'}; renderOff();
+  await offSaveToServer();
+}
 async function offLiveTick(){
   if(view!=='off'||offDirty||offBusy||offLoading||document.hidden||!(OFF_EP||getToken())) return;
   try{
     const r=await offFetchRegs();
     if(JSON.stringify(r)!==JSON.stringify(getOffRegs())){ setOffRegs(r); renderOff(); }
   }catch(e){}
+}
+
+
+/* ===== Xuất lịch ra Excel đã định dạng (ExcelJS) ===== */
+const XL_SHIFT={HC:['FFD3D9','8F1426'],NC:['FFEEF0','8F1426'],M:['FFF0B8','6B4A00'],E:['FFC48A','7A3600'],C9:['CFF0EA','0A5A50'],
+  HS:['FADCEB','7A1048'],HT:['F2A6CB','6E0F42'],SS:['E3F3C4','3D5E0B'],ST:['B5DC82','2F4A08'],PS:['D6EAFB','0F4F7D'],PT:['9CCBF0','0B3F68'],
+  PS1:['D6EAFB','0F4F7D'],PT1:['9CCBF0','0B3F68'],PN:['CBD2DC','2B3440'],NL:['E8E5DB','5C5A4E'],P:['FFFFFF','8A6A00'],SN:['D5DAE2','36404E']};
+function buildPrettyWorkbook(EJ){
+  const D=DAYS.length, last=DAYS[D-1], first=DAYS[0], mm=String(last[2]).padStart(2,'0');
+  const wb=new EJ.Workbook(); wb.creator='Sun PhuQuoc Airways';
+  const ws=wb.addWorksheet('Lịch trực '+mm+'-'+last[3],{views:[{state:'frozen',xSplit:2,ySplit:5,showGridLines:false}],
+    pageSetup:{orientation:'landscape',paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:.3,right:.3,top:.4,bottom:.4,header:.2,footer:.2}}});
+  const nCol=2+D+4, col=i=>ws.getColumn(i);
+  const solid=c=>({type:'pattern',pattern:'solid',fgColor:{argb:'FF'+c}});
+  const line={style:'thin',color:{argb:'FFE3DCCB'}}, border={top:line,left:line,bottom:line,right:line};
+  col(1).width=10; col(2).width=26; for(let i=0;i<D;i++) col(3+i).width=4.7;
+  [8,10,9,11].forEach((w,k)=>col(3+D+k).width=w);
+  const fdd=n=>String(n).padStart(2,'0');
+  // tiêu đề
+  ws.mergeCells(1,1,1,nCol); ws.getCell(1,1).value='LỊCH TRỰC · THÁNG '+mm+'/'+last[3];
+  ws.getCell(1,1).font={name:'Arial',size:18,bold:true,color:{argb:'FFC8102E'}}; ws.getCell(1,1).alignment={vertical:'middle',horizontal:'left'}; ws.getRow(1).height=30;
+  ws.mergeCells(2,1,2,nCol);
+  ws.getCell(2,1).value='Kỳ '+fdd(first[0])+'/'+fdd(first[2])+'/'+first[3]+' → '+fdd(last[0])+'/'+fdd(last[2])+'/'+last[3]+'   ·   Công kế hoạch '+PLAN_DAYS+' ngày   ·   Giờ công kế hoạch '+TARGET_HOURS+'h';
+  ws.getCell(2,1).font={name:'Arial',size:10.5,color:{argb:'FF6B5B4B'}}; ws.getRow(2).height=18; ws.getRow(3).height=6;
+  // 2 dòng tiêu đề: ngày + thứ
+  const head=(r,c,v,fill,fc,sz)=>{ const x=ws.getCell(r,c); x.value=v; x.fill=solid(fill); x.font={name:'Arial',size:sz||10,bold:true,color:{argb:'FF'+fc}}; x.alignment={horizontal:'center',vertical:'middle',wrapText:true}; x.border=border; };
+  ['Mã NV','Họ tên'].forEach((t,k)=>{ ws.mergeCells(4,1+k,5,1+k); head(4,1+k,t,'3B2A20','FFFFFF',10.5); head(5,1+k,null,'3B2A20','FFFFFF'); });
+  DAYS.forEach((d,i)=>{ const sun=d[1]==='CN'||HOL_IDX.indexOf(i)>=0, bg=sun?'FBD9A8':'F3EBDD', fc=sun?'B42318':'3B2A20';
+    head(4,3+i,(d[0]===1||i===0)?d[0]+'/'+d[2]:d[0],bg,fc,(d[0]===1||i===0)?8:10); head(5,3+i,d[1],bg,fc,9); });
+  ['Số công','Tổng giờ','Giờ KH','Chênh lệch'].forEach((t,k)=>{ ws.mergeCells(4,3+D+k,5,3+D+k); head(4,3+D+k,t,'3B2A20','FFFFFF',10); head(5,3+D+k,null,'3B2A20','FFFFFF'); });
+  ws.getRow(4).height=20; ws.getRow(5).height=16;
+  // nhân viên theo vị trí trực
+  const by={}; EMP.forEach(e=>{ (by[e.dept]=by[e.dept]||[]).push(e); });
+  let r=6; const codes=new Set();
+  orderedDeptCodes(by).forEach(dk=>{
+    ws.mergeCells(r,1,r,nCol); const b=ws.getCell(r,1); b.value=(DEPTS[dk]?DEPTS[dk].name:dk)+'  ·  '+by[dk].length+' người';
+    b.fill=solid('F6E7BE'); b.font={name:'Arial',size:10.5,bold:true,color:{argb:'FF5A3E00'}}; b.alignment={vertical:'middle',horizontal:'left',indent:1}; ws.getRow(r).height=20; r++;
+    by[dk].forEach((e,k)=>{
+      const sh=e.shifts||[], tot=calcTotal(sh), diff=tot-TARGET_HOURS, cong=sh.filter(x=>x).length, zebra=k%2?'FCFAF5':'FFFFFF';
+      const c1=ws.getCell(r,1); c1.value=e.id; c1.font={name:'Arial',size:10,color:{argb:'FF6B5B4B'}}; c1.alignment={horizontal:'center',vertical:'middle'}; c1.fill=solid(zebra); c1.border=border;
+      const c2=ws.getCell(r,2); c2.value=e.name; c2.font={name:'Arial',size:10.5,bold:true,color:{argb:'FF2A1D14'}}; c2.alignment={vertical:'middle',indent:1}; c2.fill=solid(zebra); c2.border=border;
+      for(let i=0;i<D;i++){
+        const c=ws.getCell(r,3+i), code=sh[i]||''; c.border=border; c.alignment={horizontal:'center',vertical:'middle'};
+        if(code&&XL_SHIFT[code]){ codes.add(code); c.value=code; c.fill=solid(XL_SHIFT[code][0]); c.font={name:'Arial',size:9.5,bold:true,color:{argb:'FF'+XL_SHIFT[code][1]}}; }
+        else if(code){ c.value=code; c.font={name:'Arial',size:9.5,bold:true}; c.fill=solid(zebra); }
+        else c.fill=solid(DAYS[i][1]==='CN'||HOL_IDX.indexOf(i)>=0?'FFF4DF':zebra);
+      }
+      [[cong,'0'],[tot,'0'],[TARGET_HOURS,'0'],[diff,'+0;-0;0']].forEach((v,k)=>{ const c=ws.getCell(r,3+D+k); c.value=v[0]; c.numFmt=v[1]; c.border=border; c.fill=solid(zebra); c.alignment={horizontal:'center',vertical:'middle'};
+        c.font={name:'Arial',size:10,bold:k===1||k===3,color:{argb:k===3?(diff<0?'FFB42318':'FF1F7A4D'):'FF2A1D14'}}; });
+      ws.getRow(r).height=19; r++;
+    });
+  });
+  // chú thích
+  r++; ws.getCell(r,1).value='Chú thích'; ws.getCell(r,1).font={name:'Arial',size:10,bold:true,color:{argb:'FF6B5B4B'}}; r++;
+  const legend=Array.from(codes);
+  legend.forEach(code=>{ const inf=(typeof SHIFT_INFO!=='undefined'&&SHIFT_INFO[code])?SHIFT_INFO[code].label:code, t=(typeof SHIFT_TIMES!=='undefined'&&SHIFT_TIMES[code])?SHIFT_TIMES[code].label:'', h=SHIFT_HOURS[code];
+    const a=ws.getCell(r,1); a.value=code; a.fill=solid(XL_SHIFT[code][0]); a.font={name:'Arial',size:9.5,bold:true,color:{argb:'FF'+XL_SHIFT[code][1]}}; a.alignment={horizontal:'center'}; a.border=border;
+    ws.mergeCells(r,2,r,12); const b=ws.getCell(r,2); b.value=inf.replace(/\s*\(.*/,'')+(t?' · '+t:'')+(h?' · '+h+'h':''); b.font={name:'Arial',size:9.5,color:{argb:'FF4A3B2E'}}; b.alignment={indent:1}; r++; });
+  r++; ws.mergeCells(r,1,r,nCol); ws.getCell(r,1).value='Xuất từ web lịch trực · '+new Date().toLocaleString('vi-VN'); ws.getCell(r,1).font={name:'Arial',size:8.5,italic:true,color:{argb:'FF9A8B78'}};
+  ws.pageSetup.printTitlesRow='4:5';
+  return wb;
+}
+async function exportPrettyExcel(){
+  if(!EMP.length||!DAYS.length){ setBanner('Chưa có lịch để xuất.','warn'); return; }
+  if(typeof ExcelJS==='undefined'){ setBanner('Chưa tải được thư viện xuất Excel — kiểm tra kết nối mạng rồi thử lại.','err'); return; }
+  try{
+    const wb=buildPrettyWorkbook(ExcelJS), buf=await wb.xlsx.writeBuffer(), last=DAYS[DAYS.length-1];
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+    a.download='Lich-truc-'+String(last[2]).padStart(2,'0')+'-'+last[3]+'.xlsx'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500);
+    setBanner('Đã xuất lịch tháng '+String(last[2]).padStart(2,'0')+'/'+last[3]+' ra Excel.','ok');
+  }catch(e){ setBanner('Không xuất được Excel: '+(e.message||e),'err'); }
 }
 
 function regB64(o){ return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
@@ -3549,7 +3686,7 @@ async function regLoad(){
   regLoading=false; regStamp=Date.now(); regPickMine(); regRender();
 }
 function regPickMine(){
-  regSel=new Map(); regTs=new Map();
+  regSel=new Map(); regTs=new Map(); regOk=new Set(regRemote.filter(r=>r.id===regMe&&r.st==='ok').map(r=>r.date));
   if(!regMe) return;
   regRemote.filter(r=>r.id===regMe).forEach(r=>{ regSel.set(r.date,r.type); regTs.set(r.date,r.ts); });
 }
@@ -3567,8 +3704,8 @@ function regRender(){
   const WK={T2:0,T3:1,T4:2,T5:3,T6:4,T7:5,CN:6}; let cells='<span></span>'.repeat(WK[days[0].wk]||0);
   days.forEach(d=>{
     const on=byDate[d.iso]||[], sel=regSel.has(d.iso), full=on.length>=max&&!sel;
-    const pills=on.map((r,k)=>'<span class="rp'+(r.type==='SN'?' sn':'')+'"><em>'+(k+1)+'</em>'+nm(r.id)+'</span>').join('');
-    cells+='<button type="button" class="rc'+(sel?' sel '+(regSel.get(d.iso)==='SN'?'sn':''):'')+(full?' full':'')+(d.sun||d.hol?' hol':'')+'" data-date="'+d.iso+'"><b>'+d.d+(d.d===1?'<small>/'+d.m+'</small>':'')+'</b><span class="rl">'+(sel?'<span class="rp me">'+(regSel.get(d.iso)==='SN'?'SN':'Off')+'</span>':'')+pills+'</span></button>';
+    const pills=on.map((r,k)=>'<span class="rp'+(r.type==='SN'?' sn':'')+(r.st==='ok'?' ok':' pend')+'" title="'+(r.st==='ok'?'Đã duyệt':'Chờ duyệt')+'"><em>'+(k+1)+'</em>'+nm(r.id)+'</span>').join('');
+    cells+='<button type="button" class="rc'+(sel?' sel '+(regSel.get(d.iso)==='SN'?'sn':''):'')+(full?' full':'')+(d.sun||d.hol?' hol':'')+'" data-date="'+d.iso+'"><b>'+d.d+(d.d===1?'<small>/'+d.m+'</small>':'')+'</b><span class="rl">'+(sel?'<span class="rp me'+(regOk.has(d.iso)?' ok':' pend')+'">'+(regSel.get(d.iso)==='SN'?'SN':'Off')+'</span>':'')+pills+'</span></button>';
   });
   const n=regSel.size;
   let body;
@@ -3577,7 +3714,7 @@ function regRender(){
   } else {
     body='<div class="rg-ctl"><label>Bạn là<select id="regMe"'+(regU?' disabled':'')+'><option value="">— chọn tên —</option>'+people.map(e=>'<option value="'+empKey(e)+'"'+(empKey(e)===regMe?' selected':'')+'>'+e.name+'</option>').join('')+'</select></label>'
      +'<div class="seg"><button type="button" data-act="type" data-v="OFF" class="'+(regType==='OFF'?'on':'')+'">Off</button><button type="button" data-act="type" data-v="SN" class="'+(regType==='SN'?'on':'')+'">SN</button></div></div>'
-     +'<div class="rg-note '+(regMsg?regMsg.type:'hint')+'">'+(regMsg?regMsg.msg:'Mỗi ngày tối đa '+max+'/'+people.length+' người off. Ngày đã đủ người sẽ bị khóa. Số nhỏ trên tên là thứ tự đăng ký.')+'</div>'
+     +'<div class="rg-note '+(regMsg?regMsg.type:'hint')+'">'+(regMsg?regMsg.msg:'Mỗi ngày tối đa '+max+'/'+people.length+' người off. Ngày đã đủ người sẽ bị khóa. Nét đứt = chờ admin duyệt · dấu ✓ = đã duyệt.')+'</div>'
      +'<div class="rg-cal"><div class="rg-wk">'+['T2','T3','T4','T5','T6','T7','CN'].map(x=>'<span>'+x+'</span>').join('')+'</div><div class="rg-grid">'+cells+'</div></div>'
      +(regLive()?'<div class="rg-bar"><div><b>'+n+'</b> ngày đã giữ chỗ · tự lưu</div><button type="button" class="rg-btn primary" data-act="finish"'+(regBusy||!regMe?' disabled':'')+'>'+(regBusy?'Đang lưu…':'Hoàn tất')+'</button></div>':'<div class="rg-bar"><div><b>'+n+'</b> ngày đã chọn</div><button type="button" class="rg-btn primary" data-act="submit"'+(regBusy||!regMe?' disabled':'')+'>'+(regBusy?'Đang gửi…':'Gửi đăng ký')+'</button></div>');
   }
@@ -3635,7 +3772,7 @@ async function regSubmit(){
     }
     const merged=others.concat(mine);
     if(OFF_EP){
-      const r=await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({period:regY+'-'+regM,regs:merged,action:'put'})});
+      const r=await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:(window.SUNPQ&&SUNPQ.offKey)||'',period:regY+'-'+regM,regs:merged,action:'put'})});
       if(!r.ok) throw new Error('HTTP '+r.status);
       regDone={title:'Đã gửi đăng ký',text:'Admin sẽ thấy đăng ký của bạn trong mục Đăng ký off. Bạn có thể mở lại link để sửa trước khi chốt lịch.'};
     } else if(getToken()){
@@ -4317,6 +4454,7 @@ function openIcsModal(){
   b.textContent='📅 Lịch cá nhân'; b.title='Link lịch riêng cho từng nhân viên'; b.onclick=openIcsModal; bl.parentNode.insertBefore(b,bl);
   const _r=refreshAuthUI; refreshAuthUI=function(){ _r.apply(this,arguments); b.style.display=isAdmin()?'':'none'; };
   b.style.display=isAdmin()?'':'none'; })();
+document.getElementById('btnExport').onclick=exportPrettyExcel;
 setInterval(offLiveTick,5000);
 if(/^#dangky=/.test(location.hash)) regInit(); else if(/^#nop=/.test(location.hash)) nopInit();
 </script>
