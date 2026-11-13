@@ -927,6 +927,44 @@ body{background:#FBF8F2}
 .ap .op-grid .pv.tot i{display:block;width:84px;height:4px;border-radius:2px;background:var(--line-soft);overflow:hidden}
 .ap .op-grid .pv.tot i u{display:block;height:100%;background:var(--ok);border-radius:2px}.ap .op-grid .pv.tot.low i u{background:var(--red)}
 .ap .op-grid .pv.tot small{font-size:10px;font-weight:700;color:var(--ink-soft);margin-top:-1px}
+
+.lk-hint{margin:0 0 8px;font-size:12px;color:var(--ink-soft)}
+.lk-main{width:100%;justify-content:center}
+.lk-list{list-style:none;margin:10px 0 0;padding:0}
+.lk-list li{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px}
+.lk-nm{font-weight:700;flex:1}.lk-st{font-size:11px;color:var(--ink-soft)}.lk-st.on{color:var(--ok);font-weight:700}
+.lk-list button{font:inherit;font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:7px;border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
+.lk-list button:hover{border-color:var(--ink)}
+/* ===== Trang đăng ký off qua link ===== */
+#regView{position:fixed;inset:0;z-index:9999;overflow:auto;background:var(--bg,#FBF8F2);color:var(--ink);padding:0 0 96px}
+#regView .rg-top{padding:22px 18px 8px;max-width:720px;margin:0 auto}
+#regView .rg-brand{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--gold-deep)}
+#regView h1{margin:6px 0 4px;font-size:22px;font-weight:800;letter-spacing:-.01em}
+#regView .rg-top p{margin:0;font-size:12.5px;color:var(--ink-soft)}
+#regView>*:not(.rg-top){max-width:720px;margin-left:auto;margin-right:auto;padding-left:18px;padding-right:18px}
+.rg-wait{padding:40px 18px;text-align:center;color:var(--ink-soft)}
+.rg-ctl{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px auto}
+.rg-ctl label{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--ink-soft);flex:1;min-width:210px}
+.rg-ctl select{font:inherit;font-size:14px;font-weight:600;padding:10px;border:1.5px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);flex:1}
+.rg-note{font-size:12.5px;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--sun);color:var(--ink-soft);margin:0 auto 12px}
+.rg-note.err{background:#FDECEC;border-color:#EBB4B4;color:#9B1C1C}.rg-note.warn{background:#FFF4D6;border-color:#EDD48A;color:#7A5A00}
+.rg-wk,.rg-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.rg-wk span{font-size:11px;font-weight:800;color:var(--ink-soft);text-align:center;padding:2px 0 6px}
+.rc{font:inherit;text-align:left;display:flex;flex-direction:column;gap:3px;min-height:74px;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);cursor:pointer}
+.rc b{font-size:14px;font-variant-numeric:tabular-nums}.rc b small{font-size:9.5px;color:var(--ink-soft);font-weight:700}
+.rc.hol{background:#FFF7E8}
+.rc.sel{border-color:var(--gold-deep);box-shadow:inset 0 0 0 1.5px var(--gold);background:#FFF3D0}.rc.sel.sn{border-color:#6B7787;box-shadow:inset 0 0 0 1.5px #8A94A3;background:#E4E8EE}
+.rc.full{cursor:not-allowed;background-image:repeating-linear-gradient(135deg,rgba(0,0,0,.05) 0 2px,transparent 2px 7px)}
+.rl{display:flex;flex-direction:column;gap:2px}
+.rp{display:flex;align-items:center;gap:3px;font-size:9.5px;font-weight:700;padding:1px 4px 1px 2px;border-radius:5px;background:var(--sun);border:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rp em{font-style:normal;font-size:8px;font-weight:800;min-width:12px;height:12px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--ink);color:var(--paper)}
+.rp.sn{background:#D5DAE2}.rp.me{background:var(--gold);border-color:var(--gold-deep);color:#2A1D14;padding-left:5px}
+.rg-bar{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px calc(12px + env(safe-area-inset-bottom,0px));background:var(--paper);border-top:1px solid var(--line);max-width:none!important}
+.rg-bar b{font-size:18px;font-variant-numeric:tabular-nums}
+.rg-btn{font:inherit;font-size:14px;font-weight:800;padding:11px 20px;border-radius:12px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
+.rg-btn.primary{background:var(--red);border-color:var(--red);color:#fff}.rg-btn:disabled{opacity:.5;cursor:default}
+.rg-done{padding:30px 0;display:flex;flex-direction:column;gap:12px}.rg-done h2{margin:0;font-size:18px}.rg-done p{margin:0;font-size:13px;color:var(--ink-soft);line-height:1.5}
+.rg-linkbox{border:1px dashed var(--line);border-radius:10px;padding:10px;font-size:11px;word-break:break-all;color:var(--ink-soft)}
 </style>
 </head>
 <body>
@@ -2923,7 +2961,7 @@ let offSha=null, offLoadedKey='', offLoading=false, offBusy=false, offDirty=fals
 try{ offMe=localStorage.getItem('offMe')||null; }catch(e){}
 function offYM(){ return [+document.getElementById('selYear').value, +document.getElementById('selMonth').value]; }
 function offPeriodKey(){ const [y,m]=offYM(); return y+'-'+m; }
-function offPath(){ const [y,m]=offYM(); return OFF_DIR+'/'+y+'-'+String(m).padStart(2,'0')+'.json'; }
+function offPath(y0,m0){ const [y1,m1]=offYM(), y=y0||y1, m=m0||m1; return OFF_DIR+'/'+y+'-'+String(m).padStart(2,'0')+'.json'; }
 function getOffRegs(){ try{ return JSON.parse(localStorage.getItem('offreg_'+offPeriodKey())||'[]')||[]; }catch(e){ return []; } }
 function setOffRegs(a){ try{ if(a&&a.length) localStorage.setItem('offreg_'+offPeriodKey(),JSON.stringify(a)); else localStorage.removeItem('offreg_'+offPeriodKey()); }catch(e){} }
 function offIso(i){ const d=DAYS[i]; return d[3]+'-'+String(d[2]).padStart(2,'0')+'-'+String(d[0]).padStart(2,'0'); }
@@ -2940,11 +2978,11 @@ function offFullMsg(day,people){
   const names=day.map(r=>{ const e=people.find(x=>empKey(x)===r.id); return e?offShort(e.name):'?'; });
   return 'Ngày '+offLbl(day[0].date)+' đã đủ '+day.length+'/'+people.length+' người off — '+names.join(', ')+' đã đăng ký trước. Hãy chọn ngày khác.';
 }
-async function offFetchRegs(){
-  const path=offPath(), tok=getToken();
+async function offFetchRegs(y0,m0){
+  const path=offPath(y0,m0), tok=getToken(), pkey=y0?(y0+'-'+(+m0)):offPeriodKey();
   if(OFF_EP){
     try{
-      const r=await fetch(OFF_EP+'?period='+encodeURIComponent(offPeriodKey())+'&t='+Date.now(),{cache:'no-store'});
+      const r=await fetch(OFF_EP+'?period='+encodeURIComponent(pkey)+'&t='+Date.now(),{cache:'no-store'});
       if(r.ok){ const j=await r.json(); if(j.sha) offSha=j.sha; return j.regs||[]; }
     }catch(e){}
   }
@@ -3345,6 +3383,7 @@ function renderOff(){
     const prog=people.map(e=>'<li><b>'+offShort(e.name)+'</b><span>'+regs.filter(r=>r.id===empKey(e)).length+' ngày</span></li>').join('');
     plan='<section class="off-auto"><div class="off-autohead"><div><h3>Tình hình đăng ký</h3><p>Admin sẽ tạo lịch tự động sau khi mọi người đăng ký off xong.</p></div></div><ul class="op-stat">'+prog+'</ul></section>';
   }
+  const linkCard='<h3>Gửi link đăng ký</h3><p class="lk-hint">Nhân viên mở link, tự chọn ngày off — không cần admin hỏi từng người.</p><button type="button" class="btn-action primary lk-main" data-act="sharelink">Gửi link tháng '+mm+'/'+yy+'</button><ul class="lk-list">'+people.map(e=>{ const k=empKey(e), c=regs.filter(r=>r.id===k).length; return '<li><span class="lk-nm">'+offShort(e.name)+'</span><span class="lk-st '+(c?'on':'')+'">'+(c?c+' ngày':'chưa đăng ký')+'</span><button type="button" data-act="copylink" data-u="'+k.replace(/"/g,'&quot;')+'" data-n="'+offShort(e.name)+'">Link riêng</button></li>'; }).join('')+'</ul>';
   box.innerHTML='<div class="off-top"><div><h2>Đăng ký off · DSP PQC · '+mm+'/'+yy+'</h2><p>Kỳ '+DAYS[0][0]+'/'+DAYS[0][2]+' → '+DAYS[DAYS.length-1][0]+'/'+DAYS[DAYS.length-1][2]+' · tối đa <b>'+max+'/'+people.length+'</b> người off cùng ngày · '+(hasRoster?'đã có lịch tháng này':'chưa có lịch — vẫn đăng ký trước được')+'</p></div>'
    +'<div class="off-ctl"><label>Bạn là <select id="offMe"><option value="">— chọn tên —</option>'+people.map(e=>'<option value="'+empKey(e)+'"'+(empKey(e)===offMe?' selected':'')+'>'+e.name+'</option>').join('')+'</select></label>'
    +'<div class="seg"><button type="button" data-act="type" data-v="OFF" class="'+(offType==='OFF'?'on':'')+'">Off</button><button type="button" data-act="type" data-v="SN" class="'+(offType==='SN'?'on':'')+'">SN</button></div>'
@@ -3353,7 +3392,7 @@ function renderOff(){
    +'<span class="off-save '+(offLoading?'':offSaveState)+'">'+saveTxt+'</span></div></div>'
    +'<div class="off-note '+(offMsg?offMsg.type:'hint')+'" role="status" aria-live="polite">'+(offMove?'Đang đổi ngày '+offLbl(offMove.date)+' — bấm vào ngày mới (bấm lại ngày cũ để thôi). ':'')+(offMsg?offMsg.msg:(offMove?'':'Bấm vào một ngày để đăng ký, bấm lại ngày của bạn để hủy. Số thứ tự trên tên là thứ tự đăng ký. Có thể đăng ký trước cho tháng sau.'))+'</div>'
    +'<div class="off-main"><section class="off-cal"><div class="oc-head">'+['T2','T3','T4','T5','T6','T7','CN'].map(x=>'<span>'+x+'</span>').join('')+'</div><div class="oc-grid">'+cells+'</div></section>'
-   +'<aside class="off-side"><h3>Đăng ký của bạn</h3><ul class="mine">'+mineHtml+'</ul></aside></div>'+plan;
+   +'<aside class="off-side"><h3>Đăng ký của bạn</h3><ul class="mine">'+mineHtml+'</ul>'+linkCard+'</aside></div>'+plan;
 }
 (function(){
   const box=document.getElementById('offView');
@@ -3368,6 +3407,8 @@ function renderOff(){
     else if(a==='plan'||a==='replan'){ offSeed=a==='plan'?0:offSeed+1; offPlan=offAutoPlan(); offPlan.key=offPeriodKey(); offMsg={msg:'Phương án '+(offSeed+1)+'.',type:'ok'}; renderOff(); }
     else if(a==='create') offCreate();
     else if(a==='save') offSaveToServer();
+    else if(a==='sharelink'){ offShare(offLink(''),'Đăng ký off tháng '+offYM()[1]+'/'+offYM()[0],'Đăng ký ngày off tháng '+String(offYM()[1]).padStart(2,'0')+'/'+offYM()[0]+' — mở link, chọn tên và chọn ngày:').then(r=>{ if(r==='copied') offSay('Đã sao chép link — dán vào nhóm Zalo.','ok'); }); }
+    else if(a==='copylink'){ offShare(offLink(b.dataset.u),'Đăng ký off','Chào '+b.dataset.n+', đăng ký ngày off tháng '+String(offYM()[1]).padStart(2,'0')+'/'+offYM()[0]+' tại đây:').then(r=>{ if(r==='copied') offSay('Đã sao chép link riêng của '+b.dataset.n+'.','ok'); }); }
     else if(a==='refresh'){
       if(offDirty && !confirm('Bản nháp chưa lưu sẽ mất. Tiếp tục?')) return;
       offDirty=false; offLoadedKey=''; offLoad(true);
@@ -3375,7 +3416,164 @@ function renderOff(){
   });
   document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&offMove){ offMove=null; renderOff(); } });
 })();
+
+/* ===== Link đăng ký off cho nhân viên: #dangky=YYYY-MM[&u=mã] ===== */
+let regActive=false, regY=0, regM=0, regU='', regMe='', regType='OFF', regSel=new Map(), regTs=new Map(), regRemote=[], regLoaded=false, regLoading=false, regMsg=null, regBusy=false, regDone=null;
+function offBaseUrl(){ return location.href.split('#')[0].split('?')[0]; }
+function offLinkFor(u){ const [y,m]=offYM(); return offBaseUrl()+'#dangky='+y+'-'+String(m).padStart(2,'0')+(u?'&u='+encodeURIComponent(u):''); }
+async function offShare(url,title,text){
+  try{ if(navigator.share){ await navigator.share({title,text,url}); return 'shared'; } }catch(e){ if(e&&e.name==='AbortError') return 'cancel'; }
+  try{ await navigator.clipboard.writeText(text+'\n'+url); return 'copied'; }catch(e){}
+  prompt('Sao chép link:',url); return 'copied';
+}
+function regB64(o){ return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function regUnb64(t){ t=t.replace(/-/g,'+').replace(/_/g,'/'); while(t.length%4) t+='='; return JSON.parse(decodeURIComponent(escape(atob(t)))); }
+function regDays(){
+  return buildDaysForMonth(regY,regM).map(d=>({d:d[0],wk:d[1],m:d[2],y:d[3],iso:d[3]+'-'+String(d[2]).padStart(2,'0')+'-'+String(d[0]).padStart(2,'0'),
+    sun:d[1]==='CN', hol:holidaysForYear(d[3]).some(h=>h[0]===d[2]&&h[1]===d[0])}));
+}
+async function regInit(){
+  const m=location.hash.match(/#dangky=(\d{4})-(\d{1,2})(?:&u=([^&]*))?/); if(!m) return;
+  regActive=true; regY=+m[1]; regM=+m[2]; regU=m[3]?decodeURIComponent(m[3]):'';
+  if(regU) regMe=regU; else { try{ regMe=localStorage.getItem('offMe')||''; }catch(e){} }
+  const el=document.createElement('div'); el.id='regView'; document.body.appendChild(el);
+  el.addEventListener('click',regClick); el.addEventListener('change',regChange);
+  regRender(); regLoad();
+}
+async function regLoad(){
+  if(regLoading) return; regLoading=true;
+  try{ regRemote=await offFetchRegs(regY,regM); regLoaded=true; }catch(e){ regMsg={msg:'Không tải được đăng ký hiện có. Kiểm tra mạng rồi bấm Tải lại.',type:'err'}; }
+  regLoading=false; regPickMine(); regRender();
+}
+function regPickMine(){
+  regSel=new Map(); regTs=new Map();
+  if(!regMe) return;
+  regRemote.filter(r=>r.id===regMe).forEach(r=>{ regSel.set(r.date,r.type); regTs.set(r.date,r.ts); });
+}
+function regMax(n){ return Math.max(1,n-1); }
+function regRender(){
+  const el=document.getElementById('regView'); if(!el) return;
+  const people=offPeople(), days=regDays(), mm=String(regM).padStart(2,'0');
+  const head='<header class="rg-top"><div class="rg-brand">Sun PhuQuoc Airways · DSP PQC</div><h1>Đăng ký off tháng '+mm+'/'+regY+'</h1><p>Kỳ '+days[0].d+'/'+days[0].m+' → '+days[days.length-1].d+'/'+days[days.length-1].m+'. Chọn ngày muốn nghỉ rồi bấm Gửi đăng ký.</p></header>';
+  if(!people.length||!regLoaded){ el.innerHTML=head+'<div class="rg-wait">Đang tải danh sách nhân viên…</div>'; return; }
+  if(regMe&&!people.some(e=>empKey(e)===regMe)) regMe='';
+  const max=regMax(people.length), byDate={};
+  regRemote.filter(r=>r.id!==regMe).forEach(r=>{ (byDate[r.date]=byDate[r.date]||[]).push(r); });
+  Object.values(byDate).forEach(l=>l.sort((a,b)=>a.ts-b.ts));
+  const nm=id=>{ const e=people.find(x=>empKey(x)===id); return e?offShort(e.name):'?'; };
+  const WK={T2:0,T3:1,T4:2,T5:3,T6:4,T7:5,CN:6}; let cells='<span></span>'.repeat(WK[days[0].wk]||0);
+  days.forEach(d=>{
+    const on=byDate[d.iso]||[], sel=regSel.has(d.iso), full=on.length>=max&&!sel;
+    const pills=on.map((r,k)=>'<span class="rp'+(r.type==='SN'?' sn':'')+'"><em>'+(k+1)+'</em>'+nm(r.id)+'</span>').join('');
+    cells+='<button type="button" class="rc'+(sel?' sel '+(regSel.get(d.iso)==='SN'?'sn':''):'')+(full?' full':'')+(d.sun||d.hol?' hol':'')+'" data-date="'+d.iso+'"><b>'+d.d+(d.d===1?'<small>/'+d.m+'</small>':'')+'</b><span class="rl">'+(sel?'<span class="rp me">'+(regSel.get(d.iso)==='SN'?'SN':'Off')+'</span>':'')+pills+'</span></button>';
+  });
+  const n=regSel.size;
+  let body;
+  if(regDone){
+    body='<div class="rg-done"><h2>'+regDone.title+'</h2><p>'+regDone.text+'</p>'+(regDone.link?'<div class="rg-linkbox"><code>'+regDone.link+'</code></div><button type="button" class="rg-btn primary" data-act="sendlink">Gửi phiếu cho admin</button>':'')+'<button type="button" class="rg-btn" data-act="again">Sửa lại đăng ký</button></div>';
+  } else {
+    body='<div class="rg-ctl"><label>Bạn là<select id="regMe"'+(regU?' disabled':'')+'><option value="">— chọn tên —</option>'+people.map(e=>'<option value="'+empKey(e)+'"'+(empKey(e)===regMe?' selected':'')+'>'+e.name+'</option>').join('')+'</select></label>'
+     +'<div class="seg"><button type="button" data-act="type" data-v="OFF" class="'+(regType==='OFF'?'on':'')+'">Off</button><button type="button" data-act="type" data-v="SN" class="'+(regType==='SN'?'on':'')+'">SN</button></div></div>'
+     +'<div class="rg-note '+(regMsg?regMsg.type:'hint')+'">'+(regMsg?regMsg.msg:'Mỗi ngày tối đa '+max+'/'+people.length+' người off. Ngày đã đủ người sẽ bị khóa. Số nhỏ trên tên là thứ tự đăng ký.')+'</div>'
+     +'<div class="rg-cal"><div class="rg-wk">'+['T2','T3','T4','T5','T6','T7','CN'].map(x=>'<span>'+x+'</span>').join('')+'</div><div class="rg-grid">'+cells+'</div></div>'
+     +'<div class="rg-bar"><div><b>'+n+'</b> ngày đã chọn</div><button type="button" class="rg-btn primary" data-act="submit"'+(regBusy||!regMe?' disabled':'')+'>'+(regBusy?'Đang gửi…':'Gửi đăng ký')+'</button></div>';
+  }
+  el.innerHTML=head+body;
+}
+function regChange(e){ if(e.target.id==='regMe'){ regMe=e.target.value; try{ localStorage.setItem('offMe',regMe); }catch(x){} regMsg=null; regPickMine(); regRender(); } }
+function regClick(ev){
+  const b=ev.target.closest('button'); if(!b) return;
+  if(b.classList.contains('rc')){
+    if(!regMe){ regMsg={msg:'Chọn tên của bạn trước.',type:'warn'}; regRender(); return; }
+    const date=b.dataset.date, people=offPeople(), max=regMax(people.length);
+    if(regSel.has(date)){ regSel.delete(date); regMsg=null; }
+    else {
+      const on=regRemote.filter(r=>r.date===date&&r.id!==regMe).sort((a,c)=>a.ts-c.ts);
+      if(on.length>=max){ regMsg={msg:offFullMsg(on,people),type:'err'}; regRender(); return; }
+      regSel.set(date,regType);
+      regMsg=on.length?{msg:'Ngày '+offLbl(date)+' đã có '+on.map(r=>{ const e=people.find(x=>empKey(x)===r.id); return e?offShort(e.name):'?'; }).join(', ')+' đăng ký trước bạn.',type:'warn'}:null;
+    }
+    regRender(); return;
+  }
+  const a=b.dataset.act;
+  if(a==='type'){ regType=b.dataset.v; regRender(); }
+  else if(a==='submit') regSubmit();
+  else if(a==='again'){ regDone=null; regLoaded=false; regLoading=false; regLoad(); regRender(); }
+  else if(a==='sendlink'&&regDone&&regDone.link) offShare(regDone.link,'Phiếu đăng ký off',regDone.share);
+}
+async function offGhPut(regs,y,m){
+  const tok=getToken(); const path=offPath(y,m), key=y+'-'+(+m);
+  for(let t=0;t<3;t++){
+    const body={message:'Dang ky off '+key,branch:GH.branch,content:btoa(unescape(encodeURIComponent(JSON.stringify({period:key,regs}))))};
+    if(offSha) body.sha=offSha;
+    const put=await fetch(`${GH.apiBase}/${path}`,{method:'PUT',headers:{'Accept':'application/vnd.github+json','Authorization':'Bearer '+tok,'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(put.status===409||put.status===422){ offSha=null; await offFetchRegs(y,m); continue; }
+    if(!put.ok) throw new Error('HTTP '+put.status);
+    offSha=(await put.json()).content.sha; return;
+  }
+  throw new Error('xung đột, thử lại');
+}
+async function regSubmit(){
+  if(regBusy||!regMe) return; regBusy=true; regMsg=null; regRender();
+  const people=offPeople(), max=regMax(people.length), me=regMe, mePerson=people.find(e=>empKey(e)===me);
+  try{
+    const remote=await offFetchRegs(regY,regM); regRemote=remote;
+    const others=remote.filter(r=>r.id!==me), mine=[], blocked=[];
+    regSel.forEach((type,date)=>{
+      const on=others.filter(r=>r.date===date);
+      if(on.length>=max) blocked.push({date,on}); else mine.push({id:me,date,type,ts:regTs.get(date)||Date.now()});
+    });
+    if(blocked.length){
+      blocked.forEach(b=>regSel.delete(b.date));
+      regMsg={msg:'Có ngày vừa bị người khác đăng ký đủ chỗ: '+blocked.map(b=>offLbl(b.date)).join(', ')+'. Đã bỏ khỏi lựa chọn — hãy chọn ngày khác rồi gửi lại.',type:'err'};
+      regBusy=false; regRender(); return;
+    }
+    const merged=others.concat(mine);
+    if(OFF_EP){
+      const r=await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({period:regY+'-'+regM,regs:merged,action:'put'})});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      regDone={title:'Đã gửi đăng ký',text:'Admin sẽ thấy đăng ký của bạn trong mục Đăng ký off. Bạn có thể mở lại link để sửa trước khi chốt lịch.'};
+    } else if(getToken()){
+      await offGhPut(merged,regY,regM);
+      regDone={title:'Đã gửi đăng ký',text:'Admin sẽ thấy đăng ký của bạn trong mục Đăng ký off.'};
+    } else {
+      const link=offBaseUrl()+'#nop='+regB64({p:regY+'-'+String(regM).padStart(2,'0'),id:me,name:mePerson?mePerson.name:'',d:mine.map(r=>[r.date,r.type,r.ts])});
+      const list=mine.map(r=>offLbl(r.date)+(r.type==='SN'?' (SN)':'')).join(', ')||'không có ngày nào';
+      regDone={title:'Còn 1 bước: gửi phiếu cho admin',text:'Máy này chưa kết nối trực tiếp với máy chủ nên đăng ký chưa được lưu. Bấm nút dưới để gửi phiếu cho admin (qua Zalo…) — admin mở phiếu là đăng ký được nhập vào.',link:link,share:'Phiếu đăng ký off tháng '+String(regM).padStart(2,'0')+'/'+regY+' của '+(mePerson?mePerson.name:'')+': '+list+'. Mở link để nhập vào lịch:'};
+    }
+  }catch(e){ regMsg={msg:'Không gửi được: '+(e.message||e),type:'err'}; }
+  regBusy=false; regRender();
+}
+/* --- admin nhận phiếu #nop=… --- */
+function nopInit(){
+  const m=location.hash.match(/#nop=([A-Za-z0-9_-]+)/); if(!m) return;
+  let pl; try{ pl=regUnb64(m[1]); }catch(e){ return; }
+  setTimeout(()=>{ if(!isLoggedIn()){ openLoginModal('Đăng nhập để nhận phiếu đăng ký off của '+(pl.name||'nhân viên')+'.'); const t=setInterval(()=>{ if(isLoggedIn()){ clearInterval(t); nopModal(pl); } },800); } else nopModal(pl); },900);
+}
+function nopModal(pl){
+  const [y,m]=pl.p.split('-').map(Number);
+  modalBody.className='modal';
+  modalBody.innerHTML='<div class="mtop"><div><h3>Phiếu đăng ký off</h3><div class="mid">'+(pl.name||'')+' · tháng '+String(m).padStart(2,'0')+'/'+y+'</div></div><button class="closeb" onclick="closeModal()">✕</button></div>'
+   +'<div style="padding:4px 2px 14px;font-size:13px;line-height:1.6">'+pl.d.map(x=>'<span class="tg '+x[1]+'" style="margin:0 6px 6px 0;display:inline-block">'+offLbl(x[0])+(x[1]==='SN'?' · SN':' · Off')+'</span>').join('')+'</div>'
+   +'<div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn-action" onclick="closeModal()">Bỏ qua</button><button class="btn-action primary" id="nopOk">Nhập vào đăng ký off</button></div>';
+  overlay.classList.add('show');
+  document.getElementById('nopOk').onclick=async()=>{ closeModal(); await offImport(pl,y,m); };
+}
+async function offImport(pl,y,m){
+  if(!requireEditable('Đăng nhập để nhập đăng ký off.')) return;
+  document.getElementById('selYear').value=String(y); document.getElementById('selMonth').value=String(m);
+  try{ await loadFromGitHub(y,m); }catch(e){}
+  offLoadedKey=''; try{ await offLoad(true); }catch(e){}
+  const people=offPeople(), max=offMax(); let regs=getOffRegs().filter(r=>r.id!==pl.id); const added=[], blocked=[];
+  pl.d.forEach(x=>{ const on=regs.filter(r=>r.date===x[0]); if(on.length>=max) blocked.push(x[0]); else{ regs.push({id:pl.id,date:x[0],type:x[1]==='SN'?'SN':'OFF',ts:+x[2]||Date.now()}); added.push(x[0]); } });
+  setOffRegs(regs); offDirty=true; offMe=pl.id; offPlan=null; setView('off');
+  offMsg={msg:'Đã nhập '+added.length+' ngày của '+(pl.name||'nhân viên')+(blocked.length?'; bỏ '+blocked.map(offLbl).join(', ')+' vì đã đủ người.':'.'),type:blocked.length?'warn':'ok'}; renderOff();
+  await offSaveToServer();
+  history.replaceState(null,'',offBaseUrl());
+}
+
 function renderAll(){
+  if(typeof regActive!=='undefined'&&regActive) setTimeout(regRender,0);
   rebuildDeptChips();
   renderGrid(); renderCards(); renderDuty();
   if(EMP.length){ try{ localStorage.setItem('rosterSkel',JSON.stringify(EMP.map(e=>({dept:e.dept,id:e.id,name:e.name})))); const pq=EMP.filter(e=>e.dept===OFF_DEPT).map(e=>({id:e.id,name:e.name})); if(pq.length) localStorage.setItem('offPeople',JSON.stringify(pq)); }catch(e){} }
@@ -4014,6 +4212,7 @@ function openIcsModal(){
   b.textContent='📅 Lịch cá nhân'; b.title='Link lịch riêng cho từng nhân viên'; b.onclick=openIcsModal; bl.parentNode.insertBefore(b,bl);
   const _r=refreshAuthUI; refreshAuthUI=function(){ _r.apply(this,arguments); b.style.display=isAdmin()?'':'none'; };
   b.style.display=isAdmin()?'':'none'; })();
+if(/^#dangky=/.test(location.hash)) regInit(); else if(/^#nop=/.test(location.hash)) nopInit();
 </script>
 </body>
 </html>
