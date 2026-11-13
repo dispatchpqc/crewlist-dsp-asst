@@ -969,6 +969,10 @@ body{background:#FBF8F2}
 .sh-copy{justify-content:center;width:100%}.sh-apps{display:flex;gap:8px;flex-wrap:wrap}
 .sh-app{flex:1;min-width:110px;text-align:center;text-decoration:none;font:inherit;font-size:13px;font-weight:800;padding:10px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}.sh-app:hover{border-color:var(--ink)}
 .sh-hint{margin:0;font-size:11.5px;color:var(--ink-soft)}
+.rg-live,.off-live{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--ok)}
+.rg-live{margin-top:8px}.rg-live.off{color:var(--ink-soft);font-weight:600}
+.rg-live i,.off-live i{width:8px;height:8px;border-radius:50%;background:var(--ok);animation:livePulse 2s ease-out infinite}
+@media(prefers-reduced-motion:reduce){.rg-live i,.off-live i{animation:none}}
 </style>
 </head>
 <body>
@@ -3392,7 +3396,7 @@ function renderOff(){
    +'<div class="off-ctl"><label>Bạn là <select id="offMe"><option value="">— chọn tên —</option>'+people.map(e=>'<option value="'+empKey(e)+'"'+(empKey(e)===offMe?' selected':'')+'>'+e.name+'</option>').join('')+'</select></label>'
    +'<div class="seg"><button type="button" data-act="type" data-v="OFF" class="'+(offType==='OFF'?'on':'')+'">Off</button><button type="button" data-act="type" data-v="SN" class="'+(offType==='SN'?'on':'')+'">SN</button></div>'
    +'<button type="button" class="btn-action primary" data-act="save" '+(offBusy||!offDirty?'disabled':'')+'>Lưu đăng ký</button>'
-   +'<button type="button" class="off-refresh" data-act="refresh">Làm mới</button>'
+   +(OFF_EP||getToken()?'<span class="off-live"><i></i>Trực tiếp</span>':'')+'<button type="button" class="off-refresh" data-act="refresh">Làm mới</button>'
    +'<span class="off-save '+(offLoading?'':offSaveState)+'">'+saveTxt+'</span></div></div>'
    +'<div class="off-note '+(offMsg?offMsg.type:'hint')+'" role="status" aria-live="polite">'+(offMove?'Đang đổi ngày '+offLbl(offMove.date)+' — bấm vào ngày mới (bấm lại ngày cũ để thôi). ':'')+(offMsg?offMsg.msg:(offMove?'':'Bấm vào một ngày để đăng ký, bấm lại ngày của bạn để hủy. Số thứ tự trên tên là thứ tự đăng ký. Có thể đăng ký trước cho tháng sau.'))+'</div>'
    +'<div class="off-main"><section class="off-cal"><div class="oc-head">'+['T2','T3','T4','T5','T6','T7','CN'].map(x=>'<span>'+x+'</span>').join('')+'</div><div class="oc-grid">'+cells+'</div></section>'
@@ -3452,6 +3456,79 @@ function offShareSheet(url,title,sub,msg){
     setTimeout(()=>{ b.textContent='Sao chép tin nhắn'; },2500); };
   const more=document.getElementById('shMore'); if(more) more.onclick=()=>navigator.share({title:title,text:msg,url:url}).catch(()=>{});
 }
+
+/* ===== Trực tiếp: giữ chỗ ngay khi bấm + tự cập nhật ===== */
+let regPollT=null, regStamp=0;
+const regLive=()=>!!OFF_EP||!!getToken();
+function regStampTxt(){ if(!regStamp) return 'đang kết nối…'; const d=new Date(regStamp); return 'cập nhật '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0'); }
+async function regWrite(regs){
+  if(OFF_EP){
+    const r=await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({period:regY+'-'+regM,regs,action:'put'})});
+    if(!r.ok) throw new Error('HTTP '+r.status); return true;
+  }
+  const key=regY+'-'+regM, body={message:'Dang ky off '+key,branch:GH.branch,content:btoa(unescape(encodeURIComponent(JSON.stringify({period:key,regs}))))};
+  if(offSha) body.sha=offSha;
+  const put=await fetch(`${GH.apiBase}/${offPath(regY,regM)}`,{method:'PUT',headers:{'Accept':'application/vnd.github+json','Authorization':'Bearer '+getToken(),'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(put.status===409||put.status===422) return false;   // có người vừa ghi → đọc lại rồi thử lại
+  if(!put.ok) throw new Error('HTTP '+put.status);
+  offSha=(await put.json()).content.sha; return true;
+}
+/** Bấm một ngày: đọc bản mới nhất → kiểm tra còn chỗ → giữ chỗ NGAY trên máy chủ (bấm lại để hủy) */
+async function regToggle(date){
+  if(regBusy||!regMe) return; regBusy=true; regMsg=null; regRender();
+  const people=offPeople(), max=regMax(people.length), me=regMe, type=regType;
+  const nm=l=>l.map(r=>{ const e=people.find(x=>empKey(x)===r.id); return e?offShort(e.name):'?'; }).join(', ');
+  let ok=false;
+  try{
+    for(let t=0;t<4&&!ok;t++){
+      const remote=await offFetchRegs(regY,regM);
+      const has=remote.some(r=>r.id===me&&r.date===date);
+      let next, kind;
+      if(has){ next=remote.filter(r=>!(r.id===me&&r.date===date)); kind='cancel'; }
+      else{
+        const on=remote.filter(r=>r.date===date).sort((a,b)=>a.ts-b.ts);
+        if(on.length>=max){ regRemote=remote; regMsg={msg:offFullMsg(on,people),type:'err'}; ok=true; break; }
+        next=remote.concat([{id:me,date,type,ts:Date.now()}]); kind='add';
+      }
+      if(!(await regWrite(next))) continue;
+      let after=await offFetchRegs(regY,regM);
+      if(kind==='add'){
+        const rank=after.filter(r=>r.date===date).sort((a,b)=>a.ts-b.ts||(a.id<b.id?-1:1));
+        if(rank.findIndex(r=>r.id===me)>=max){          // hai người bấm cùng lúc: người đến sau bị gỡ
+          await regWrite(after.filter(r=>!(r.id===me&&r.date===date))); after=await offFetchRegs(regY,regM);
+          regMsg={msg:'Vừa có người khác giữ ngày '+offLbl(date)+' trước bạn vài giây — ngày này đã đủ người. Hãy chọn ngày khác.',type:'err'};
+        } else {
+          const before=rank.filter(r=>r.id!==me);
+          regMsg=before.length?{msg:'Đã giữ chỗ ngày '+offLbl(date)+' · '+nm(before)+' đã đăng ký trước bạn.',type:'warn'}:{msg:'Đã giữ chỗ ngày '+offLbl(date)+'.',type:'ok'};
+        }
+      } else regMsg={msg:'Đã hủy ngày '+offLbl(date)+'.',type:'ok'};
+      regRemote=after; ok=true;
+    }
+    if(!ok) regMsg={msg:'Nhiều người đang đăng ký cùng lúc, bấm lại sau vài giây.',type:'warn'};
+    regStamp=Date.now();
+  }catch(e){ regMsg={msg:'Không lưu được: '+(e.message||e),type:'err'}; }
+  regPickMine(); regBusy=false; regRender();
+}
+function regStartPoll(){
+  if(regPollT) return;
+  regPollT=setInterval(async()=>{
+    if(!regLive()||regBusy||regDone||document.hidden) return;
+    try{
+      const r=await offFetchRegs(regY,regM); regStamp=Date.now();
+      if(JSON.stringify(r)!==JSON.stringify(regRemote)){ regRemote=r; regPickMine(); regRender(); }
+      else { const el=document.getElementById('regStamp'); if(el) el.textContent=regStampTxt(); }
+    }catch(e){}
+  },4000);
+}
+/** Admin: tự làm mới danh sách đăng ký khi đang mở mục Đăng ký off (không đè bản nháp đang sửa) */
+async function offLiveTick(){
+  if(view!=='off'||offDirty||offBusy||offLoading||document.hidden||!(OFF_EP||getToken())) return;
+  try{
+    const r=await offFetchRegs();
+    if(JSON.stringify(r)!==JSON.stringify(getOffRegs())){ setOffRegs(r); renderOff(); }
+  }catch(e){}
+}
+
 function regB64(o){ return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
 function regUnb64(t){ t=t.replace(/-/g,'+').replace(/_/g,'/'); while(t.length%4) t+='='; return JSON.parse(decodeURIComponent(escape(atob(t)))); }
 function regDays(){
@@ -3464,12 +3541,12 @@ async function regInit(){
   if(regU) regMe=regU; else { try{ regMe=localStorage.getItem('offMe')||''; }catch(e){} }
   const el=document.createElement('div'); el.id='regView'; document.body.appendChild(el);
   el.addEventListener('click',regClick); el.addEventListener('change',regChange);
-  regRender(); regLoad();
+  regRender(); regLoad(); regStartPoll();
 }
 async function regLoad(){
   if(regLoading) return; regLoading=true;
   try{ regRemote=await offFetchRegs(regY,regM); regLoaded=true; }catch(e){ regMsg={msg:'Không tải được đăng ký hiện có. Kiểm tra mạng rồi bấm Tải lại.',type:'err'}; }
-  regLoading=false; regPickMine(); regRender();
+  regLoading=false; regStamp=Date.now(); regPickMine(); regRender();
 }
 function regPickMine(){
   regSel=new Map(); regTs=new Map();
@@ -3480,7 +3557,7 @@ function regMax(n){ return Math.max(1,n-1); }
 function regRender(){
   const el=document.getElementById('regView'); if(!el) return;
   const people=offPeople(), days=regDays(), mm=String(regM).padStart(2,'0');
-  const head='<header class="rg-top"><div class="rg-brand">Sun PhuQuoc Airways · DSP PQC</div><h1>Đăng ký off tháng '+mm+'/'+regY+'</h1><p>Kỳ '+days[0].d+'/'+days[0].m+' → '+days[days.length-1].d+'/'+days[days.length-1].m+'. Chọn ngày muốn nghỉ rồi bấm Gửi đăng ký.</p></header>';
+  const head='<header class="rg-top"><div class="rg-brand">Sun PhuQuoc Airways · DSP PQC</div><h1>Đăng ký off tháng '+mm+'/'+regY+'</h1>'+(regLive()?'<div class="rg-live"><i></i>Trực tiếp · <span id="regStamp">'+regStampTxt()+'</span></div>':'<div class="rg-live off">Chế độ phiếu — không cập nhật trực tiếp</div>')+'<p>Kỳ '+days[0].d+'/'+days[0].m+' → '+days[days.length-1].d+'/'+days[days.length-1].m+'. Chọn ngày muốn nghỉ rồi bấm Gửi đăng ký.</p></header>';
   if(!people.length||!regLoaded){ el.innerHTML=head+'<div class="rg-wait">Đang tải danh sách nhân viên…</div>'; return; }
   if(regMe&&!people.some(e=>empKey(e)===regMe)) regMe='';
   const max=regMax(people.length), byDate={};
@@ -3502,7 +3579,7 @@ function regRender(){
      +'<div class="seg"><button type="button" data-act="type" data-v="OFF" class="'+(regType==='OFF'?'on':'')+'">Off</button><button type="button" data-act="type" data-v="SN" class="'+(regType==='SN'?'on':'')+'">SN</button></div></div>'
      +'<div class="rg-note '+(regMsg?regMsg.type:'hint')+'">'+(regMsg?regMsg.msg:'Mỗi ngày tối đa '+max+'/'+people.length+' người off. Ngày đã đủ người sẽ bị khóa. Số nhỏ trên tên là thứ tự đăng ký.')+'</div>'
      +'<div class="rg-cal"><div class="rg-wk">'+['T2','T3','T4','T5','T6','T7','CN'].map(x=>'<span>'+x+'</span>').join('')+'</div><div class="rg-grid">'+cells+'</div></div>'
-     +'<div class="rg-bar"><div><b>'+n+'</b> ngày đã chọn</div><button type="button" class="rg-btn primary" data-act="submit"'+(regBusy||!regMe?' disabled':'')+'>'+(regBusy?'Đang gửi…':'Gửi đăng ký')+'</button></div>';
+     +(regLive()?'<div class="rg-bar"><div><b>'+n+'</b> ngày đã giữ chỗ · tự lưu</div><button type="button" class="rg-btn primary" data-act="finish"'+(regBusy||!regMe?' disabled':'')+'>'+(regBusy?'Đang lưu…':'Hoàn tất')+'</button></div>':'<div class="rg-bar"><div><b>'+n+'</b> ngày đã chọn</div><button type="button" class="rg-btn primary" data-act="submit"'+(regBusy||!regMe?' disabled':'')+'>'+(regBusy?'Đang gửi…':'Gửi đăng ký')+'</button></div>');
   }
   el.innerHTML=head+body;
 }
@@ -3511,6 +3588,7 @@ function regClick(ev){
   const b=ev.target.closest('button'); if(!b) return;
   if(b.classList.contains('rc')){
     if(!regMe){ regMsg={msg:'Chọn tên của bạn trước.',type:'warn'}; regRender(); return; }
+    if(regLive()){ regToggle(b.dataset.date); return; }
     const date=b.dataset.date, people=offPeople(), max=regMax(people.length);
     if(regSel.has(date)){ regSel.delete(date); regMsg=null; }
     else {
@@ -3524,6 +3602,7 @@ function regClick(ev){
   const a=b.dataset.act;
   if(a==='type'){ regType=b.dataset.v; regRender(); }
   else if(a==='submit') regSubmit();
+  else if(a==='finish'){ regDone={title:'Đã lưu đăng ký',text:'Đăng ký của bạn đã lưu trực tiếp — admin thấy ngay trong mục Đăng ký off. Mở lại link để sửa trước khi chốt lịch.'}; regRender(); }
   else if(a==='again'){ regDone=null; regLoaded=false; regLoading=false; regLoad(); regRender(); }
   else if(a==='sendlink'&&regDone&&regDone.link) offShareSheet(regDone.link,'Gửi phiếu cho admin','Phiếu đăng ký off của bạn',regDone.share);
 }
@@ -4238,6 +4317,7 @@ function openIcsModal(){
   b.textContent='📅 Lịch cá nhân'; b.title='Link lịch riêng cho từng nhân viên'; b.onclick=openIcsModal; bl.parentNode.insertBefore(b,bl);
   const _r=refreshAuthUI; refreshAuthUI=function(){ _r.apply(this,arguments); b.style.display=isAdmin()?'':'none'; };
   b.style.display=isAdmin()?'':'none'; })();
+setInterval(offLiveTick,5000);
 if(/^#dangky=/.test(location.hash)) regInit(); else if(/^#nop=/.test(location.hash)) nopInit();
 </script>
 </body>
