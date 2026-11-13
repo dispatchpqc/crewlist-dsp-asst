@@ -1,15 +1,14 @@
 {
-  "maintenance": true,
+  "maintenance": false,
   "message": "",
-  "updatedAt": "2026-11-13T08:56:38.114Z",
+  "updatedAt": "2026-11-13T09:50:40.647Z",
   "updatedBy": "admin",
   "changelog": {
-    "id": "cl-20260928-1790584030748",
-    "date": "28/09/2026",
+    "id": "cl-20261113-1794563440647",
+    "date": "13/11/2026",
     "title": "Cập nhật giao diện",
     "items": [
-      "Đã cập nhật giao diện",
-      "Thêm tính năng báo lỗi"
+      "Cập nhật giao diện"
     ]
   }
 }
