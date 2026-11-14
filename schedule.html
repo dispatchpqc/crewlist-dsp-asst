@@ -976,6 +976,8 @@ body{background:#FBF8F2}
 @media(prefers-reduced-motion:reduce){.rg-live i,.off-live i{animation:none}}
 .rp.pend,.op.pend{border-style:dashed}
 .rp.ok,.op.ok{border-style:solid;font-weight:800}.rp.ok::after,.op.ok::after{content:'✓';margin-left:3px;color:var(--ok);font-weight:800}
+.rc{transition:background .08s,border-color .08s}
+.rc:active{transform:scale(.97)}
 </style>
 </head>
 <body>
@@ -3534,7 +3536,52 @@ async function regWrite(regs){
   offSha=(await put.json()).content.sha; return true;
 }
 /** Bấm một ngày: đọc bản mới nhất → kiểm tra còn chỗ → giữ chỗ NGAY trên máy chủ (bấm lại để hủy) */
+
+/* ===== Phản hồi tức thì: hiện ngay trên màn hình, đồng bộ máy chủ chạy nền (hàng đợi) ===== */
+let regQ=Promise.resolve(), regInflight=0, regOps=[];
+function regApplyOps(regs){
+  let out=(regs||[]).slice();
+  regOps.forEach(op=>{
+    if(op.kind==='hold'){ if(!out.some(r=>r.id===op.id&&r.date===op.date)) out.push({id:op.id,date:op.date,type:op.type,ts:op.ts,st:'pending'}); }
+    else out=out.filter(r=>!(r.id===op.id&&r.date===op.date));
+  });
+  return out;
+}
+function regToggleFast(date){
+  if(!regMe) return;
+  const people=offPeople(), max=regMax(people.length), me=regMe, type=regType;
+  const nm=l=>l.map(r=>{ const e=people.find(x=>empKey(x)===r.id); return e?offShort(e.name):'?'; }).join(', ');
+  const hm=(regRemote||[]).find(x=>x.id===me&&x.date===date);
+  const on=(regRemote||[]).filter(x=>x.date===date&&x.id!==me).sort((a,b)=>a.ts-b.ts);
+  if(hm&&hm.st==='ok'){ regMsg={msg:'Ngày '+offLbl(date)+' đã được admin duyệt, không tự hủy được. Liên hệ admin nếu cần đổi.',type:'warn'}; regRender(); return; }
+  if(!hm&&on.length>=max){ regMsg={msg:offFullMsg(on,people),type:'err'}; regRender(); return; }   // báo ngay, không cần chờ mạng
+  const op={kind:hm?'release':'hold',id:me,date,type,ts:Date.now()};
+  regOps.push(op); regRemote=regApplyOps(regRemote);
+  regMsg=hm?{msg:'Đã hủy ngày '+offLbl(date)+'.',type:'ok'}:(on.length?{msg:'Đã giữ chỗ ngày '+offLbl(date)+' · '+nm(on)+' đã đăng ký trước bạn.',type:'warn'}:{msg:'Đã giữ chỗ ngày '+offLbl(date)+'.',type:'ok'});
+  regPickMine(); regRender();
+  regInflight++;
+  regQ=regQ.then(async()=>{
+    try{
+      const r=await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:(window.SUNPQ&&SUNPQ.offKey)||'',action:op.kind,period:regY+'-'+regM,id:me,date,type,max})});
+      const j=await r.json();
+      regOps=regOps.filter(o=>o!==op);
+      if(j&&(j.ok||j.error==='full'||j.error==='locked')){
+        regRemote=regApplyOps(j.regs||[]);
+        const on2=(j.regs||[]).filter(x=>x.date===date&&x.id!==me).sort((a,b)=>a.ts-b.ts);
+        if(j.error==='full') regMsg={msg:offFullMsg(on2,people),type:'err'};        // vừa có người giữ trước → trả lại ô
+        else if(j.error==='locked') regMsg={msg:'Ngày '+offLbl(date)+' đã được admin duyệt, không tự hủy được.',type:'warn'};
+      } else throw new Error('máy chủ không phản hồi');
+    }catch(e){
+      regOps=regOps.filter(o=>o!==op);
+      try{ regRemote=regApplyOps(await offFetchRegs(regY,regM)); }catch(x){}
+      regMsg={msg:'Chưa lưu được ngày '+offLbl(date)+' — kiểm tra mạng rồi bấm lại.',type:'err'};
+    }
+    regInflight--; regStamp=Date.now(); regPickMine(); regRender();
+  });
+}
+
 async function regToggle(date){
+  if(OFF_EP){ regToggleFast(date); return; }
   if(regBusy||!regMe) return; regBusy=true; regMsg=null; regRender();
   const people=offPeople(), max=regMax(people.length), me=regMe, type=regType;
   const nm=l=>l.map(r=>{ const e=people.find(x=>empKey(x)===r.id); return e?offShort(e.name):'?'; }).join(', ');
@@ -3589,7 +3636,7 @@ async function regToggle(date){
 function regStartPoll(){
   if(regPollT) return;
   regPollT=setInterval(async()=>{
-    if(!regLive()||regBusy||regDone||document.hidden) return;
+    if(!regLive()||regBusy||regInflight>0||regDone||document.hidden) return;
     try{
       const r=await offFetchRegs(regY,regM); regStamp=Date.now();
       if(JSON.stringify(r)!==JSON.stringify(regRemote)){ regRemote=r; regPickMine(); regRender(); }
@@ -3731,7 +3778,7 @@ function regRender(){
      +'<div class="seg"><button type="button" data-act="type" data-v="OFF" class="'+(regType==='OFF'?'on':'')+'">Off</button><button type="button" data-act="type" data-v="SN" class="'+(regType==='SN'?'on':'')+'">SN</button></div></div>'
      +'<div class="rg-note '+(regMsg?regMsg.type:'hint')+'">'+(regMsg?regMsg.msg:'Mỗi ngày tối đa '+max+'/'+people.length+' người off. Ngày đã đủ người sẽ bị khóa. Nét đứt = chờ admin duyệt · dấu ✓ = đã duyệt.')+'</div>'
      +'<div class="rg-cal"><div class="rg-wk">'+['T2','T3','T4','T5','T6','T7','CN'].map(x=>'<span>'+x+'</span>').join('')+'</div><div class="rg-grid">'+cells+'</div></div>'
-     +(regLive()?'<div class="rg-bar"><div><b>'+n+'</b> ngày đã giữ chỗ · tự lưu</div><button type="button" class="rg-btn primary" data-act="finish"'+(regBusy||!regMe?' disabled':'')+'>'+(regBusy?'Đang lưu…':'Hoàn tất')+'</button></div>':'<div class="rg-bar"><div><b>'+n+'</b> ngày đã chọn</div><button type="button" class="rg-btn primary" data-act="submit"'+(regBusy||!regMe?' disabled':'')+'>'+(regBusy?'Đang gửi…':'Gửi đăng ký')+'</button></div>');
+     +(regLive()?'<div class="rg-bar"><div><b>'+n+'</b> ngày đã giữ chỗ · tự lưu</div><button type="button" class="rg-btn primary" data-act="finish"'+(regBusy||regInflight>0||!regMe?' disabled':'')+'>'+(regBusy||regInflight>0?'Đang lưu…':'Hoàn tất')+'</button></div>':'<div class="rg-bar"><div><b>'+n+'</b> ngày đã chọn</div><button type="button" class="rg-btn primary" data-act="submit"'+(regBusy||!regMe?' disabled':'')+'>'+(regBusy?'Đang gửi…':'Gửi đăng ký')+'</button></div>');
   }
   el.innerHTML=head+body;
 }
