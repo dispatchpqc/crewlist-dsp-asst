@@ -3452,7 +3452,7 @@ function renderOff(){
     const prog=people.map(e=>'<li><b>'+offShort(e.name)+'</b><span>'+regs.filter(r=>r.id===empKey(e)).length+' ngày</span></li>').join('');
     plan='<section class="off-auto"><div class="off-autohead"><div><h3>Tình hình đăng ký</h3><p>Admin sẽ tạo lịch tự động sau khi mọi người đăng ký off xong.</p></div></div><ul class="op-stat">'+prog+'</ul></section>';
   }
-  const linkCard='<h3>Gửi link đăng ký</h3><p class="lk-hint">Nhân viên mở link, tự chọn ngày off — không cần admin hỏi từng người.</p><button type="button" class="btn-action primary lk-main" data-act="sharelink">Gửi link tháng '+mm+'/'+yy+'</button><ul class="lk-list">'+people.map(e=>{ const k=empKey(e), c=regs.filter(r=>r.id===k).length; return '<li><span class="lk-nm">'+offShort(e.name)+'</span><span class="lk-st '+(c?'on':'')+'">'+(c?c+' ngày'+(regs.some(r=>r.id===k&&r.st!=='ok')?' · chờ duyệt':' · đã duyệt'):'chưa đăng ký')+'</span>'+(admin&&regs.some(r=>r.id===k&&r.st!=='ok')?'<button type="button" data-act="approve" data-u="'+k.replace(/"/g,'&quot;')+'">Duyệt</button>':'')+'<button type="button" data-act="copylink" data-u="'+k.replace(/"/g,'&quot;')+'" data-n="'+offShort(e.name)+'">Link riêng</button></li>'; }).join('')+'</ul>';
+  const linkCard='<h3>Gửi link đăng ký</h3><p class="lk-hint">Nhân viên mở link, tự chọn ngày off — không cần admin hỏi từng người.</p><button type="button" class="btn-action primary lk-main" data-act="sharelink">Gửi link tháng '+mm+'/'+yy+'</button><ul class="lk-list">'+people.map(e=>{ const k=empKey(e), c=regs.filter(r=>r.id===k).length; return '<li><span class="lk-nm">'+offShort(e.name)+'</span><span class="lk-st '+(c?'on':'')+'">'+(c?c+' ngày'+(regs.some(r=>r.id===k&&r.st!=='ok')?' · chờ duyệt':' · đã duyệt'):'chưa đăng ký')+'</span>'+(admin&&regs.some(r=>r.id===k&&r.st!=='ok')?'<button type="button" data-act="approve" data-u="'+k.replace(/"/g,'&quot;')+'">Duyệt</button>':'')+'<button type="button" data-act="copylink" data-u="'+String(e.id).replace(/"/g,'&quot;')+'" data-n="'+offShort(e.name)+'">Link riêng</button></li>'; }).join('')+'</ul>';
   box.innerHTML='<div class="off-top"><div><h2>Đăng ký off · DSP PQC · '+mm+'/'+yy+'</h2><p>Kỳ '+DAYS[0][0]+'/'+DAYS[0][2]+' → '+DAYS[DAYS.length-1][0]+'/'+DAYS[DAYS.length-1][2]+' · tối đa <b>'+max+'/'+people.length+'</b> người off cùng ngày · '+(hasRoster?'đã có lịch tháng này':'chưa có lịch — vẫn đăng ký trước được')+'</p></div>'
    +'<div class="off-ctl"><label>Bạn là <select id="offMe"><option value="">— chọn tên —</option>'+people.map(e=>'<option value="'+empKey(e)+'"'+(empKey(e)===offMe?' selected':'')+'>'+e.name+'</option>').join('')+'</select></label>'
    +'<div class="seg"><button type="button" data-act="type" data-v="OFF" class="'+(offType==='OFF'?'on':'')+'">Off</button><button type="button" data-act="type" data-v="SN" class="'+(offType==='SN'?'on':'')+'">SN</button></div>'
@@ -3520,7 +3520,14 @@ function offShareSheet(url,title,sub,msg){
 }
 
 /* ===== Trực tiếp: giữ chỗ ngay khi bấm + tự cập nhật ===== */
-let regPollT=null, regStamp=0, regOk=new Set();
+let regPollT=null, regStamp=0, regOk=new Set(), regLock=false, regResolved=false;
+const regNorm=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase().replace(/\s+/g,' ').trim();
+function regResolve(u,people){
+  if(!u) return '';
+  const idOf=k=>String(k).split('|')[0].replace(/^0+/,'').trim();
+  let f=people.find(e=>idOf(e.id)===idOf(u)); if(f) return empKey(f);
+  f=people.find(e=>regNorm(empKey(e))===regNorm(u)||regNorm(e.name)===regNorm(String(u).split('|')[1]||u)); return f?empKey(f):'';
+}
 const regLive=()=>!!OFF_EP||!!getToken();
 function regStampTxt(){ if(!regStamp) return 'đang kết nối…'; const d=new Date(regStamp); return 'cập nhật '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0'); }
 async function regWrite(regs){
@@ -3737,7 +3744,7 @@ function regDays(){
 async function regInit(){
   const m=location.hash.match(/#dangky=(\d{4})-(\d{1,2})(?:&u=([^&]*))?/); if(!m) return;
   regActive=true; regY=+m[1]; regM=+m[2]; regU=m[3]?decodeURIComponent(m[3]):'';
-  if(regU) regMe=regU; else { try{ regMe=localStorage.getItem('offMe')||''; }catch(e){} }
+  if(!regU){ try{ regMe=localStorage.getItem('offMe')||''; }catch(e){} }
   const el=document.createElement('div'); el.id='regView'; document.body.appendChild(el);
   el.addEventListener('click',regClick); el.addEventListener('change',regChange);
   regRender(); regLoad(); regStartPoll();
@@ -3758,6 +3765,7 @@ function regRender(){
   const people=offPeople(), days=regDays(), mm=String(regM).padStart(2,'0');
   const head='<header class="rg-top"><div class="rg-brand">Sun PhuQuoc Airways · DSP PQC</div><h1>Đăng ký off tháng '+mm+'/'+regY+'</h1>'+(regLive()?'<div class="rg-live"><i></i>Trực tiếp · <span id="regStamp">'+regStampTxt()+'</span></div>':'<div class="rg-live off">Chế độ phiếu — không cập nhật trực tiếp</div>')+'<p>Kỳ '+days[0].d+'/'+days[0].m+' → '+days[days.length-1].d+'/'+days[days.length-1].m+'. Chọn ngày muốn nghỉ rồi bấm Gửi đăng ký.</p></header>';
   if(!people.length||!regLoaded){ el.innerHTML=head+'<div class="rg-wait">Đang tải danh sách nhân viên…</div>'; return; }
+  if(regU&&!regResolved){ const k=regResolve(regU,people); regResolved=true; if(k){ regMe=k; regLock=true; regPickMine(); } }
   if(regMe&&!people.some(e=>empKey(e)===regMe)) regMe='';
   const max=regMax(people.length), byDate={};
   regRemote.filter(r=>r.id!==regMe).forEach(r=>{ (byDate[r.date]=byDate[r.date]||[]).push(r); });
@@ -3774,7 +3782,7 @@ function regRender(){
   if(regDone){
     body='<div class="rg-done"><h2>'+regDone.title+'</h2><p>'+regDone.text+'</p>'+(regDone.link?'<div class="rg-linkbox"><code>'+regDone.link+'</code></div><button type="button" class="rg-btn primary" data-act="sendlink">Gửi phiếu cho admin</button>':'')+'<button type="button" class="rg-btn" data-act="again">Sửa lại đăng ký</button></div>';
   } else {
-    body='<div class="rg-ctl"><label>Bạn là<select id="regMe"'+(regU?' disabled':'')+'><option value="">— chọn tên —</option>'+people.map(e=>'<option value="'+empKey(e)+'"'+(empKey(e)===regMe?' selected':'')+'>'+e.name+'</option>').join('')+'</select></label>'
+    body='<div class="rg-ctl"><label>Bạn là<select id="regMe"'+(regLock?' disabled':'')+'><option value="">— chọn tên —</option>'+people.map(e=>'<option value="'+empKey(e)+'"'+(empKey(e)===regMe?' selected':'')+'>'+e.name+'</option>').join('')+'</select></label>'
      +'<div class="seg"><button type="button" data-act="type" data-v="OFF" class="'+(regType==='OFF'?'on':'')+'">Off</button><button type="button" data-act="type" data-v="SN" class="'+(regType==='SN'?'on':'')+'">SN</button></div></div>'
      +'<div class="rg-note '+(regMsg?regMsg.type:'hint')+'">'+(regMsg?regMsg.msg:'Mỗi ngày tối đa '+max+'/'+people.length+' người off. Ngày đã đủ người sẽ bị khóa. Nét đứt = chờ admin duyệt · dấu ✓ = đã duyệt.')+'</div>'
      +'<div class="rg-cal"><div class="rg-wk">'+['T2','T3','T4','T5','T6','T7','CN'].map(x=>'<span>'+x+'</span>').join('')+'</div><div class="rg-grid">'+cells+'</div></div>'
