@@ -3805,7 +3805,6 @@ function regRender(){
   } else {
     body='<div class="rg-ctl"><label>Bạn là<select id="regMe"'+(regLock?' disabled':'')+'><option value="">— chọn tên —</option>'+people.map(e=>'<option value="'+empKey(e)+'"'+(empKey(e)===regMe?' selected':'')+'>'+e.name+'</option>').join('')+'</select></label>'
      +'<div class="seg"><button type="button" data-act="type" data-v="OFF" class="'+(regType==='OFF'?'on':'')+'">Off</button><button type="button" data-act="type" data-v="SN" class="'+(regType==='SN'?'on':'')+'">SN</button></div></div>'
-     +'<div class="rg-note '+(regMsg?regMsg.type:'hint')+'">'+(regMsg?regMsg.msg:'Mỗi ngày tối đa '+max+'/'+people.length+' người off. Ngày đã đủ người sẽ bị khóa. Nét đứt = chờ admin duyệt · dấu ✓ = đã duyệt.')+'</div>'
      +'<div class="rg-cal"><div class="rg-wk">'+['T2','T3','T4','T5','T6','T7','CN'].map(x=>'<span>'+x+'</span>').join('')+'</div><div class="rg-grid">'+cells+'</div></div>'
      +(regLive()?'<div class="rg-bar"><div><b>'+n+'</b> ngày đã giữ chỗ · tự lưu</div><button type="button" class="rg-btn primary" data-act="finish"'+(regBusy||regInflight>0||!regMe?' disabled':'')+'>'+(regBusy||regInflight>0?'Đang lưu…':'Hoàn tất')+'</button></div>':'<div class="rg-bar"><div><b>'+n+'</b> ngày đã chọn</div><button type="button" class="rg-btn primary" data-act="submit"'+(regBusy||!regMe?' disabled':'')+'>'+(regBusy?'Đang gửi…':'Gửi đăng ký')+'</button></div>');
   }
