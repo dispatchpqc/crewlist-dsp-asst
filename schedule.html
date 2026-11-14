@@ -2991,12 +2991,13 @@ function offFullMsg(day,people){
   const names=day.map(r=>{ const e=people.find(x=>empKey(x)===r.id); return e?offShort(e.name):'?'; });
   return 'Ngày '+offLbl(day[0].date)+' đã đủ '+day.length+'/'+people.length+' người off — '+names.join(', ')+' đã đăng ký trước. Hãy chọn ngày khác.';
 }
+let offServerPeople=[], offPubSig='';
 async function offFetchRegs(y0,m0){
   const path=offPath(y0,m0), tok=getToken(), pkey=y0?(y0+'-'+(+m0)):offPeriodKey();
   if(OFF_EP){
     try{
       const r=await fetch(OFF_EP+'?period='+encodeURIComponent(pkey)+'&t='+Date.now(),{cache:'no-store'});
-      if(r.ok){ const j=await r.json(); if(j.sha) offSha=j.sha; return j.regs||[]; }
+      if(r.ok){ const j=await r.json(); if(j.sha) offSha=j.sha; offServerPeople=Array.isArray(j.people)?j.people:[]; return j.regs||[]; }
     }catch(e){}
   }
   const r=tok
@@ -3007,6 +3008,14 @@ async function offFetchRegs(y0,m0){
   const j=await r.json();
   if(tok){ offSha=j.sha; return (JSON.parse(decodeURIComponent(escape(atob(String(j.content).replace(/\n/g,''))))).regs)||[]; }
   return j.regs||[];
+}
+/** Admin: đưa danh sách DSP PQC của tháng đang xem lên máy chủ để link đăng ký của nhân viên luôn có đủ tên (kể cả tháng chưa có file lịch) */
+async function offPublishPeople(){
+  if(!OFF_EP||!isAdmin()) return;
+  const people=offPeople(); if(!people.length) return;
+  const sig=offPeriodKey()+JSON.stringify(people); if(sig===offPubSig) return; offPubSig=sig;
+  try{ await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:(window.SUNPQ&&SUNPQ.offKey)||'',action:'setpeople',period:offPeriodKey(),people:people.map(e=>({id:e.id,name:e.name}))})}); }
+  catch(e){ offPubSig=''; }
 }
 async function offLoad(force){
   if(offLoading) return;
@@ -3391,6 +3400,7 @@ async function offCreate(){
 function renderOff(){
   const box=document.getElementById('offView'); if(!box) return;
   if(offLoadedKey!==offPeriodKey()&&!offLoading) offLoad();
+  offPublishPeople();
   const people=offPeople();
   if(!DAYS.length||!people.length){ box.innerHTML='<div class="off-empty">Chưa có danh sách DSP PQC để đăng ký off. Hãy tải một tháng đã có lịch trước.</div>'; return; }
   if(!offMe||!people.some(e=>empKey(e)===offMe)) offMe=null;
@@ -3520,10 +3530,10 @@ function offShareSheet(url,title,sub,msg){
 }
 
 /* ===== Trực tiếp: giữ chỗ ngay khi bấm + tự cập nhật ===== */
-let regPollT=null, regStamp=0, regOk=new Set(), regLock=false, regResolved=false, regN='', regPeopleList=null;
+let regPeopleSig='', regPollT=null, regStamp=0, regOk=new Set(), regLock=false, regResolved=false, regN='', regPeopleList=null;
 /** Danh sách DSP PQC của ĐÚNG tháng đang đăng ký (lịch tháng đó), không phụ thuộc tháng máy đang mở; thiếu người trong link thì thêm vào */
 function regPeople(){
-  let list=(regPeopleList&&regPeopleList.length)?regPeopleList:offPeople();
+  let list=offServerPeople.length?offServerPeople:((regPeopleList&&regPeopleList.length)?regPeopleList:offPeople());
   if(regU&&!regResolve(regU,list)) list=list.concat([{id:regU,name:regN||regU}]);
   return list;
 }
@@ -3656,7 +3666,8 @@ function regStartPoll(){
     if(!regLive()||regBusy||regInflight>0||regDone||document.hidden) return;
     try{
       const r=await offFetchRegs(regY,regM); regStamp=Date.now();
-      if(JSON.stringify(r)!==JSON.stringify(regRemote)){ regRemote=r; regPickMine(); regRender(); }
+      const psig=JSON.stringify(offServerPeople);
+      if(JSON.stringify(r)!==JSON.stringify(regRemote)||psig!==regPeopleSig){ regPeopleSig=psig; regRemote=r; regPickMine(); regRender(); }
       else { const el=document.getElementById('regStamp'); if(el) el.textContent=regStampTxt(); }
     }catch(e){}
   },4000);
@@ -3899,6 +3910,7 @@ function renderAll(){
   rebuildDeptChips();
   renderGrid(); renderCards(); renderDuty();
   if(EMP.length){ try{ localStorage.setItem('rosterSkel',JSON.stringify(EMP.map(e=>({dept:e.dept,id:e.id,name:e.name})))); const pq=EMP.filter(e=>e.dept===OFF_DEPT).map(e=>({id:e.id,name:e.name})); if(pq.length) localStorage.setItem('offPeople',JSON.stringify(pq)); }catch(e){} }
+  offPublishPeople();
   if(view==='off') renderOff();
   document.getElementById('kpiEmp').textContent=EMP.length||'–';
   document.getElementById('kpiPlan').textContent=PLAN_DAYS;
