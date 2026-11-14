@@ -3091,7 +3091,7 @@ function offCancel(date){
 
 /** Xếp auto: C9 đều → E đến target → HC bù; sau E ngày hôm sau OFF */
 
-/** ≥4 người: mỗi ngày đúng 1 M (sáng) + 1 E (tối); E hôm nay thì mai không M; chỉ còn 1 người rảnh → C9 */
+/** ≥4 người: mỗi ngày ít nhất 1 M + 1 E; E hôm nay thì mai không M; chỉ còn 1 người rảnh → C9; người thiếu giờ được thêm ca M */
 function offAutoPlanMulti(){
   const people=offPeople(), D=DAYS.length, regs=getOffRegs(), n=people.length;
   const ids=people.map(empKey), fixed={}, st={}, out={}, warns=[], hol=new Set(HOL_IDX);
@@ -3115,15 +3115,30 @@ function offAutoPlanMulti(){
       let ce=avail.filter(id=>id!==m&&st[id].consec<6); if(!ce.length) ce=avail.filter(id=>id!==m);
       ce.sort((a,b)=>score(a,'E')-score(b,'E')); const e=ce[0];
       put(m,i,'M'); put(e,i,'E'); used.add(m); used.add(e);
-      // người còn lại: C9 bù giờ khi đang thiếu nhiều (không sau E, ≤6 ngày liên tiếp)
-      const extra=avail.filter(id=>!used.has(id)&&st[id].last!=='E'&&st[id].consec<6&&st[id].d<PLAN_DAYS&&(exp-st[id].h)>=6).sort((a,b)=>st[a].h-st[b].h)[0];
-      if(extra){ put(extra,i,'C9'); used.add(extra); }
     }
     avail.filter(id=>!used.has(id)).forEach(id=>put(id,i,hol.has(i)?'NL':''));
   }
-  // dư giờ: gỡ bớt ca C9 bù (không đụng M/E bắt buộc)
-  const total=id=>calcTotal(out[id]);
-  ids.forEach(id=>{ for(let g=0;g<D&&total(id)>TARGET_HOURS;g++){ const c9=[]; out[id].forEach((c,i)=>{ if(c==='C9'&&!fixed[id][i]) c9.push(i); }); if(!c9.length) break; const i=c9[Math.floor(Math.random()*c9.length)]; out[id][i]=hol.has(i)?'NL':''; } });
+  // Bù giờ: ai còn thiếu thì thêm ca M (sáng) vào ngày rảnh — ưu tiên người thiếu nhiều nhất, ngày ít người trực nhất
+  // Ràng buộc: không M ngay sau E, không quá 6 ngày liên tiếp, không đụng ngày off/SN. Dừng khi thiếu < 6h.
+  const totalOf=id=>calcTotal(out[id]);
+  const runWith=(id,i)=>{ let r=1; for(let j=i-1;j>=0&&isW(out[id][j]);j--) r++; for(let j=i+1;j<D&&isW(out[id][j]);j++) r++; return r; };
+  const workersOn=i=>ids.filter(id=>isW(out[id][i])).length;
+  for(let round=0;round<D;round++){
+    let changed=false;
+    ids.filter(id=>TARGET_HOURS-totalOf(id)>=6).sort((a,b)=>totalOf(a)-totalOf(b)).forEach(id=>{
+      if(TARGET_HOURS-totalOf(id)<6) return;
+      let best=null;
+      for(let i=0;i<D;i++){
+        const c=out[id][i]; if(fixed[id][i]||(c!==''&&c!=='NL')) continue;
+        if(i>0&&out[id][i-1]==='E') continue;            // E rồi thì hôm sau không M
+        if(runWith(id,i)>6) continue;
+        const key=workersOn(i)+jit(id,i,'f')*0.9;
+        if(!best||key<best.key) best={i,key};
+      }
+      if(best){ out[id][best.i]='M'; st[id].c.M++; changed=true; }
+    });
+    if(!changed) break;
+  }
   const stats=people.map((e,k)=>{ const id=ids[k], sh=out[id], c={}; sh.forEach(x=>{ if(x) c[x]=(c[x]||0)+1; }); const h=calcTotal(sh); return {e,id,h,diff:h-TARGET_HOURS,days:sh.filter(x=>x).length,c}; });
   return {shifts:out,stats,warns,infos:[]};
 }
