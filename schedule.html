@@ -2100,6 +2100,7 @@ function pickBestXlsx(files){
   return scored[0].f;
 }
 
+let ghRetry=0;
 async function loadFromGitHub(year, month){
   if(loading) return;
   if(ghBusy){
@@ -2143,9 +2144,14 @@ async function loadFromGitHub(year, month){
     } else {
       setBanner('Đã tải <b>'+best.name+'</b> · <b>'+EMP.length+'</b> NV · Tháng '+String(parsed.month).padStart(2,'0')+'/'+parsed.year+' — có thể chỉnh sửa.','ok');
     }
-    updateSyncUI();
+    ghRetry=0; updateSyncUI();
   }catch(err){
     console.error(err);
+    // Lỗi mạng thoáng qua (Failed to fetch): tự thử lại tối đa 2 lần trước khi báo lỗi
+    if(/failed to fetch|networkerror|load failed|network request failed/i.test(String(err&&err.message))&&ghRetry<2){
+      ghRetry++; setBanner('Mất kết nối tạm thời, đang thử tải lại ('+ghRetry+'/2)…','');
+      setTimeout(()=>{ try{ loadFromGitHub(year,month); }catch(e){} },1500*ghRetry); return;
+    }
     EMP=[]; currentGhFile=null;
     DAYS=buildDaysForMonth(+year,+month); recomputeSunHol();
     const mm=String(month).padStart(2,'0');
@@ -2154,7 +2160,7 @@ async function loadFromGitHub(year, month){
     if(notFound){
       setBanner('Tháng <b>'+mm+'/'+year+'</b> chưa có lịch trên máy chủ (chưa sắp xếp hoặc chưa tải lên).','');
     } else {
-      setBanner('Không tải được: '+msg,'err');
+      setBanner('Không tải được lịch: '+(/failed to fetch|networkerror|load failed/i.test(msg)?'không kết nối được tới máy chủ lịch (mất mạng, GitHub đang bận hoặc bị chặn). Kiểm tra mạng rồi bấm <b>Làm mới</b>.':msg),'err');
     }
     document.getElementById('loadStatus').textContent='';
     renderAll();
