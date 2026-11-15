@@ -2100,6 +2100,24 @@ function pickBestXlsx(files){
   return scored[0].f;
 }
 
+/** Tải file từ kho: thử raw.githubusercontent.com → API GitHub → chính trang web này.
+ *  Mạng công ty / phần mềm diệt virus đôi khi chặn hoặc "chen" chứng chỉ HTTPS của raw.githubusercontent.com (ERR_CERT_AUTHORITY_INVALID) */
+const ghEnc=path=>String(path).split('/').map(encodeURIComponent).join('/');
+async function ghFetchBuf(item){
+  const tok=getToken(), tries=[
+    ()=>fetch(item.download_url||`${GH.rawBase}/${ghEnc(item.path)}`),
+    ()=>fetch(`${GH.apiBase}/${ghEnc(item.path)}?ref=${GH.branch}`,{headers:Object.assign({'Accept':'application/vnd.github.raw+json'},tok?{'Authorization':'Bearer '+tok}:{})}),
+    ()=>fetch(ghEnc(item.path)+'?t='+Date.now())
+  ];
+  let last=null;
+  for(const t of tries){ try{ const r=await t(); if(r.ok) return await r.arrayBuffer(); last=new Error('Tải file HTTP '+r.status); }catch(e){ last=e; } }
+  throw last||new Error('Không tải được file');
+}
+/** Đọc file JSON đăng ký không cần khóa: raw → chính trang web này */
+async function ghFetchPublic(path){
+  try{ return await fetch(`${GH.rawBase}/${ghEnc(path)}?t=${Date.now()}`); }
+  catch(e){ return await fetch(ghEnc(path)+'?t='+Date.now()); }
+}
 let ghRetry=0;
 async function loadFromGitHub(year, month){
   if(loading) return;
@@ -2122,11 +2140,8 @@ async function loadFromGitHub(year, month){
     if(!Array.isArray(files)) throw new Error('Không phải thư mục: '+folder);
     const best=pickBestXlsx(files);
     if(!best) throw new Error('Không có file .xlsx trong '+folder);
-    const dlUrl=best.download_url||`${GH.rawBase}/${best.path}`;
     document.getElementById('loadStatus').textContent=best.name;
-    const res=await fetch(dlUrl);
-    if(!res.ok) throw new Error('Tải file HTTP '+res.status);
-    const buf=await res.arrayBuffer();
+    const buf=await ghFetchBuf(best);
     const wb=XLSX.read(buf,{type:'array'});
     const parsed=parseRosterWorkbook(wb);
     EMP=parsed.employees.map((e,i)=>{ const sh=(e.shifts||[]).slice(0,DAYS.length); while(sh.length<DAYS.length) sh.push(''); return {...e, shifts:sh, key:i}; });
@@ -2510,9 +2525,8 @@ async function fetchQuietRoster(year,month){
   const files=await listGithubDir(monthFolder(year,month));
   if(!Array.isArray(files)) return null;
   const best=pickBestXlsx(files); if(!best) return null;
-  const res=await fetch(best.download_url||`${GH.rawBase}/${best.path}`);
-  if(!res.ok) return null;
-  const wb=XLSX.read(await res.arrayBuffer(),{type:'array'});
+  let buf; try{ buf=await ghFetchBuf(best); }catch(e){ return null; }
+  const wb=XLSX.read(buf,{type:'array'});
   const selY=document.getElementById('selYear'), selM=document.getElementById('selMonth');
   const sv={days:DAYS, sun:SUN_IDX, hol:HOL_IDX, y:selY.value, m:selM.value};
   try{ return parseRosterWorkbook(wb); }
@@ -3063,7 +3077,7 @@ async function offFetchRegs(y0,m0){
   }
   const r=tok
     ? await fetch(`${GH.apiBase}/${path}?ref=${GH.branch}&t=${Date.now()}`,{headers:{'Accept':'application/vnd.github+json','Authorization':'Bearer '+tok}})
-    : await fetch(`${GH.rawBase}/${path}?t=${Date.now()}`);
+    : await ghFetchPublic(path);
   if(r.status===404){ offSha=null; return []; }
   if(!r.ok) throw new Error('HTTP '+r.status);
   const j=await r.json();
