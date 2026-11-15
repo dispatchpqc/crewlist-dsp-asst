@@ -3108,7 +3108,32 @@ function offFullMsgT(on,type,people){
   const l=(on||[]).filter(r=>r.type===type);
   return 'Ngày '+(l[0]?offLbl(l[0].date):'này')+' đã có '+l.length+'/'+(people||[]).length+' người cùng xin ca '+type+' ('+l.map(nmOf).join(', ')+'). Không thể để cả nhóm cùng một ca — hãy chọn ca hoặc ngày khác.';
 }
-function offAllowed(){ return (OFF_EP&&offServerVer!==null&&offServerVer<4)?['OFF','SN']:OFF_ALL; }
+/* ===== Tương thích máy chủ đăng ký off bản cũ (chỉ biết OFF/SN): mã hóa loại + trạng thái duyệt vào id/date ===== */
+const offCompat=()=>!(offServerVer>=4);
+function offEncode(r){
+  let id=String(r.id); if(r.type==='NL'||r.type==='P') id+='#'+r.type; if(r.st==='ok') id+='!ok';
+  const wish=['M','E','C9','HC'].indexOf(r.type)>=0;
+  return {id,date:wish?r.date+'~'+r.type:r.date,type:r.type==='SN'?'SN':'OFF',ts:r.ts};
+}
+function offDecode(x){
+  let id=String(x.id), date=String(x.date), type=x.type==='SN'?'SN':'OFF', st=x.st==='ok'?'ok':'pending';
+  if(id.slice(-3)==='!ok'){ st='ok'; id=id.slice(0,-3); }
+  const m=id.match(/#(NL|P)$/); if(m){ type=m[1]; id=id.slice(0,-m[0].length); }
+  const d=date.match(/^(\d{4}-\d{2}-\d{2})~(M|E|C9|HC)$/); if(d){ date=d[1]; type=d[2]; }
+  return {id,date,type,ts:x.ts,st};
+}
+async function offEpFetch(url,init){
+  const compat=offCompat(); let body=null; try{ body=JSON.parse(init.body); }catch(e){}
+  if(compat&&body){
+    if(body.action==='hold'||body.action==='release'){ const e=offEncode({id:body.id,date:body.date,type:body.type,ts:0,st:body.st}); body.id=e.id; body.date=e.date; body.type=e.type; }
+    else if(body.action==='put'&&Array.isArray(body.regs)) body.regs=body.regs.map(offEncode);
+    else if(body.action==='setpeople') return {ok:true,status:200,json:async()=>({ok:true})};
+    init=Object.assign({},init,{body:JSON.stringify(body)});
+  }
+  const r=await fetch(url,init);
+  return {ok:r.ok,status:r.status,json:async()=>{ const j=await r.json(); if(compat&&j&&Array.isArray(j.regs)) j.regs=j.regs.map(offDecode); return j; }};
+}
+function offAllowed(){ return OFF_ALL; }   // máy chủ cũ vẫn dùng được nhờ mã hóa tương thích ở trên
 function offHint(t,max,n){
   const cap=' · tối đa <b>'+max+'/'+n+'</b> người nghỉ mỗi ngày.';
   return {OFF:'Chạm vào ngày để <b>đăng ký nghỉ</b>'+cap,SN:'Chạm vào ngày để đăng ký <b>SN</b> (nghỉ bù, tính 8h)'+cap,NL:'Chạm vào ngày để đăng ký <b>NL</b> (nghỉ lễ, tính 8h)'+cap,P:'Chạm vào ngày để đăng ký <b>phép</b> (tính 8h)'+cap,
@@ -3130,7 +3155,7 @@ async function offFetchRegs(y0,m0){
   if(OFF_EP){
     try{
       const r=await fetch(OFF_EP+'?period='+encodeURIComponent(pkey)+'&t='+Date.now(),{cache:'no-store'});
-      if(r.ok){ const j=await r.json(); if(j.sha) offSha=j.sha; offServerPeople=Array.isArray(j.people)?j.people:[]; offServerVer=+j.v||0; return j.regs||[]; }
+      if(r.ok){ const j=await r.json(); if(j.sha) offSha=j.sha; offServerPeople=Array.isArray(j.people)?j.people:[]; offServerVer=+j.v||0; return offCompat()?(j.regs||[]).map(offDecode):(j.regs||[]); }
     }catch(e){}
   }
   const r=tok
@@ -3147,7 +3172,7 @@ async function offPublishPeople(){
   if(!OFF_EP||!isAdmin()) return;
   const people=offPeople(); if(!people.length) return;
   const sig=offPeriodKey()+JSON.stringify(people); if(sig===offPubSig) return; offPubSig=sig;
-  try{ await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:(window.SUNPQ&&SUNPQ.offKey)||'',action:'setpeople',period:offPeriodKey(),people:people.map(e=>({id:e.id,name:e.name}))})}); }
+  try{ await offEpFetch(OFF_EP,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:(window.SUNPQ&&SUNPQ.offKey)||'',action:'setpeople',period:offPeriodKey(),people:people.map(e=>({id:e.id,name:e.name}))})}); }
   catch(e){ offPubSig=''; }
 }
 async function offLoad(force){
@@ -3176,7 +3201,7 @@ async function offSaveToServer(){
   offBusy=true; offSaveState='saving'; renderOff();
   try{
     if(OFF_EP){
-      const r=await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:(window.SUNPQ&&SUNPQ.offKey)||'',period:offPeriodKey(),regs,action:'put'})});
+      const r=await offEpFetch(OFF_EP,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:(window.SUNPQ&&SUNPQ.offKey)||'',period:offPeriodKey(),regs,action:'put'})});
       if(!r.ok) throw new Error('HTTP '+r.status);
       offDirty=false; offSaveState='saved'; offMsg={msg:'Đã lưu đăng ký lên máy chủ.',type:'ok'};
     } else if(getToken()){
@@ -3605,7 +3630,7 @@ function renderOff(){
     const prog=people.map(e=>'<li><b>'+offShort(e.name)+'</b><span>'+regs.filter(r=>r.id===empKey(e)).length+' ngày</span></li>').join('');
     plan='<section class="off-auto"><div class="off-autohead"><div><h3>Tình hình đăng ký</h3><p>Admin sẽ tạo lịch tự động sau khi mọi người đăng ký off xong.</p></div></div><ul class="op-stat">'+prog+'</ul></section>';
   }
-  const linkCard=((OFF_EP&&offServerVer!==null&&offServerVer<4)?'<div class="off-note err" style="margin:0 0 12px">Máy chủ đăng ký off đang là <b>bản cũ</b>: nhân viên chỉ đăng ký được OFF và SN. Dán lại <b>off-endpoint.gs</b> mới vào Apps Script rồi triển khai phiên bản mới.</div>':'')+'<h3>Gửi link đăng ký</h3><p class="lk-hint">Nhân viên mở link, tự chọn ngày off — không cần admin hỏi từng người.</p><button type="button" class="btn-action primary lk-main" data-act="sharelink">Gửi link tháng '+mm+'/'+yy+'</button><ul class="lk-list">'+people.map(e=>{ const k=empKey(e), c=regs.filter(r=>r.id===k).length; return '<li><span class="lk-nm">'+offShort(e.name)+'</span><span class="lk-st '+(c?'on':'')+'">'+(c?c+' ngày'+(regs.some(r=>r.id===k&&r.st!=='ok')?' · chờ duyệt':' · đã duyệt'):'chưa đăng ký')+'</span>'+(admin&&regs.some(r=>r.id===k&&r.st!=='ok')?'<button type="button" data-act="approve" data-u="'+k.replace(/"/g,'&quot;')+'">Duyệt</button>':'')+'<button type="button" data-act="copylink" data-fn="'+String(e.name).replace(/"/g,'&quot;')+'" data-u="'+String(e.id).replace(/"/g,'&quot;')+'" data-n="'+offShort(e.name)+'">Link riêng</button></li>'; }).join('')+'</ul>';
+  const linkCard=''+'<h3>Gửi link đăng ký</h3><p class="lk-hint">Nhân viên mở link, tự chọn ngày off — không cần admin hỏi từng người.</p><button type="button" class="btn-action primary lk-main" data-act="sharelink">Gửi link tháng '+mm+'/'+yy+'</button><ul class="lk-list">'+people.map(e=>{ const k=empKey(e), c=regs.filter(r=>r.id===k).length; return '<li><span class="lk-nm">'+offShort(e.name)+'</span><span class="lk-st '+(c?'on':'')+'">'+(c?c+' ngày'+(regs.some(r=>r.id===k&&r.st!=='ok')?' · chờ duyệt':' · đã duyệt'):'chưa đăng ký')+'</span>'+(admin&&regs.some(r=>r.id===k&&r.st!=='ok')?'<button type="button" data-act="approve" data-u="'+k.replace(/"/g,'&quot;')+'">Duyệt</button>':'')+'<button type="button" data-act="copylink" data-fn="'+String(e.name).replace(/"/g,'&quot;')+'" data-u="'+String(e.id).replace(/"/g,'&quot;')+'" data-n="'+offShort(e.name)+'">Link riêng</button></li>'; }).join('')+'</ul>';
   box.innerHTML='<div class="off-top"><div><h2>Đăng ký off · DSP PQC · '+mm+'/'+yy+'</h2><p>Kỳ '+DAYS[0][0]+'/'+DAYS[0][2]+' → '+DAYS[DAYS.length-1][0]+'/'+DAYS[DAYS.length-1][2]+' · tối đa <b>'+max+'/'+people.length+'</b> người off cùng ngày · '+(hasRoster?'đã có lịch tháng này':'chưa có lịch — vẫn đăng ký trước được')+'</p></div>'
    +'<div class="off-ctl"><label>Bạn là <select id="offMe"><option value="">— chọn tên —</option>'+people.map(e=>'<option value="'+empKey(e)+'"'+(empKey(e)===offMe?' selected':'')+'>'+e.name+'</option>').join('')+'</select></label>'
    +'<label class="off-typesel">Loại <select id="offTypeSel">'+OFF_TYPES.map(g=>'<optgroup label="'+g.g+'">'+g.items.map(it=>'<option value="'+it[0]+'"'+(offType===it[0]?' selected':'')+'>'+it[1]+' · '+it[2]+'</option>').join('')+'</optgroup>').join('')+'</select></label>'
@@ -3695,7 +3720,7 @@ const regLive=()=>!!OFF_EP||!!getToken();
 function regStampTxt(){ if(!regStamp) return 'đang kết nối…'; const d=new Date(regStamp); return 'cập nhật '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0'); }
 async function regWrite(regs){
   if(OFF_EP){
-    const r=await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:(window.SUNPQ&&SUNPQ.offKey)||'',period:regY+'-'+regM,regs,action:'put'})});
+    const r=await offEpFetch(OFF_EP,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:(window.SUNPQ&&SUNPQ.offKey)||'',period:regY+'-'+regM,regs,action:'put'})});
     if(!r.ok) throw new Error('HTTP '+r.status); return true;
   }
   const key=regY+'-'+regM, body={message:'Dang ky off '+key,branch:GH.branch,content:btoa(unescape(encodeURIComponent(JSON.stringify({period:key,regs}))))};
@@ -3720,7 +3745,7 @@ function regApplyOps(regs){
 async function regSend(op,people,max,nm){
   const me=op.id, date=op.date;
   try{
-    const r=await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:(window.SUNPQ&&SUNPQ.offKey)||'',action:op.kind,period:regY+'-'+regM,id:me,date,type:op.type,max})});
+    const r=await offEpFetch(OFF_EP,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:(window.SUNPQ&&SUNPQ.offKey)||'',action:op.kind,period:regY+'-'+regM,id:me,date,type:op.type,max})});
     const j=await r.json();
     regOps=regOps.filter(o=>o!==op);
     if(j&&(j.ok||j.error==='full'||j.error==='locked')){
@@ -3764,7 +3789,7 @@ async function regToggle(date){
       const hm=(regRemote||[]).find(x=>x.id===me&&x.date===date);
       if(hm&&hm.st==='ok'){ regMsg={msg:'Ngày '+offLbl(date)+' đã được admin duyệt, không tự hủy được. Liên hệ admin nếu cần đổi.',type:'warn'}; regBusy=false; regRender(); return; }
       let j=null;
-      try{ const r=await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:(window.SUNPQ&&SUNPQ.offKey)||'',action:hm?'release':'hold',period:regY+'-'+regM,id:me,date,type,max})}); j=await r.json(); }catch(e){ j=null; }
+      try{ const r=await offEpFetch(OFF_EP,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:(window.SUNPQ&&SUNPQ.offKey)||'',action:hm?'release':'hold',period:regY+'-'+regM,id:me,date,type,max})}); j=await r.json(); }catch(e){ j=null; }
       if(j&&(j.ok||j.error==='full'||j.error==='locked')){
         if(j.regs) regRemote=j.regs;
         const on=(regRemote||[]).filter(x=>x.date===date&&x.id!==me).sort((a,b)=>a.ts-b.ts);
@@ -4020,7 +4045,7 @@ async function regSubmit(){
     }
     const merged=others.concat(mine);
     if(OFF_EP){
-      const r=await fetch(OFF_EP,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:(window.SUNPQ&&SUNPQ.offKey)||'',period:regY+'-'+regM,regs:merged,action:'put'})});
+      const r=await offEpFetch(OFF_EP,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({key:(window.SUNPQ&&SUNPQ.offKey)||'',period:regY+'-'+regM,regs:merged,action:'put'})});
       if(!r.ok) throw new Error('HTTP '+r.status);
       regDone={title:'Đã gửi đăng ký',text:'Admin sẽ thấy đăng ký của bạn trong mục Đăng ký off. Bạn có thể mở lại link để sửa trước khi chốt lịch.'};
     } else if(getToken()){
