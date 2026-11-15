@@ -2106,7 +2106,7 @@ const ghEnc=path=>String(path).split('/').map(encodeURIComponent).join('/');
 async function ghFetchBuf(item){
   const tok=getToken(), tries=[
     ()=>fetch(item.download_url||`${GH.rawBase}/${ghEnc(item.path)}`),
-    ()=>fetch(`${GH.apiBase}/${ghEnc(item.path)}?ref=${GH.branch}`,{headers:Object.assign({'Accept':'application/vnd.github.raw+json'},tok?{'Authorization':'Bearer '+tok}:{})}),
+    ()=>fetch(`${GH.apiBase}/${ghEnc(item.path)}?ref=${GH.branch}&raw=1&t=${Date.now()}`,{cache:'no-store',headers:Object.assign({'Accept':'application/vnd.github.raw+json'},tok?{'Authorization':'Bearer '+tok}:{})}),
     ()=>fetch(ghEnc(item.path)+'?t='+Date.now())
   ];
   let last=null;
@@ -2117,6 +2117,11 @@ async function ghFetchBuf(item){
 async function ghFetchPublic(path){
   try{ return await fetch(`${GH.rawBase}/${ghEnc(path)}?t=${Date.now()}`); }
   catch(e){ return await fetch(ghEnc(path)+'?t='+Date.now()); }
+}
+async function ghJsonSafe(res){
+  const buf=await res.arrayBuffer(), u=new Uint8Array(buf);
+  if(u.length>1&&u[0]===0x50&&u[1]===0x4B) throw new Error('Máy chủ trả về file thay vì thông tin file (bộ nhớ đệm trình duyệt). Hãy tải lại trang (Ctrl+F5) rồi lưu lại.');
+  return JSON.parse(new TextDecoder().decode(buf));
 }
 let ghRetry=0;
 async function loadFromGitHub(year, month){
@@ -2326,17 +2331,17 @@ async function saveToGitHub(){
     // refresh sha if file exists
     if(!sha){
       try{
-        const meta=await fetch(`${GH.apiBase}/${path}?ref=${GH.branch}`,{
+        const meta=await fetch(`${GH.apiBase}/${path}?ref=${GH.branch}&t=${Date.now()}`,{cache:'no-store',
           headers:{'Accept':'application/vnd.github+json','Authorization':'Bearer '+tok}
         });
-        if(meta.ok){ const j=await meta.json(); sha=j.sha; path=j.path; }
+        if(meta.ok){ const j=await ghJsonSafe(meta); sha=j.sha; path=j.path; }
       }catch(e){}
     } else {
       // always refresh sha to avoid conflict
-      const meta=await fetch(`${GH.apiBase}/${path}?ref=${GH.branch}`,{
+      const meta=await fetch(`${GH.apiBase}/${path}?ref=${GH.branch}&t=${Date.now()}`,{cache:'no-store',
         headers:{'Accept':'application/vnd.github+json','Authorization':'Bearer '+tok}
       });
-      if(meta.ok){ const j=await meta.json(); sha=j.sha; }
+      if(meta.ok){ const j=await ghJsonSafe(meta); sha=j.sha; }
       else if(meta.status===404) sha=null;
     }
 
