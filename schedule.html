@@ -7,7 +7,6 @@
 <title>Sun PhuQuoc Airways — Lịch trực</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <style>
 :root{
   --gold:#F5A300;--gold-deep:#D98600;--gold-pale:#FFE9BE;
@@ -1061,6 +1060,24 @@ body{background:#FBF8F2}
 .rg-ctl .rg-f>span{text-align:left}
 .tp-c.dis{opacity:.38;cursor:not-allowed}.tp-c.dis:hover{border-color:var(--line)}
 .tp-warn{margin:8px 0 0;font-size:12px;font-weight:600;color:#9B1C1C}
+
+/* ===== Hộp xuất Excel ===== */
+.xl-body{display:flex;flex-direction:column;gap:18px;padding:16px 2px 14px}
+.xl-lab{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.xl-all{font:inherit;font-size:12px;font-weight:700;text-transform:none;letter-spacing:0;color:var(--gold-deep);background:none;border:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.xl-chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:8px}
+.xl-chip{font:inherit;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:9px;align-items:center;text-align:left;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--paper);color:var(--ink);cursor:pointer;transition:border-color .1s,background .1s}
+.xl-chip b{font-size:13px;font-weight:800}.xl-chip small{grid-column:2;font-size:11px;color:var(--ink-soft)}
+.xl-ck{grid-row:1/3;width:18px;height:18px;border-radius:6px;border:1.5px solid var(--line);background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff}
+.xl-chip:hover{border-color:var(--gold-deep)}
+.xl-chip.on{background:#FFF6DC;border-color:var(--gold-deep)}.xl-chip.on .xl-ck{background:var(--gold-deep);border-color:var(--gold-deep)}.xl-chip.on .xl-ck::after{content:'✓'}
+.xl-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.xl-opt{font:inherit;text-align:left;padding:11px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--paper);color:var(--ink);cursor:pointer;display:flex;flex-direction:column;gap:3px}
+.xl-opt b{font-size:13px;font-weight:800}.xl-opt small{font-size:11px;color:var(--ink-soft);line-height:1.35}
+.xl-opt.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.xl-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:14px;font-size:12.5px;color:var(--ink-soft)}
+.xl-foot .btn-action:disabled{opacity:.5;cursor:default}
+@media(max-width:480px){.xl-opts{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -1138,7 +1155,7 @@ body{background:#FBF8F2}
   <button type="button" class="btn-action" id="btnSaveGh" title="Cần khóa truy cập máy chủ để lưu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg> Lưu lịch </button>
   <input type="file" id="fileExcel" accept=".xlsx,.xls" hidden>
   <button type="button" class="btn-action" id="btnTemplate" title="Tải mẫu Excel theo tháng đang chọn (kỳ 26→25, đúng số ngày tháng)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 15v-6"/><path d="M9 12l3 3 3-3"/></svg> Mẫu Excel</button>
-  <button type="button" class="btn-action" id="btnExport" title="Xuất lịch tháng đang xem ra Excel đã định dạng (có màu ca, tổng giờ, chú thích)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span>Xuất Excel</span></button>
+  <button type="button" class="btn-action" id="btnExport" title="Xuất lịch ra Excel: chọn tất cả hoặc từng vị trí"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span>Xuất Excel</span></button>
   <button type="button" class="btn-action" id="btnUpload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3-3 3 3"/></svg> Upload lịch </button>
   <button type="button" class="btn-action" id="btnToken" title="Cài khóa truy cập máy chủ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.6 7.6a5 5 0 1 1-2.8-2.8L15 4h3v3l-4.4 4.4z"/></svg> Key </button>
   <span id="syncPill" class="sync-pill idle" title="Trạng thái đồng bộ lịch với máy chủ">
@@ -3861,10 +3878,9 @@ async function offLiveTick(){
 const XL_SHIFT={HC:['FFD3D9','8F1426'],NC:['FFEEF0','8F1426'],M:['FFF0B8','6B4A00'],E:['FFC48A','7A3600'],C9:['CFF0EA','0A5A50'],
   HS:['FADCEB','7A1048'],HT:['F2A6CB','6E0F42'],SS:['E3F3C4','3D5E0B'],ST:['B5DC82','2F4A08'],PS:['D6EAFB','0F4F7D'],PT:['9CCBF0','0B3F68'],
   PS1:['D6EAFB','0F4F7D'],PT1:['9CCBF0','0B3F68'],PN:['CBD2DC','2B3440'],NL:['E8E5DB','5C5A4E'],P:['FFFFFF','8A6A00'],SN:['D5DAE2','36404E']};
-function buildPrettyWorkbook(EJ){
+function buildPrettySheet(wb,EJ,deptCodes,sheetName,titleExtra){
   const D=DAYS.length, last=DAYS[D-1], first=DAYS[0], mm=String(last[2]).padStart(2,'0');
-  const wb=new EJ.Workbook(); wb.creator='Sun PhuQuoc Airways';
-  const ws=wb.addWorksheet('Lịch trực '+mm+'-'+last[3],{views:[{state:'frozen',xSplit:2,ySplit:5,showGridLines:false}],
+  const ws=wb.addWorksheet(sheetName,{views:[{state:'frozen',xSplit:2,ySplit:5,showGridLines:false}],
     pageSetup:{orientation:'landscape',paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:.3,right:.3,top:.4,bottom:.4,header:.2,footer:.2}}});
   const nCol=2+D+4, col=i=>ws.getColumn(i);
   const solid=c=>({type:'pattern',pattern:'solid',fgColor:{argb:'FF'+c}});
@@ -3873,7 +3889,7 @@ function buildPrettyWorkbook(EJ){
   [8,10,9,11].forEach((w,k)=>col(3+D+k).width=w);
   const fdd=n=>String(n).padStart(2,'0');
   // tiêu đề
-  ws.mergeCells(1,1,1,nCol); ws.getCell(1,1).value='LỊCH TRỰC · THÁNG '+mm+'/'+last[3];
+  ws.mergeCells(1,1,1,nCol); ws.getCell(1,1).value='LỊCH TRỰC'+(titleExtra?' · '+titleExtra.toUpperCase():'')+' · THÁNG '+mm+'/'+last[3];
   ws.getCell(1,1).font={name:'Arial',size:18,bold:true,color:{argb:'FFC8102E'}}; ws.getCell(1,1).alignment={vertical:'middle',horizontal:'left'}; ws.getRow(1).height=30;
   ws.mergeCells(2,1,2,nCol);
   ws.getCell(2,1).value='Kỳ '+fdd(first[0])+'/'+fdd(first[2])+'/'+first[3]+' → '+fdd(last[0])+'/'+fdd(last[2])+'/'+last[3]+'   ·   Công kế hoạch '+PLAN_DAYS+' ngày   ·   Giờ công kế hoạch '+TARGET_HOURS+'h';
@@ -3886,7 +3902,7 @@ function buildPrettyWorkbook(EJ){
   ['Số công','Tổng giờ','Giờ KH','Chênh lệch'].forEach((t,k)=>{ ws.mergeCells(4,3+D+k,5,3+D+k); head(4,3+D+k,t,'3B2A20','FFFFFF',10); head(5,3+D+k,null,'3B2A20','FFFFFF'); });
   ws.getRow(4).height=20; ws.getRow(5).height=16;
   // nhân viên theo vị trí trực
-  const by={}; EMP.forEach(e=>{ (by[e.dept]=by[e.dept]||[]).push(e); });
+  const by={}; EMP.filter(e=>deptCodes.indexOf(e.dept)>=0).forEach(e=>{ (by[e.dept]=by[e.dept]||[]).push(e); });
   let r=6; const codes=new Set();
   orderedDeptCodes(by).forEach(dk=>{
     ws.mergeCells(r,1,r,nCol); const b=ws.getCell(r,1); b.value=(DEPTS[dk]?DEPTS[dk].name:dk)+'  ·  '+by[dk].length+' người';
@@ -3914,7 +3930,68 @@ function buildPrettyWorkbook(EJ){
     ws.mergeCells(r,2,r,12); const b=ws.getCell(r,2); b.value=inf.replace(/\s*\(.*/,'')+(t?' · '+t:'')+(h?' · '+h+'h':''); b.font={name:'Arial',size:9.5,color:{argb:'FF4A3B2E'}}; b.alignment={indent:1}; r++; });
   r++; ws.mergeCells(r,1,r,nCol); ws.getCell(r,1).value='Xuất từ web lịch trực · '+new Date().toLocaleString('vi-VN'); ws.getCell(r,1).font={name:'Arial',size:8.5,italic:true,color:{argb:'FF9A8B78'}};
   ws.pageSetup.printTitlesRow='4:5';
+  return ws;
+}
+/** opts: {depts:[mã vị trí], split:true → mỗi vị trí 1 sheet, false → 1 sheet chung} */
+function buildPrettyWorkbook(EJ,opts){
+  opts=opts||{}; const all=orderedDeptCodes((()=>{ const b={}; EMP.forEach(e=>{ (b[e.dept]=b[e.dept]||[]).push(e); }); return b; })());
+  const sel=(opts.depts&&opts.depts.length?opts.depts:all).filter(d=>all.indexOf(d)>=0), last=DAYS[DAYS.length-1], mm=String(last[2]).padStart(2,'0');
+  const wb=new EJ.Workbook(); wb.creator='Sun PhuQuoc Airways';
+  const nm=d=>(DEPTS[d]?DEPTS[d].name:d), clean=t=>String(t).replace(/[\\\/?*\[\]:]/g,'').slice(0,31)||'Lich';
+  if(opts.split&&sel.length>1){ const used=new Set(); sel.forEach(d=>{ let n=clean(nm(d)), k=2; while(used.has(n)) n=clean(nm(d)).slice(0,28)+' '+(k++); used.add(n); buildPrettySheet(wb,EJ,[d],n,nm(d)); }); }
+  else buildPrettySheet(wb,EJ,sel,'Lịch trực '+mm+'-'+last[3],sel.length===1?nm(sel[0]):'');
   return wb;
+}
+let xlLoading=null;
+function xlLoadLib(){
+  if(typeof ExcelJS!=='undefined') return Promise.resolve();
+  if(xlLoading) return xlLoading;
+  const srcs=['exceljs.min.js','https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js','https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js','https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js'];
+  xlLoading=(async()=>{
+    for(const src of srcs){
+      try{ await new Promise((res,rej)=>{ const sc=document.createElement('script'); sc.src=src; sc.onload=res; sc.onerror=()=>rej(new Error('load')); document.head.appendChild(sc); setTimeout(()=>rej(new Error('timeout')),12000); });
+        if(typeof ExcelJS!=='undefined') return; }catch(e){}
+    }
+    xlLoading=null; throw new Error('Không tải được thư viện xuất Excel (mạng có thể đang chặn CDN). Hãy tải file exceljs.min.js bỏ cạnh schedule.html trên GitHub rồi thử lại.');
+  })();
+  return xlLoading;
+}
+let xlSel=new Set(), xlSplit=true, xlBusy=false;
+function openExportDialog(){
+  if(!EMP.length||!DAYS.length){ setBanner('Chưa có lịch để xuất.','warn'); return; }
+  const by={}; EMP.forEach(e=>{ (by[e.dept]=by[e.dept]||[]).push(e); });
+  const codes=orderedDeptCodes(by); xlSel=new Set(codes); xlSplit=codes.length>1;
+  const last=DAYS[DAYS.length-1];
+  modalBody.className='modal';
+  const draw=()=>{
+    const nm=d=>(DEPTS[d]?DEPTS[d].name:d), n=[...xlSel].reduce((a,d)=>a+by[d].length,0), sheets=xlSplit&&xlSel.size>1?xlSel.size:1;
+    modalBody.innerHTML='<div class="mtop"><div><h3>Xuất lịch ra Excel</h3><div class="mid">Tháng '+String(last[2]).padStart(2,'0')+'/'+last[3]+' · có màu ca, tổng giờ, chú thích, khổ A4 ngang</div></div><button class="closeb" onclick="closeModal()">✕</button></div>'
+     +'<div class="xl-body"><div class="xl-sec"><div class="xl-lab"><span>Vị trí trực</span><button type="button" class="xl-all" data-xl="all">'+(xlSel.size===codes.length?'Bỏ chọn hết':'Chọn tất cả')+'</button></div><div class="xl-chips">'
+     +codes.map(d=>'<button type="button" class="xl-chip'+(xlSel.has(d)?' on':'')+'" data-xl="dept" data-d="'+d+'"><span class="xl-ck"></span><b>'+nm(d)+'</b><small>'+by[d].length+' người</small></button>').join('')+'</div></div>'
+     +'<div class="xl-sec"><div class="xl-lab"><span>Bố cục file</span></div><div class="xl-opts">'
+     +'<button type="button" class="xl-opt'+(xlSplit?' on':'')+'" data-xl="split" data-v="1"><b>Mỗi vị trí 1 sheet</b><small>Dễ in và gửi riêng từng vị trí</small></button>'
+     +'<button type="button" class="xl-opt'+(!xlSplit?' on':'')+'" data-xl="split" data-v="0"><b>Một bảng chung</b><small>Các vị trí nối tiếp trong 1 sheet</small></button></div></div></div>'
+     +'<div class="xl-foot"><span>'+(xlSel.size?xlSel.size+' vị trí · '+n+' nhân viên · '+sheets+' sheet':'Chưa chọn vị trí nào')+'</span><button type="button" class="btn-action primary" id="xlGo"'+(xlSel.size&&!xlBusy?'':' disabled')+'>'+(xlBusy?'Đang xuất…':'Xuất Excel')+'</button></div>';
+    overlay.classList.add('show');
+    document.getElementById('xlGo').onclick=async()=>{
+      if(xlBusy||!xlSel.size) return; xlBusy=true; draw();
+      try{
+        await xlLoadLib();
+        const depts=[...xlSel], wb=buildPrettyWorkbook(ExcelJS,{depts,split:xlSplit}), buf=await wb.xlsx.writeBuffer();
+        const one=depts.length===1?'-'+nm(depts[0]).replace(/[^\w]+/g,'-').replace(/^-|-$/g,''):'';
+        const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+        a.download='Lich-truc'+one+'-'+String(last[2]).padStart(2,'0')+'-'+last[3]+'.xlsx'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500);
+        xlBusy=false; closeModal(); setBanner('Đã xuất '+(depts.length===codes.length?'tất cả vị trí':depts.length+' vị trí')+' tháng '+String(last[2]).padStart(2,'0')+'/'+last[3]+' ra Excel.','ok');
+      }catch(e){ xlBusy=false; draw(); setBanner(e.message||String(e),'err'); }
+    };
+  };
+  modalBody.onclick=ev=>{
+    const b=ev.target.closest('[data-xl]'); if(!b) return; const a=b.dataset.xl;
+    if(a==='dept'){ const d=b.dataset.d; if(xlSel.has(d)) xlSel.delete(d); else xlSel.add(d); draw(); }
+    else if(a==='all'){ if(xlSel.size===codes.length) xlSel.clear(); else codes.forEach(d=>xlSel.add(d)); draw(); }
+    else if(a==='split'){ xlSplit=b.dataset.v==='1'; draw(); }
+  };
+  draw();
 }
 async function exportPrettyExcel(){
   if(!EMP.length||!DAYS.length){ setBanner('Chưa có lịch để xuất.','warn'); return; }
@@ -4728,7 +4805,7 @@ function openIcsModal(){
   b.textContent='📅 Lịch cá nhân'; b.title='Link lịch riêng cho từng nhân viên'; b.onclick=openIcsModal; bl.parentNode.insertBefore(b,bl);
   const _r=refreshAuthUI; refreshAuthUI=function(){ _r.apply(this,arguments); b.style.display=isAdmin()?'':'none'; };
   b.style.display=isAdmin()?'':'none'; })();
-document.getElementById('btnExport').onclick=exportPrettyExcel;
+document.getElementById('btnExport').onclick=openExportDialog;
 setInterval(offLiveTick,5000);
 if(/^#dangky=/.test(location.hash)) regInit(); else if(/^#nop=/.test(location.hash)) nopInit();
 </script>
